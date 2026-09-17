@@ -827,11 +827,20 @@
         series:[{type:'bar',data:list.map(function(d){return {value:d.total,itemStyle:{color:CORE.has(d.short)?'#38BDF8':'#64748B'}};}),barWidth:'55%'}]
       });
       c.off('click'); c.on('click',function(p){ var d=list[p.dataIndex];
-        var sub=ORDERS.filter(function(o){return o.supplier_short===d.short;});
-        var cols=[{label:'采购订单号',key:'doc_no'},{label:'物料名称',key:'material_name'},{label:'规格',key:'spec'},
-          {label:'剩余',key:'remain',render:function(r){return fmt(r.remain);}},{label:'采购',key:'po_qty',render:function(r){return fmt(r.po_qty);}},
-          {label:'需下单',key:'',render:function(r){return fmt(num(r.remain));}}];
-        openDrawer(d.short+' · 需下单明细', sub, cols, '在途剩余 <b>'+fmt(d.remain)+'</b> ＋ 周计划 <b>'+fmt(d.wk)+'</b> ＝ 合计 <b>'+fmt(d.total)+'</b>');
+        var wkSub=WEEKLY.filter(function(w){return (w.supplier_short||w.supplier_full)===d.short;});
+        if(wkSub.length){
+          var cols=[{label:'SKU',key:'sku'},{label:'物料名称',key:'material_name'},{label:'规格型号',key:'spec'},
+            {label:'周计划数量',key:'plan_qty',render:function(r){return fmt(r.plan_qty);}},{label:'采购负责人',key:'buyer'}];
+          openDrawer(d.short+' · 周计划需下单明细（SKU级）', wkSub, cols,
+            '在途剩余 <b>'+fmt(d.remain)+'</b> ＋ 周计划 <b>'+fmt(d.wk)+'</b> ＝ 合计 <b>'+fmt(d.total)+'</b>（共 '+wkSub.length+' 条 SKU）',
+            '<b>供应商</b> ▸ 周计划 SKU');
+        } else {
+          var sub=ORDERS.filter(function(o){return o.supplier_short===d.short;});
+          var cols=[{label:'采购订单号',key:'doc_no'},{label:'物料名称',key:'material_name'},{label:'规格',key:'spec'},
+            {label:'剩余',key:'remain',render:function(r){return fmt(r.remain);}},{label:'采购',key:'po_qty',render:function(r){return fmt(r.po_qty);}},
+            {label:'需下单',key:'',render:function(r){return fmt(num(r.remain));}}];
+          openDrawer(d.short+' · 在途明细（无周计划）', sub, cols, '在途剩余 <b>'+fmt(d.remain)+'</b>（该供应商无周计划，展示在途订单）');
+        }
       });
     }
     drawBar('wk_a',A); drawBar('wk_b',B);

@@ -22,6 +22,7 @@
   ⑦ 字段映射  供应商简称 = 产能表.供应商简称（按供应商全称 join）
 """
 import os
+import re
 import sys
 import json
 import argparse
@@ -142,9 +143,33 @@ def load_capacity(path):
     return cap
 
 
-def load_weekly(path):
-    """周计划表（可选）：尽力映射 供应商/物料编码/计划数量/上传日期。
-    字段名不确定时做容错，缺失列用 None。返回 list[dict]。"""
+def month_from_source(path, extra=None):
+    """周计划月份推导：优先 extra(上传日期)，否则解析文件名日期(M.D / YYYY-M-D)，+31 天取月；失败回退当前月。"""
+    base = dt.date.today()
+    cand = parse_date(extra) if extra else None
+    if not cand:
+        fn = os.path.basename(path)
+        m = re.search(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", fn)
+        if m:
+            try:
+                cand = dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            except ValueError:
+                cand = None
+        else:
+            m = re.search(r"(\d{1,2})[-/.](\d{1,2})", fn)
+            if m:
+                try:
+                    cand = dt.date(base.year, int(m.group(1)), int(m.group(2)))
+                except ValueError:
+                    cand = None
+    if cand:
+        return f"{(cand + dt.timedelta(days=31)).month}月"
+    return f"{base.month}月"
+
+
+def load_weekly(path, cap_map):
+    """周计划表：sku / 物料名称 / 规格型号 / 数量 / 采购负责人 / 供应商（供应商全称需映射简称）。
+    返回 list[dict]，字段与前端第5页一致： supplier_full/supplier_short/sku/spu/material_name/spec/buyer/plan_qty/month"""
     if not path or not os.path.exists(path):
         return []
     header, rows = load_first_sheet(path)
@@ -156,18 +181,23 @@ def load_weekly(path):
         full = g("供应商") or g("供应商全称") or g("厂商")
         if not full:
             continue
-        mc = g("物料编码") or g("编码")
-        plan = to_num(g("计划数量") or g("数量") or g("计划数"))
-        up = g("上传日期") or g("导入日期") or g("日期")
-        up_date = parse_date(up)
+        full = str(full).strip()
+        cap = cap_map.get(full, {})
+        short = cap.get("short", full) if cap else full
+        sku = str(g("sku") or g("SKU") or g("物料编码") or g("编码") or "").strip()
+        plan = to_num(g("数量") or g("计划数量") or g("计划数"))
+        if plan <= 0:
+            continue
         out.append({
-            "supplier_full": str(full).strip(),
-            "material_code": str(mc).strip() if mc else "",
-            "spu": spu_of(mc),
+            "supplier_full": full,
+            "supplier_short": short,
+            "sku": sku,
+            "spu": spu_of(sku),
+            "material_name": str(g("物料名称") or "").strip(),
+            "spec": str(g("规格型号") or "").strip(),
+            "buyer": str(g("采购负责人") or cap.get("buyer", "") or "").strip(),
             "plan_qty": plan,
-            "upload_date": fmt_date(up),
-            # 周计划恒待下单；月份按 上传日期+31天 推导
-            "month": month_of(up_date + dt.timedelta(days=31)) if up_date else "—",
+            "month": month_from_source(path, g("上传日期") or g("导入日期") or g("日期")),
         })
     return out
 
@@ -187,7 +217,7 @@ def clean():
         sys.exit(f"未找到采购订单 Excel，请放到 {args.src} 目录（文件名含'采购订单'）")
 
     cap_map = load_capacity(cap_path)
-    weekly = load_weekly(weekly_path)
+    weekly = load_weekly(weekly_path, cap_map)
 
     header, rows = load_first_sheet(po_path)
     idx = {h: i for i, h in enumerate(header)}
