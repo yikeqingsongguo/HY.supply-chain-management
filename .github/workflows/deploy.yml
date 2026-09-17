@@ -1,0 +1,52 @@
+name: Deploy Supply-Chain Dashboard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # 允许手动触发（替换源表后推送即自动重算）
+  # 也可改为定时： schedule: [{cron: '0 8 * * *'}]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install --no-cache-dir openpyxl
+
+      - name: Clean Excel -> data.json
+        run: python clean.py
+
+      - name: Build single-file index.html
+        run: python build.py
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .     # 含 index.html / data.json / vendor（按需）
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

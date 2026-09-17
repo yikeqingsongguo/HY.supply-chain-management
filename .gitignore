@@ -1,0 +1,10 @@
+# 依赖与缓存
+node_modules/
+*.pyc
+__pycache__/
+
+# 验证/调试脚本（非交付物，不入库）
+_check.js
+biz_check.js
+_test.js
+headless_test.js
