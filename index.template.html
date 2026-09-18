@@ -984,6 +984,8 @@
     drillSupplier(rows, short, null);
   }
   function statusTag(o){
+    // 「业务关闭」= ERP 已关单的行（已收完，剩余恒为 0）；数据里保留它，采购量/已收量才对得上
+    if(o.biz_closed) return '<span class="tag ok">已关闭</span>';
     if(o.status==='已完成') return '<span class="tag ok">已完成</span>';
     if((o.status||'').indexOf('逾期')>=0) return '<span class="tag od">'+o.status+'</span>';
     return '<span class="tag wait">'+o.status+'</span>';
