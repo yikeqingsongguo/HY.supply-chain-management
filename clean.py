@@ -126,6 +126,42 @@ def find_file(folder, *keywords):
     return None
 
 
+def find_all_matches(folder, *keywords):
+    """返回 folder 中所有匹配关键字的 xlsx（按名称排序）"""
+    if not os.path.isdir(folder):
+        return []
+    hits = []
+    for fn in sorted(os.listdir(folder)):
+        if fn.lower().endswith(".xlsx") and not fn.startswith("~$"):
+            low = fn.lower()
+            if all(k.lower() in low for k in keywords):
+                hits.append(os.path.join(folder, fn))
+    return hits
+
+
+def pick_unique(folder, keyword, label):
+    """要求该关键字在 folder 下只对应一份源表；多份则报错中止。
+
+    历史坑：find_file 只取排序后的第一个匹配项，于是把带日期的新导出文件
+    （如「采购订单_20260918xxx.xlsx」）放进 src/ 时，旧的「采购订单.xlsx」
+    因为字符 '.'(0x2E) < '_'(0x5F) 仍然排在前面 → 静默继续用旧数据，
+    表现为「流水线成功、页面时间戳也变了，但数字没动」的假刷新。
+    这里改为显式报错，宁可失败也不用错数据。
+    """
+    hits = find_all_matches(folder, keyword)
+    if not hits:
+        return None
+    if len(hits) > 1:
+        names = "\n".join("    - " + os.path.basename(h) for h in hits)
+        sys.exit(
+            "[源表冲突] %s：%s 下匹配到多份文件：\n%s\n"
+            "  解决办法：只保留一份。带日期的新导出请【改名覆盖】为原文件名，或删掉旧文件。\n"
+            "  （带日期的新文件直接放进去不会生效，且会让流水线不知道该用哪份——故此处主动中止。）"
+            % (label, folder, names)
+        )
+    return hits[0]
+
+
 def load_first_sheet(path):
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     ws = wb[wb.sheetnames[0]]
@@ -225,11 +261,16 @@ def clean():
     ap.add_argument("--src", default=SRC)
     args = ap.parse_args()
 
-    po_path = args.po or find_file(args.src, "采购订单")
-    cap_path = args.cap or find_file(args.src, "产能")
-    weekly_path = args.weekly or find_file(args.src, "周计划")
+    po_path = args.po or pick_unique(args.src, "采购订单", "采购订单")
+    cap_path = args.cap or pick_unique(args.src, "产能", "产能匹配表")
+    weekly_path = args.weekly or pick_unique(args.src, "周计划", "周计划")
     if not po_path:
         sys.exit(f"未找到采购订单 Excel，请放到 {args.src} 目录（文件名含'采购订单'）")
+    print("源表: 采购订单=%s | 产能=%s | 周计划=%s" % (
+        os.path.basename(po_path),
+        os.path.basename(cap_path) if cap_path else "（无）",
+        os.path.basename(weekly_path) if weekly_path else "（无）",
+    ))
 
     cap_map = load_capacity(cap_path)
     weekly = load_weekly(weekly_path, cap_map)
