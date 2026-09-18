@@ -335,7 +335,9 @@
   /* 图表/表格一律两两一行（宽屏也不再多列并排），≤900px 收成 1 列 */
   .grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   @media(max-width:1100px){ .grid{grid-template-columns:1fr;} }
-  .panel,#ov_month_table,#sup_line_table,#cap_detail_table,#od_table,#ov_daily{overflow-x:auto;}
+  .panel,#ov_month_table,#sup_line_table,#cap_detail_table,#od_table,#ov_daily,#wk_sup_table,#sup_timing_table{overflow-x:auto;}
+  /* 负荷率详情（联动）表格高度与「产能负荷率分布」图（300px）一致，超出内部滚动 */
+  #cap_detail_table{max-height:300px;overflow:auto;}
   .page-title > span:last-child{word-break:break-word;}
   @media(max-width:900px){
     .page-title .pico{width:44px;height:44px;border-radius:15px;}
@@ -428,7 +430,8 @@
         <span class="on" data-dim="remain">在途剩余</span>
         <span data-dim="received">已收料</span>
         <span data-dim="po_qty">采购总量</span>
-        <span data-dim="planmonth">当月/下月</span>
+        <span data-dim="thismonth">当月</span>
+        <span data-dim="nextmonth">下月</span>
       </div>
       <div class="chart" id="ov_ring" style="height:360px"></div>
     </div>
@@ -500,6 +503,8 @@
       <span class="on" data-m="this">本月</span>
       <span data-m="next">下月</span>
     </div>
+    <span class="lab" style="margin-left:8px">供应商范围：</span>
+    <div id="cap_scope_box"></div>
   </div>
   <div class="grid">
     <div class="panel">
@@ -706,7 +711,7 @@
     filters:{supplier:new Set(), month:new Set(), pline:new Set(), timing:new Set(), material:new Set(), spu:new Set(), keyword:''},
     docType:'all', ringDim:'remain', bubDim:'timing', wkThr:5000,
     ovScope:'core', crossHeatSeg:'top20',
-    monthScope:'all', weekScope:'all', odScope:'all', capMonth:'this', dailyMonth:'this', wkMonth:'this', odSort:'qty' };
+    monthScope:'all', weekScope:'all', odScope:'all', capMonth:'this', capScope:'all', dailyMonth:'this', wkMonth:'this', odSort:'qty' };
 
   function applyFilters(rows){
     var f=state.filters;
@@ -917,13 +922,12 @@
     {label:'进度',key:'rate',render:function(r){return pct(r.rate);}},
     {label:'状态',key:'status',render:function(r){return statusTag(r);}}
   ];
-  // SKU 明细列：一行 = 一条订单行（采购订单行号 / SPU / 数量）
+  // SKU 明细列：一行 = 一条订单行（物料 / 规格型号 / SKU / 数量）
   function skuCols(){
     return [
-      {label:'采购订单行号',key:'',render:function(r,i){return '<b>'+(i+1)+'</b>';}},
       {label:'物料名称',key:'material_name'},
       {label:'规格型号',key:'spec'},
-      {label:'SPU',key:'spu'},
+      {label:'SKU',key:'material_code'},
       {label:'采购数量',key:'po_qty',render:function(r){return fmt(r.po_qty);}},
       {label:'已收',key:'received',render:function(r){return fmt(r.received);}},
       {label:'剩余',key:'remain',render:function(r){return fmt(r.remain);}},
@@ -1025,11 +1029,22 @@
     if(!data.length){ el.innerHTML=seg+'<div class="empty">无月度订单数据</div>'; bindScopeSeg('ov_month_seg','monthScope',function(){renderOverview();}); return; }
     var html='<table class="t"><thead><tr><th>供应商</th><th>本月('+thisM+')</th><th>下月('+nextM+')</th><th>合计</th></tr></thead><tbody>';
     data.forEach(function(d){
-      html+='<tr data-s="'+d.s+'"><td><span class="tag '+(CORE.has(d.s)?'core':'norm')+'">'+d.s+'</span></td><td>'+fmt(d.cur)+'</td><td>'+fmt(d.nxt)+'</td><td>'+fmt(d.tot)+'</td></tr>';
+      html+='<tr><td class="link" data-s="'+d.s+'" data-m="">'+'<span class="tag '+(CORE.has(d.s)?'core':'norm')+'">'+d.s+'</span></td>'
+        +'<td class="link" data-s="'+d.s+'" data-m="'+thisM+'">'+fmt(d.cur)+'</td>'
+        +'<td class="link" data-s="'+d.s+'" data-m="'+nextM+'">'+fmt(d.nxt)+'</td>'
+        +'<td class="link" data-s="'+d.s+'" data-m=""><b>'+fmt(d.tot)+'</b></td></tr>';
     });
-    html+='</tbody></table>';
+    html+='</tbody><tfoot><tr><td>合计</td><td>'+fmt(sumBy(data,'cur'))+'</td><td>'+fmt(sumBy(data,'nxt'))+'</td><td>'+fmt(sumBy(data,'tot'))+'</td></tr></tfoot></table>';
     el.innerHTML=seg+html;
-    el.querySelectorAll('tr[data-s]').forEach(function(tr){ tr.onclick=function(){ openSupplier(rows, tr.getAttribute('data-s')); }; });
+    // 点击具体月份数字 → 只看该供应商该月数据；点供应商名/合计 → 全部月份
+    el.querySelectorAll('td[data-s]').forEach(function(td){
+      td.onclick=function(){
+        var s=td.getAttribute('data-s'), m=td.getAttribute('data-m');
+        var sub=rows.filter(function(o){return o.supplier_short===s && (!m || o.month===m);});
+        openOrderSummary(sub, '供应商 '+s+(m?(' · '+m):' · 全部月份')+' · 订单汇总',
+          '<b>供应商</b> › <b>'+s+'</b>'+(m?(' › <b style="color:var(--text)">'+m+'</b>'):''));
+      };
+    });
     bindScopeSeg('ov_month_seg','monthScope',function(){renderOverview();});
   }
 
@@ -1071,7 +1086,11 @@
     var dim=state.ringDim;
     var ringData = top.map(function(d){
       var s2=scopeRows.filter(function(o){return o.supplier_short===d.s;});
-      var v = dim==='received'?sumBy(s2,'received') : dim==='po_qty'?sumBy(s2,'po_qty') : dim==='planmonth'? sumBy(s2.filter(function(o){return o.month===TODAY_M||o.month===nextMonthName();}),'remain') : sumBy(s2,'remain');
+      var v = dim==='received'?sumBy(s2,'received')
+        : dim==='po_qty'?sumBy(s2,'po_qty')
+        : dim==='thismonth'?sumBy(s2.filter(function(o){return o.month===TODAY_M;}),'remain')
+        : dim==='nextmonth'?sumBy(s2.filter(function(o){return o.month===nextMonthName();}),'remain')
+        : sumBy(s2,'remain');
       return {name:d.s, value:v};
     }).sort(function(a,b){return b.value-a.value;}).slice(0,8);
     var c2=getChart('ov_ring');
@@ -1099,8 +1118,8 @@
     segBox.querySelectorAll('span').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-m')===(state.dailyMonth||'this')); });
     var sub=rows.filter(function(o){ return o.month===m && o.delivery && o.delivery!=='—'; });
     var byDay={};
-    sub.forEach(function(o){ var d=o.delivery; if(!byDay[d]) byDay[d]={day:d, po:0, rows:[]};
-      byDay[d].po+=num(o.po_qty); byDay[d].rows.push(o); });
+    sub.forEach(function(o){ var d=o.delivery; if(!byDay[d]) byDay[d]={day:d, po:0, rem:0, rows:[]};
+      byDay[d].po+=num(o.po_qty); byDay[d].rem+=num(o.remain); byDay[d].rows.push(o); });
     var days=Object.keys(byDay).sort(dateCmp);
     var c=getChart('ov_daily');
     if(!days.length){
@@ -1110,7 +1129,8 @@
     var dayArr=days.map(function(d){return byDay[d];});
     c.setOption({
       tooltip:Object.assign({trigger:'axis',axisPointer:{type:'line'},
-        formatter:function(ps){var d=dayArr[ps[0].dataIndex];return d.day+'<br/>需交数量 '+fmt(d.po)+'<br/>订单 '+d.rows.length+' 单';}},TT),
+        formatter:function(ps){var d=dayArr[ps[0].dataIndex];
+          return d.day+'<br/>需交数量 '+fmt(d.po)+'<br/>剩余数量 '+fmt(d.rem)+'<br/>订单 '+d.rows.length+' 单';}},TT),
       grid:{left:64,right:24,top:20,bottom:58},
       xAxis:Object.assign({},AX,{type:'category',boundaryGap:false,data:days,
         axisLabel:Object.assign({},AX.axisLabel,{interval:Math.max(0,Math.ceil(days.length/12)-1),rotate:35,fontSize:10})}),
@@ -1262,7 +1282,12 @@
   }
   function renderCapacity(){
     var load=supplierLoad();
-    var arr=Object.keys(load).map(function(s){return load[s];}).filter(function(x){return x.cap>0;});
+    var loadAll=Object.keys(load).map(function(s){return load[s];}).filter(function(x){return x.cap>0;});
+    // 核心/普通 范围筛选（作用：负荷分布 / 详情 / 状态 / 占比排序；核心vs普通环形图始终对比全量）
+    var capScope=state.capScope||'all';
+    var capScopeBox=document.getElementById('cap_scope_box');
+    if(capScopeBox) capScopeBox.innerHTML=scopeSeg('cap_scope_seg', capScope);
+    var arr=scopeFilter(loadAll, capScope);
     // 负荷率分布区间
     var bins=[{l:'0-50%',min:0,max:50},{l:'50-80%',min:50,max:80},{l:'80-100%',min:80,max:100},
       {l:'100-120%',min:100,max:120},{l:'>120%',min:120,max:1e9}];
@@ -1282,7 +1307,6 @@
     // 默认展示全量（随月份切换刷新）
     document.getElementById('cap_detail_table').innerHTML=capItemsHtml(arr);
     document.getElementById('cap_detail_sub').textContent='全部区间 · 共 '+arr.length+' 家（在途='+capMonthLabel()+'剩余收料，负荷率=在途÷月产能）；点击左侧区间可联动';
-
     // 状态分布 超额/饱和/空闲（供应商数）
     var over=arr.filter(function(x){return x.rate>100;}).length;
     var bal=arr.filter(function(x){return x.rate>=80&&x.rate<=100;}).length;
@@ -1296,8 +1320,8 @@
       series:[{type:'bar',data:[{value:over,itemStyle:barFill('#FCA5A5','#EF4444',false)},{value:bal,itemStyle:barFill('#FCD34D','#F59E0B',false)},{value:free,itemStyle:barFill('#6EE7B7','#10B981',false)}],barWidth:'58%'}]
     });
     // 核心/普通 产能占比（点击扇区下钻）
-    var coreArr=arr.filter(function(x){return CORE.has(x.short);});
-    var normArr=arr.filter(function(x){return !CORE.has(x.short);});
+    var coreArr=loadAll.filter(function(x){return CORE.has(x.short);});
+    var normArr=loadAll.filter(function(x){return !CORE.has(x.short);});
     var coreCap=0, normCap=0; CAP.forEach(function(c){ if(CORE.has(c.short)) coreCap+=num(c.month_cap); else normCap+=num(c.month_cap); });
     var c4=getChart('cap_core');
     c4.setOption({
@@ -1338,6 +1362,7 @@
       var sub=ORDERS.filter(function(o){return o.supplier_short===d.short && o.month===m;});
       openOrderSummary(sub, d.short+' · 产能负荷明细（'+m+'）',
         '<b>产能负荷</b> › <b style="color:var(--text)">'+d.short+'</b>'); });
+    bindScopeSeg('cap_scope_seg','capScope',function(){renderCapacity();});
   }
 
   // ================= 页4 交叉分析 =================
