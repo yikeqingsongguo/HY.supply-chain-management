@@ -187,7 +187,7 @@
   .kpi-warn .val{color:var(--accent-2);}
 
   /* ---------- panels ---------- */
-  .grid{display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));}
+  .grid{display:grid;gap:22px;grid-template-columns:repeat(2,minmax(0,1fr));}
   .panel{background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
     border-radius:var(--r-xl);padding:24px 26px;margin-bottom:22px;box-shadow:var(--clay-deep);
     transition:all .4s ease-out;}
@@ -226,7 +226,7 @@
   /* ---------- drawer ---------- */
   .drawer-mask{position:fixed;inset:0;background:rgba(51,47,58,0.28);z-index:90;display:none;}
   .drawer-mask.show{display:block;}
-  .drawer{position:fixed;top:0;right:0;height:100%;width:840px;max-width:94vw;
+  .drawer{position:fixed;top:0;right:0;height:100%;width:1260px;max-width:94vw;
     background:rgba(255,255,255,0.90);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
     border-radius:var(--r-xl) 0 0 var(--r-xl);z-index:95;transform:translateX(100%);
     transition:transform .35s cubic-bezier(.22,.61,.36,1);display:flex;flex-direction:column;
@@ -332,7 +332,9 @@
 
   /* 响应式：任何宽度都不溢出 */
   @media(max-width:1280px){ .cards{grid-template-columns:repeat(3,minmax(0,1fr));} }
-  .grid{grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));}
+  /* 图表/表格一律两两一行（宽屏也不再多列并排），≤900px 收成 1 列 */
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  @media(max-width:1100px){ .grid{grid-template-columns:1fr;} }
   .panel,#ov_month_table,#sup_line_table,#cap_detail_table,#od_table,#ov_daily{overflow-x:auto;}
   .page-title > span:last-child{word-break:break-word;}
   @media(max-width:900px){
@@ -455,10 +457,15 @@
       <div class="chart" id="sup_bub" style="height:340px"></div>
     </div>
   </div>
-  <div class="panel">
+  <div class="panel" style="grid-column:1/-1">
     <h3>各产线收料与负荷汇总</h3>
     <div class="ph-sub">表头：产线标签 / SPU总数 / 详情 / 采购订单数量 / 已收 / 剩余 / 计划 / 进度 / 供应商数（点击“详情”下钻该产线）</div>
     <div id="sup_line_table"></div>
+  </div>
+  <div class="panel" style="grid-column:1/-1">
+    <h3>时效标签收料与负荷汇总</h3>
+    <div class="ph-sub">表头同上，按「时效标签」维度汇总（新品 / 新变体 / 自备货 / 转厂首产 / 爆款新品 …）；点击“详情”下钻订单 → SKU 明细</div>
+    <div id="sup_timing_table"></div>
   </div>
 </section>
 
@@ -484,17 +491,17 @@
       <div class="ph-sub" id="cap_detail_sub">点击左侧区间查看对应供应商</div>
       <div id="cap_detail_table"></div>
     </div>
-    <div class="panel">
+    <div class="panel" style="grid-column:1/-1">
       <h3>供应商产能负荷状态分布（超额/饱和/空闲）</h3>
       <div class="ph-sub">按负荷率分三态：&gt;100% 超额、80–100% 饱和、&lt;80% 空闲</div>
       <div class="chart" id="cap_state" style="height:280px"></div>
     </div>
     <div class="panel">
       <h3>核心 vs 普通 供应商产能占比</h3>
-      <div class="ph-sub">月产能合计占比</div>
-      <div class="chart" id="cap_core" style="height:280px"></div>
+      <div class="ph-sub">月产能合计占比；点击扇区下钻明细</div>
+      <div class="chart" id="cap_core" style="height:300px"></div>
     </div>
-    <div class="panel" style="grid-column:1/-1">
+    <div class="panel">
       <h3>供应商产能占比排序</h3>
       <div class="ph-sub">按供应商月产能占有效产能合计的占比排序，点击柱体查看该供应商负荷详情</div>
       <div class="chart" id="cap_trend" style="height:300px"></div>
@@ -526,6 +533,11 @@
       <h3>图 B：合计 &lt; 分界值</h3>
       <div class="ph-sub">独立比例尺；堆叠 = 在途剩余收料 + 周计划数量；点击柱体下钻 SPU → SKU</div>
       <div class="chart" id="wk_b" style="height:420px"></div>
+    </div>
+    <div class="panel" style="grid-column:1/-1">
+      <h3>各供应商本周计划数量汇总</h3>
+      <div class="ph-sub">汇总各供应商周计划数量（受月份 + 核心/普通筛选联动，按周计划数量降序）；点击行 → SPU → SKU 明细</div>
+      <div id="wk_sup_table"></div>
     </div>
   </div>
   <div id="wk_note"></div>
@@ -649,9 +661,15 @@
       return '<span class="'+(cur===it[0]?'on':'')+'" data-scope="'+it[0]+'">'+it[1]+'</span>';
     }).join('')+'</div>';
   }
+  // 注意：不同来源的行对象字段名不同（订单行 supplier_short / 交期汇总 s / 周计划 short）→ 统一取键，
+  // 否则「核心/普通」筛选会把核心供应商误判成普通（曾出 bug）
+  function rowSup(o){
+    if(!o) return '';
+    return o.supplier_short || o.short || o.s || (o.rows&&o.rows[0]&&o.rows[0].supplier_short) || '';
+  }
   function scopeFilter(rows, scope){
-    if(scope==='core') return rows.filter(function(o){return CORE.has(o.supplier_short);});
-    if(scope==='normal') return rows.filter(function(o){return !CORE.has(o.supplier_short);});
+    if(scope==='core') return rows.filter(function(o){return CORE.has(rowSup(o));});
+    if(scope==='normal') return rows.filter(function(o){return !CORE.has(rowSup(o));});
     return rows;
   }
   function bindScopeSeg(id, key, render){
@@ -851,8 +869,9 @@
       var r=map[k];
       r.rate = r.po_qty ? r.received/r.po_qty*100 : 0;
       if(!r.status) r.status = r.remain>0 ? '在途' : '已完成';
+      r.spuCnt = uniq(r.items.map(function(o){return o.spu;})).length;   // 该订单包含多少个 SPU
       r._drill=function(){ openDrawer(r.doc_no+' · SKU 明细', r.items, skuCols(),
-        '订单行 <b>'+r.lines+'</b> ｜ 采购 <b>'+fmt(r.po_qty)+'</b> ｜ 已收 <b>'+fmt(r.received)+'</b> ｜ 剩余 <b>'+fmt(r.remain)+'</b>',
+        '订单行 <b>'+r.lines+'</b> ｜ SPU <b>'+r.spuCnt+'</b> 个 ｜ 采购 <b>'+fmt(r.po_qty)+'</b> ｜ 已收 <b>'+fmt(r.received)+'</b> ｜ 剩余 <b>'+fmt(r.remain)+'</b>',
         '<b>订单</b> › <b style="color:var(--text)">'+r.doc_no+'</b>'); };
       return r;
     }).sort(function(a,b){ return dateCmp(a.delivery,b.delivery) || b.po_qty-a.po_qty; });
@@ -868,7 +887,8 @@
     {label:'采购订单号',key:'doc_no'},
     {label:'供应商',key:'supplier_short',render:function(r){return '<span class="tag '+(CORE.has(r.supplier_short)?'core':'norm')+'">'+r.supplier_short+'</span>';}},
     {label:'物料名称',key:'material_name'},
-    {label:'订单行数',key:'lines'},
+    {label:'订单行数',key:'lines',render:function(r){return r.lines+' 行';}},
+    {label:'SPU 数',key:'spuCnt',render:function(r){return '<span class="tag core">'+r.spuCnt+' 个</span>';}},
     {label:'采购数量',key:'po_qty',render:function(r){return fmt(r.po_qty);}},
     {label:'已收',key:'received',render:function(r){return fmt(r.received);}},
     {label:'剩余',key:'remain',render:function(r){return fmt(r.remain);}},
@@ -928,34 +948,11 @@
   ];
 
   // 钻取工具：供应商 → SPU → SKU
+  // 供应商 → 订单汇总（按采购订单号分行，含「SPU 数」）→ SKU 明细
   function drillSupplier(rows, short, fromCrumbs){
     var sub = rows.filter(function(o){return o.supplier_short===short;});
-    var spus = uniq(sub.map(function(o){return o.spu;})).sort();
-    var data = spus.map(function(sp){
-      var s=sub.filter(function(o){return o.spu===sp;});
-      var po=sumBy(s,'po_qty'), rec=sumBy(s,'received'), rem=sumBy(s,'remain');
-      var docNos=uniq(s.map(function(o){return o.doc_no;}));
-      var ds=s.slice().sort(function(a,b){return dateCmp(a.delivery,b.delivery);});
-      var dmin=ds.length?ds[0].delivery:'', dmax=ds.length?ds[ds.length-1].delivery:'';
-      return { spu:sp,
-        doc_txt: docNos.length<=2 ? docNos.join(' / ') : (docNos.slice(0,2).join(' / ')+' 等 '+docNos.length+' 张'),
-        delivery_txt: (dmin===dmax ? dmin : (dmin+' ~ '+dmax)),
-        po_qty:po, received:rec, remain:rem, rows:s, rate: po? rec/po*100:0,
-        _drill:function(){ openOrderSummary(s, 'SPU '+sp+' · 订单汇总',
-          '<b>供应商</b> › <b>'+short+'</b> › <b style="color:var(--text)">SPU '+sp+'</b>'); } };
-    });
-    var cr='<b>供应商</b> › <b style="color:var(--text)">'+short+'</b>';
-    var cols=[
-      {label:'SPU',key:'spu'},
-      {label:'采购订单号',key:'doc_txt'},
-      {label:'交货日期',key:'delivery_txt'},
-      {label:'采购数量',key:'po_qty',render:function(r){return fmt(r.po_qty);}},
-      {label:'已收',key:'received',render:function(r){return fmt(r.received);}},
-      {label:'剩余',key:'remain',render:function(r){return fmt(r.remain);}},
-      {label:'完成进度',key:'rate',render:function(r){return '<span class="bar-mini"><i style="width:'+Math.min(100,r.rate)+'%"></i></span> '+pct(r.rate);}}
-    ];
-    var foot='本层 SPU 数 <b>'+(data.length)+'</b> ｜ 采购 <b>'+fmt(sumBy(data,'po_qty'))+'</b> ｜ 已收 <b>'+fmt(sumBy(data,'received'))+'</b> ｜ 剩余 <b>'+fmt(sumBy(data,'remain'))+'</b>';
-    openDrawer('供应商 '+short+' · SPU 下钻', data, cols, foot, cr);
+    openOrderSummary(sub, '供应商 '+short+' · 订单汇总',
+      '<b>供应商</b> › <b style="color:var(--text)">'+short+'</b>');
   }
   // 直接打开某供应商第一层 SPU
   function openSupplier(rows, short){
@@ -1191,6 +1188,28 @@
         openDrawer('产线 '+pl+' · 供应商', data, cols, '供应商数 <b>'+data.length+'</b>');
       };
     });
+    // 时效标签收料与负荷汇总表（与产线汇总同构，点击「详情」→ 订单汇总 → SKU 明细）
+    var timData=uniq(rows.map(function(o){return o.timing||'未标注';})).map(function(t){
+      var s=rows.filter(function(o){return (o.timing||'未标注')===t;});
+      var pp=sumBy(s,'po_qty'), rr=sumBy(s,'received');
+      return {tim:t, spus:uniq(s.map(function(o){return o.spu;})).length,
+        sups:uniq(s.map(function(o){return o.supplier_short;})).length,
+        po:pp, rec:rr, rem:sumBy(s,'remain'), plan:pp, rate:pp?rr/pp*100:0, rows:s};
+    }).sort(function(a,b){return b.po-a.po;});
+    var h2='<table class="t"><thead><tr><th>时效标签</th><th>SPU总数</th><th>详情</th><th>采购订单数量</th><th>已收</th><th>剩余</th><th>计划</th><th>进度</th><th>供应商数</th></tr></thead><tbody>';
+    timData.forEach(function(r){ h2+='<tr><td>'+r.tim+'</td><td>'+r.spus+'</td><td class="link" data-tm="'+r.tim+'">查看</td><td>'+fmt(r.po)+'</td><td>'+fmt(r.rec)+'</td><td>'+fmt(r.rem)+'</td><td>'+fmt(r.plan)+'</td><td><span class="bar-mini"><i style="width:'+Math.min(100,r.rate)+'%"></i></span> '+pct(r.rate)+'</td><td>'+r.sups+'</td></tr>'; });
+    var t2po=sumBy(timData,'po'),t2rec=sumBy(timData,'rec'),t2rem=sumBy(timData,'rem');
+    h2+='</tbody><tfoot><tr><td>合计</td><td>'+uniq(rows.map(function(o){return o.spu;})).length+'</td><td></td><td>'+fmt(t2po)+'</td><td>'+fmt(t2rec)+'</td><td>'+fmt(t2rem)+'</td><td>'+fmt(t2po)+'</td><td>'+pct(t2po?t2rec/t2po*100:0)+'</td><td>'+uniq(rows.map(function(o){return o.supplier_short;})).length+'</td></tr></tfoot></table>';
+    var tel=document.getElementById('sup_timing_table');
+    if(tel){
+      tel.innerHTML=h2;
+      tel.querySelectorAll('[data-tm]').forEach(function(el){
+        el.onclick=function(){ var t=el.getAttribute('data-tm');
+          var s=rows.filter(function(o){return (o.timing||'未标注')===t;});
+          openOrderSummary(s, '时效标签 '+t+' · 订单汇总',
+            '<b>时效标签</b> › <b style="color:var(--text)">'+t+'</b>'); };
+      });
+    }
   }
 
   // ================= 页3 产能负荷 =================
@@ -1392,6 +1411,33 @@
       '<b>供应商</b> › <b style="color:var(--text)">'+short+'</b>',
       [['预计下单数量', planTotal], ['SPU 数', list.length], ['SKU 数', wkSub.length]]);
   }
+  // 各供应商本周计划数量汇总表：点击行 → SPU 层 → SKU 层
+  function renderWeeklySupTable(arr, wm){
+    var el=document.getElementById('wk_sup_table'); if(!el) return;
+    var list=arr.slice().filter(function(x){return num(x.wk)>0;}).sort(function(a,b){return b.wk-a.wk;});
+    if(!list.length){ el.innerHTML='<div class="empty">当前筛选下无周计划数据</div>'; return; }
+    var rowsOut=list.map(function(x){
+      var wkSub=WEEKLY.filter(function(w){return (w.supplier_short||w.supplier_full)===x.short;});
+      return {short:x.short, wk:x.wk, remain:x.remain, total:x.wk+x.remain,
+        spuCnt:uniq(wkSub.map(function(w){return w.spu;})).length, skuCnt:wkSub.length, wkSub:wkSub};
+    });
+    var h='<table class="t"><thead><tr><th>供应商</th><th>SPU 数</th><th>SKU 数</th><th>周计划数量</th><th>在途剩余('+wm+')</th><th>合计</th><th>详情</th></tr></thead><tbody>';
+    rowsOut.forEach(function(r){
+      h+='<tr data-s="'+r.short+'"><td><span class="tag '+(CORE.has(r.short)?'core':'norm')+'">'+r.short+'</span></td>'
+        +'<td><span class="tag core">'+r.spuCnt+' 个</span></td><td>'+r.skuCnt+' 条</td>'
+        +'<td>'+fmt(r.wk)+'</td><td>'+fmt(r.remain)+'</td><td><b>'+fmt(r.total)+'</b></td>'
+        +'<td class="link">查看</td></tr>';
+    });
+    var tWk=rowsOut.reduce(function(s,x){return s+x.wk;},0);
+    var tRem=rowsOut.reduce(function(s,x){return s+x.remain;},0);
+    h+='</tbody><tfoot><tr><td>合计 '+rowsOut.length+' 家</td><td></td><td>'+rowsOut.reduce(function(s,x){return s+x.skuCnt;},0)+' 条</td>'
+      +'<td>'+fmt(tWk)+'</td><td>'+fmt(tRem)+'</td><td>'+fmt(tWk+tRem)+'</td><td></td></tr></tfoot></table>';
+    el.innerHTML=h;
+    el.querySelectorAll('tr[data-s]').forEach(function(tr){
+      tr.onclick=function(){ var r=rowsOut.filter(function(x){return x.short===tr.getAttribute('data-s');})[0];
+        if(r) openWeeklySpu(r.short, r.wkSub, r); };
+    });
+  }
   function wkMonthLabel(){ return state.wkMonth==='next' ? nextMonthName() : TODAY_M; }
   function renderWeekly(){
     var thr=state.wkThr;
@@ -1454,6 +1500,8 @@
     var thrTxt=fmt(thr);
     drawBar('wk_a',A,'图 A · 合计 ≥ '+thrTxt+'（'+A.length+' 家）· 单位：件');
     drawBar('wk_b',B,'图 B · 合计 < '+thrTxt+'（'+B.length+' 家）· 单位：件');
+    // 各供应商本周计划数量汇总表（点击行 → SPU → SKU）
+    renderWeeklySupTable(arr, wm);
     var segBox=document.getElementById('wk_seg_box'); if(segBox) segBox.innerHTML=seg;
     var note=document.getElementById('wk_note');
     if(!WEEKLY.length){
