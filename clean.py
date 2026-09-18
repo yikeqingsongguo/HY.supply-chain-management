@@ -40,6 +40,21 @@ SRC = os.path.join(HERE, "src")
 # 核心供应商简称（需求固定清单）
 CORE_SUPPLIERS = ["忆恩", "佳俊", "同光", "拿可", "宝莎", "贝瑞卡", "浩川", "骏航", "思哲"]
 
+# 手动简称覆盖：以下供应商不在产能表中，join 拿不到简称（否则短名会落成全称）
+SHORT_OVERRIDE = {
+    "广州市顺进皮具有限公司": "顺进",
+    "广州顺进皮具有限公司": "顺进",
+    "广州市苏弗儿皮具有限公司": "苏弗儿",
+    "广州苏弗儿皮具有限公司": "苏弗儿",
+    "广州明冠实业有限公司": "明冠",
+    "广州市明冠实业有限公司": "明冠",
+}
+
+
+def short_of(full, cap):
+    """简称优先级：手动覆盖 > 产能表 > 全称"""
+    return SHORT_OVERRIDE.get(full) or (cap.get("short", full) if cap else full)
+
 
 def spu_of(material_code):
     """③ SPU 取码：物料编码仅留数字、取前 4 位"""
@@ -183,7 +198,7 @@ def load_weekly(path, cap_map):
             continue
         full = str(full).strip()
         cap = cap_map.get(full, {})
-        short = cap.get("short", full) if cap else full
+        short = short_of(full, cap)
         sku = str(g("sku") or g("SKU") or g("物料编码") or g("编码") or "").strip()
         plan = to_num(g("数量") or g("计划数量") or g("计划数"))
         if plan <= 0:
@@ -245,7 +260,7 @@ def clean():
 
         full = str(g(r, "供应商") or "").strip()
         cap = cap_map.get(full, {})
-        short = cap.get("short", full) if cap else full
+        short = short_of(full, cap)
         buyer = cap.get("buyer", "") if cap else ""
         month_cap = cap.get("month_cap", 0) if cap else 0
 
