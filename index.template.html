@@ -353,12 +353,33 @@
     .filterbar{margin:12px 10px 4px;padding:12px;}
     header.topbar{margin:10px 10px 0;}
   }
+  /* ===== 移动端汉堡导航（设计系统要求：md 断点以下折叠 tab） ===== */
+  .navtoggle{display:none;align-items:center;justify-content:center;width:46px;height:46px;padding:0;border:0;
+    cursor:pointer;border-radius:var(--r-b);background:#fff;box-shadow:var(--clay-btn);
+    transition:all .2s ease-out;flex:0 0 auto;}
+  .navtoggle:hover{transform:translateY(-1px);box-shadow:var(--clay-btn-hover);}
+  .navtoggle:active{transform:scale(.92);box-shadow:var(--clay-pressed);}
+  .navtoggle svg{width:24px;height:24px;}
+  .navtoggle .ic-close{display:none;}
+  .navtoggle.on .ic-menu{display:none;}
+  .navtoggle.on .ic-close{display:block;}
+  @media(max-width:900px){
+    .navtoggle{display:inline-flex;}
+    nav.tabs{display:none;width:100%;flex-direction:column;gap:8px;margin-top:10px;}
+    nav.tabs.open{display:flex;animation:fadeUp .3s ease-out both;}
+    nav.tabs .tab{width:100%;justify-content:flex-start;background:rgba(255,255,255,0.72);}
+    nav.tabs .tab.active{background:var(--grad);}
+  }
 </style>
 </head>
 <body>
 <div class="clay-bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span></div>
 <header class="topbar">
   <div class="brand">供应链在途数据<small>SUPPLY CHAIN BI</small></div>
+  <button class="navtoggle" id="navToggle" aria-label="导航菜单" aria-expanded="false" aria-controls="tabs">
+    <svg class="ic-menu" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="#7C3AED" stroke-width="2.4" stroke-linecap="round"/></svg>
+    <svg class="ic-close" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="#7C3AED" stroke-width="2.4" stroke-linecap="round"/></svg>
+  </button>
   <nav class="tabs" id="tabs">
     <div class="tab active" data-page="overview">在途概览</div>
     <div class="tab" data-page="supplier">供应商分析</div>
@@ -1593,14 +1614,29 @@
     state.page=p;
     document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-page')===p); });
     document.querySelectorAll('.page').forEach(function(s){ s.classList.toggle('active', s.id==='page_'+p); });
+    closeNav();
     toggleFilterVisibility(p);
     renderCurrent();
+  }
+  // 移动端汉堡菜单：收起/展开导航
+  function closeNav(){
+    var n=document.getElementById('tabs'), b=document.getElementById('navToggle');
+    if(n) n.classList.remove('open');
+    if(b){ b.classList.remove('on'); b.setAttribute('aria-expanded','false'); }
+  }
+  function toggleNav(){
+    var n=document.getElementById('tabs'), b=document.getElementById('navToggle');
+    if(!n||!b) return;
+    var on=n.classList.toggle('open');
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-expanded', on?'true':'false');
   }
 
   // ---------- 事件绑定 ----------
   document.getElementById('tabs').addEventListener('click',function(e){
     var t=e.target.closest('.tab'); if(t) switchPage(t.getAttribute('data-page'));
   });
+  document.getElementById('navToggle').addEventListener('click',toggleNav);
   document.getElementById('f_search').addEventListener('input',function(e){ state.filters.keyword=e.target.value.trim(); renderCurrent(); });
   document.getElementById('f_reset').onclick=function(){
     ['supplier','month','pline','timing','material','spu'].forEach(function(k){ state.filters[k].clear(); });
