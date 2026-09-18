@@ -118,6 +118,12 @@ def to_num(v):
         return 0
 
 
+def ifx(v):
+    """整数就写成整数（JSON 少 2 字节/个），否则保留 2 位小数。用于压缩 data.json。"""
+    v = to_num(v)
+    return int(v) if abs(v - round(v)) < 1e-9 else round(v, 2)
+
+
 def find_file(folder, *keywords):
     """在 folder 中按关键字模糊匹配第一个 xlsx（忽略大小写）"""
     if not os.path.isdir(folder):
@@ -351,9 +357,9 @@ def clean():
             "spu": spu_of(mc),
             "material_name": str(g(r, "物料名称") or "").strip(),
             "spec": str(g(r, "规格型号") or "").strip(),
-            "po_qty": po_qty,
-            "received": received,
-            "remain": remain,
+            "po_qty": ifx(po_qty),
+            "received": ifx(received),
+            "remain": ifx(remain),
             "delivery": deliv_str,
             "month": month_of(deliv),
             "pline": str(g(r, "产线标签") or "").strip() if g(r, "产线标签") else "",
@@ -366,7 +372,8 @@ def clean():
             "overdue_days": overdue_days if (remain > 0 and deliv and deliv < today) else 0,
             "remain_days": remain_days if (remain > 0 and deliv and deliv >= today) else 0,
             "is_core": short in CORE_SUPPLIERS,
-            "month_cap": month_cap,
+            "month_cap": ifx(month_cap),
+            "creator": str(g(r, "创建人") or "").strip(),
         })
 
     # ---------- 自检：汇总结果必须等于源表「合计」行 ----------
@@ -401,7 +408,12 @@ def clean():
         "self_check_ok": all(c[3] is not False for c in checks) if any(c[2] is not None for c in checks) else None,
     }
 
-    out = {"meta": meta, "orders": orders, "capacity": list(cap_map.values()), "weekly": weekly}
+    # 列式编码：orders 是 4k+ 行 × 25 字段，若写成对象数组，光重复的键名就约 1.2MB。
+    # 改为「列名数组 + 行数组」后可省约 58% 体积（前端一次性还原成对象，见 index.template.html）。
+    _ocols = list(orders[0].keys()) if orders else []
+    _orows = [[o.get(c) for c in _ocols] for o in orders]
+    out = {"meta": meta, "orders_cols": _ocols, "orders_rows": _orows,
+           "capacity": list(cap_map.values()), "weekly": weekly}
     with open(os.path.join(HERE, "data.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 

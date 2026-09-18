@@ -177,8 +177,13 @@
 
   /* ---------- stat orbs (KPI) ---------- */
   .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin-bottom:22px;}
-  .card{background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  .card{background:linear-gradient(155deg,#FFFFFF 0%,#F5F1FE 52%,#FCEFF6 100%);
     border-radius:var(--r-c);padding:20px 22px;box-shadow:var(--clay-card);transition:all .4s ease-out;}
+  .card.g1{background:linear-gradient(155deg,#FFFFFF 0%,#EFEBFE 55%,#E1D9FC 100%);}
+  .card.g2{background:linear-gradient(155deg,#FFFFFF 0%,#FCE9F1 55%,#F8D4E4 100%);}
+  .card.g3{background:linear-gradient(155deg,#FFFFFF 0%,#E7F1FC 55%,#D3E5FA 100%);}
+  .card.g4{background:linear-gradient(155deg,#FFFFFF 0%,#E3F5EE 55%,#CEECDE 100%);}
+  .card.g5{background:linear-gradient(155deg,#FFFFFF 0%,#FBF0DA 55%,#F6DFBB 100%);}
   .card:hover{transform:translateY(-8px);box-shadow:var(--clay-card-hover);}
   .card .lab{color:var(--muted);font-size:15px;font-weight:700;margin-bottom:8px;}
   .card .val{font-size:34px;font-weight:900;letter-spacing:-.02em;color:var(--text);line-height:1.1;}
@@ -188,7 +193,7 @@
 
   /* ---------- panels ---------- */
   .grid{display:grid;gap:22px;grid-template-columns:repeat(2,minmax(0,1fr));}
-  .panel{background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  .panel{background:linear-gradient(160deg,#FFFFFF 0%,#FAF7FF 48%,#FDF3F8 100%);
     border-radius:var(--r-xl);padding:24px 26px;margin-bottom:22px;box-shadow:var(--clay-deep);
     transition:all .4s ease-out;}
   .panel h3{margin:0 0 8px;font-size:22px;font-weight:800;letter-spacing:-.01em;color:var(--text);}
@@ -200,10 +205,25 @@
   /* ---------- tables ---------- */
   table.t{width:100%;border-collapse:separate;border-spacing:0;font-size:15px;margin-top:10px;}
   table.t th,table.t td{padding:12px 14px;text-align:left;border:0;vertical-align:middle;}
-  table.t th{font-family:var(--f-head);color:var(--muted);font-weight:800;position:sticky;top:0;
+  /* 表头：固定 + 完全不透明（修「数据从表头后透出」的串行感） */
+  table.t th{font-family:var(--f-head);color:var(--muted);font-weight:800;position:sticky;top:0;z-index:8;
     white-space:normal;line-height:1.3;letter-spacing:.02em;
-    background:rgba(244,241,250,0.96);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    box-shadow:0 8px 12px -10px rgba(160,150,180,0.8);}
+    background:#FFFFFF;border-bottom:1.5px solid rgba(124,58,237,0.22);
+    box-shadow:0 6px 10px -9px rgba(120,110,150,0.55);}
+  table.t th.sortable{cursor:pointer;user-select:none;transition:color .18s ease-out;}
+  table.t th.sortable:hover{color:var(--accent);}
+  table.t th.on{color:var(--accent);}
+  table.t th .mk{margin-left:5px;font-size:11px;color:var(--dim);}
+  table.t th.on .mk{color:var(--accent);}
+  table.t th .fmk{margin-left:4px;cursor:pointer;padding:1px 5px;border-radius:6px;
+    background:rgba(124,58,237,0.12);color:var(--accent);font-size:11px;font-weight:800;}
+  table.t th .fmk.on{background:var(--accent);color:#fff;}
+  .thfilt{position:fixed;z-index:95;background:#fff;border:1px solid rgba(124,58,237,0.20);
+    border-radius:14px;box-shadow:var(--clay-deep);padding:10px 12px;
+    max-height:300px;overflow:auto;min-width:170px;}
+  .thfilt .fh{font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;}
+  .thfilt label{display:block;font-size:13px;font-weight:500;color:var(--text);
+    padding:3px 2px;cursor:pointer;white-space:nowrap;}
   table.t td{white-space:nowrap;border-bottom:1px solid rgba(124,58,237,0.10);}
   table.t tbody tr{cursor:pointer;transition:all .18s ease-out;}
   table.t tbody tr:hover td{background:rgba(124,58,237,0.07);}
@@ -372,9 +392,44 @@
     nav.tabs .tab{width:100%;justify-content:flex-start;background:rgba(255,255,255,0.72);}
     nav.tabs .tab.active{background:var(--grad);}
   }
+  /* ---------- 全局月份开关（置于各页标题右侧，全站联动） ---------- */
+  .page-title{position:relative;}
+  .pt-month{position:absolute;right:0;top:50%;transform:translateY(-50%);
+    display:flex;gap:4px;padding:4px;border-radius:999px;
+    background:rgba(255,255,255,0.72);box-shadow:var(--clay-pressed);}
+  .pt-month span{cursor:pointer;padding:9px 20px;border-radius:999px;font-weight:800;font-size:15px;
+    color:var(--muted);transition:all .22s ease-out;}
+  .pt-month span:hover{color:var(--accent);}
+  .pt-month span.on{background:var(--grad);color:#fff;box-shadow:var(--clay-btn);}
+  /* ---------- 筛选生效提示 chips ---------- */
+  .fchips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 18px 0;
+    padding:11px 16px;border-radius:var(--r-b);
+    background:linear-gradient(150deg,#FFFFFF,#F7F2FF);box-shadow:var(--clay-card);}
+  .fchips .fc-lab{font-weight:800;color:var(--muted);font-size:13px;}
+  .fchips .fc{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;
+    background:rgba(124,58,237,0.12);color:var(--accent);font-weight:700;font-size:13px;}
+  .fchips .fc i{cursor:pointer;font-style:normal;font-weight:800;opacity:.7;transition:opacity .2s ease-out;}
+  .fchips .fc i:hover{opacity:1;}
+  .fchips .fc-none{color:var(--dim);font-size:13px;}
+  /* ---------- 首屏加载遮罩 + 错误横幅 ---------- */
+  #boot{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:18px;
+    background:linear-gradient(160deg,#F4F1FA,#FBF3F9);transition:opacity .45s ease-out;}
+  #boot.hide{opacity:0;pointer-events:none;}
+  #boot .sp{width:54px;height:54px;border-radius:50%;border:6px solid rgba(124,58,237,0.16);
+    border-top-color:var(--accent);animation:bspin .9s linear infinite;}
+  #boot .bt{font-family:var(--f-head);font-weight:900;font-size:22px;color:var(--text);}
+  #boot .bs{font-size:14px;color:var(--muted);}
+  @keyframes bspin{to{transform:rotate(360deg)}}
+  #errbar{position:fixed;left:0;right:0;top:0;z-index:210;display:none;padding:14px 20px;
+    background:#A32D2D;color:#fff;font-size:15px;font-weight:700;}
+  #errbar.show{display:block;}
+  @media(max-width:900px){ .pt-month span{padding:7px 13px;font-size:14px;} }
 </style>
 </head>
 <body>
+<div id="errbar" role="alert"></div>
+<div id="boot"><div class="sp"></div><div class="bt">供应链在途数据</div><div class="bs">正在加载数据与图表…</div></div>
 <div class="clay-bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span></div>
 <header class="topbar">
   <div class="brand">供应链在途数据<small>SUPPLY CHAIN BI</small></div>
@@ -399,11 +454,13 @@
   <details id="f_month"><summary>月份</summary><div class="drop" id="drop_month"></div></details>
   <details id="f_pline"><summary>产线标签</summary><div class="drop" id="drop_pline"></div></details>
   <details id="f_timing"><summary>时效标签</summary><div class="drop" id="drop_timing"></div></details>
+  <details id="f_creator"><summary>创建人</summary><div class="drop" id="drop_creator"></div></details>
   <details id="f_material" style="display:none"><summary>物料名称</summary><div class="drop" id="drop_material"></div></details>
   <details id="f_spu" style="display:none"><summary>SPU</summary><div class="drop" id="drop_spu"></div></details>
   <input class="fsearch" id="f_search" placeholder="搜索 单据号 / 物料 / 规格 / 供应商…" />
   <button class="btn" id="f_reset">重置</button>
 </div>
+<div class="fchips" id="f_chips"></div>
 
 <!-- ============ 页1 在途概览 ============ -->
 <section class="page active" id="page_overview">
@@ -413,7 +470,7 @@
   <div class="grid">
     <div class="panel">
       <h3>整体在途分布</h3>
-      <div class="ph-sub">剩余收料数量，按供应商聚合；点击柱体下钻 SPU→SKU 明细</div>
+      <div class="ph-sub">剩余收料数量（跟随顶部所选月份），按供应商聚合；点击柱体下钻订单→SKU 明细</div>
       <div class="ctl-inline">
         <span class="lab">供应商范围：</span>
         <div class="seg" id="ov_scope_seg">
@@ -425,13 +482,11 @@
     </div>
     <div class="panel">
       <h3>Top8 供应商数据占比</h3>
-      <div class="ph-sub">切换统计口径，点击扇区下钻该供应商明细</div>
+      <div class="ph-sub">统计口径切换 + 顶部月份联动；点击扇区下钻该供应商明细</div>
       <div class="seg" id="ov_ring_seg" style="margin-bottom:8px">
         <span class="on" data-dim="remain">在途剩余</span>
         <span data-dim="received">已收料</span>
         <span data-dim="po_qty">采购总量</span>
-        <span data-dim="thismonth">当月</span>
-        <span data-dim="nextmonth">下月</span>
       </div>
       <div class="chart" id="ov_ring" style="height:360px"></div>
     </div>
@@ -443,10 +498,6 @@
     <div class="panel">
       <h3>每日需交趋势</h3>
       <div class="ph-sub">全部供应商按交货日期汇总的每日需交数量；点击数据点下钻当日订单明细</div>
-      <div class="seg" id="ov_daily_seg" style="margin-bottom:8px">
-        <span class="on" data-m="this">本月</span>
-        <span data-m="next">下月</span>
-      </div>
       <div class="chart" id="ov_daily" style="height:330px"></div>
     </div>
   </div>
@@ -473,7 +524,7 @@
     </div>
     <div class="panel">
       <h3>占比与订单数量气泡图</h3>
-      <div class="ph-sub">按聚合维度，X=订单数，Y=采购总量，气泡大小=剩余收料；点击气泡下钻明细</div>
+      <div class="ph-sub">X=计划数量，Y=剩余收料数量，气泡大小=订单张数（跟随顶部月份）；点击气泡下钻明细</div>
       <div class="seg" id="sup_bub_seg" style="margin-bottom:8px">
         <span data-d="pline">产线标签</span>
         <span class="on" data-d="timing">时效标签</span>
@@ -498,11 +549,7 @@
   <div class="page-title"><span class="pico" style="--pico:#10B981"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 16.5a8 8 0 1 1 16 0" stroke="#10B981" stroke-width="3.2" stroke-linecap="round"/><path d="M12 16.5l4.3-4.6" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="16.6" r="2.3" fill="#10B981"/></svg></span><span>产能负荷分析</span></div>
   <div class="page-sub">负荷率 = 该月在途(剩余收料) ÷ 供应商月产能；月产能为月度值，不跨月累加</div>
   <div class="ctl-inline">
-    <span class="lab">统计月份：</span>
-    <div class="seg" id="cap_month_seg">
-      <span class="on" data-m="this">本月</span>
-      <span data-m="next">下月</span>
-    </div>
+    <span class="lab">统计月份：<b id="cap_month_txt"></b>（由顶部月份开关控制）</span>
     <span class="lab" style="margin-left:8px">供应商范围：</span>
     <div id="cap_scope_box"></div>
   </div>
@@ -547,7 +594,6 @@
     <button class="btn" id="wk_import">导入周计划文件…</button>
     <input type="file" id="wk_file" accept=".xlsx,.xls" style="display:none" />
   </div>
-  <div class="ctl-inline" id="wk_month_box"></div>
   <div class="ctl-inline" id="wk_seg_box"></div>
   <div class="grid">
     <div class="panel">
@@ -638,6 +684,14 @@
 (function(){
   if(typeof window.DATA==="undefined"){ document.body.innerHTML='<div class="empty"><div class="big">⚠</div>数据未加载。请先运行 <b>clean.py</b> 生成 data.json，再用 build.py 打包。</div>'; return; }
   var D = window.DATA;
+  // 列式数据还原：data.json 用「列名 + 行数组」存储以省 ~58% 体积，这里一次性还原成对象
+  if(D && D.orders_cols && D.orders_rows && !D.orders){
+    var _c=D.orders_cols, _r=D.orders_rows, _a=new Array(_r.length);
+    for(var _i=0;_i<_r.length;_i++){ var _o={}, _rr=_r[_i];
+      for(var _j=0;_j<_c.length;_j++) _o[_c[_j]]=_rr[_j];
+      _a[_i]=_o; }
+    D.orders=_a; delete D.orders_cols; delete D.orders_rows;
+  }
   var ORDERS = D.orders||[];
   var CAP = D.capacity||[];           // {full,short,buyer,month_cap}
   var WEEKLY = D.weekly||[];
@@ -670,6 +724,9 @@
   function fmt(n){ if(n===null||n===undefined||isNaN(n)) return '0';
     return Math.round(n).toLocaleString('en-US'); }
   function pct(n){ return (Math.round((n||0)*10)/10)+'%'; }
+  // 进度专用：未满 100% 时保留 1 位小数，避免出现「100% 但仍有剩余」的误导
+  function pctP(n){ if(n==null) return '—'; if(n>=99.95) return '100%';
+    return (Math.floor(n*10)/10).toFixed(1)+'%'; }
   function num(v){ v=Number(v); return isNaN(v)?0:v; }
   function uniq(a){ return Array.from(new Set(a.filter(function(x){return x!==''&&x!=null;}))); }
   function sumBy(arr,key){ var s=0; for(var i=0;i<arr.length;i++) s+=num(arr[i][key]); return s; }
@@ -708,10 +765,12 @@
 
   // 全局筛选状态
   var state = { page:'overview',
-    filters:{supplier:new Set(), month:new Set(), pline:new Set(), timing:new Set(), material:new Set(), spu:new Set(), keyword:''},
+    filters:{supplier:new Set(), month:new Set(), pline:new Set(), timing:new Set(),
+      material:new Set(), spu:new Set(), creator:new Set(), keyword:''},
     docType:'all', ringDim:'remain', bubDim:'timing', wkThr:5000,
     ovScope:'core', crossHeatSeg:'top20',
-    monthScope:'all', weekScope:'all', odScope:'all', capMonth:'this', capScope:'all', dailyMonth:'this', wkMonth:'this', odSort:'qty' };
+    monthScope:'all', weekScope:'all', odScope:'all', capScope:'all', odSort:'qty',
+    month:'this' };   // month = 全局「本月/下月」开关（此前各面板各自为政）
 
   function applyFilters(rows){
     var f=state.filters;
@@ -722,6 +781,7 @@
       if(f.timing.size && !f.timing.has(o.timing)) return false;
       if(f.material.size && !f.material.has(o.material_name)) return false;
       if(f.spu.size && !f.spu.has(o.spu)) return false;
+      if(f.creator && f.creator.size && !f.creator.has(o.creator)) return false;
       if(f.keyword){ var k=f.keyword.toLowerCase();
         var hay=(o.doc_no+' '+o.material_name+' '+o.spec+' '+o.supplier+' '+o.material_code).toLowerCase();
         if(hay.indexOf(k)<0) return false; }
@@ -767,12 +827,14 @@
     var timings = uniq(ORDERS.map(function(o){return o.timing;})).sort();
     var materials = uniq(ORDERS.map(function(o){return o.material_name;})).sort();
     var spus = uniq(ORDERS.map(function(o){return o.spu;})).sort();
+    var creators = uniq(ORDERS.map(function(o){return o.creator;})).sort();
     fillDrop('drop_supplier',suppliers,state.filters.supplier,'供应商');
     fillDrop('drop_month',months,state.filters.month,'月份');
     fillDrop('drop_pline',plines,state.filters.pline,'产线标签');
     fillDrop('drop_timing',timings,state.filters.timing,'时效标签');
     fillDrop('drop_material',materials,state.filters.material,'物料名称');
     fillDrop('drop_spu',spus,state.filters.spu,'SPU');
+    fillDrop('drop_creator',creators,state.filters.creator,'创建人');
   }
   function toggleFilterVisibility(page){
     document.getElementById('f_material').style.display = (page==='cross')?'':'none';
@@ -813,6 +875,140 @@
     return {po:po,rec:rec,rem:rem};
   }
   function flattenRows(rows){ var out=[]; (rows||[]).forEach(function(r){ if(r.rows&&r.rows.length) out=out.concat(flattenRows(r.rows)); else out.push(r); }); return out; }
+  // ================= 通用明细表：全列排序 + 关键列筛选 + 自动「完成进度」列 =================
+  function progOf(r){
+    // 只用「采购/已收/剩余」口径推算，避免把产能页的「负荷率」误当成完成进度
+    if(num(r.po_qty)>0){
+      var rec = (r.received!=null) ? num(r.received) : (num(r.po_qty)-num(r.remain));
+      return rec/num(r.po_qty)*100;
+    }
+    return null;
+  }
+  function plainText(html){ return String(html==null?'':html).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim(); }
+  function cellHtml(r,c,i){
+    if(c.key==='_prog') return pctP(progOf(r));
+    var v = c.render ? c.render(r,i) : (r[c.key]??'');
+    return String(v==null?'':v);
+  }
+  function sortValOf(r,c){
+    if(c.key==='_prog') return progOf(r)==null?-Infinity:progOf(r);
+    if(c.key==='delivery'||c.key==='delivery_txt') return dateNum(r.delivery||r.delivery_txt);
+    var v=r[c.key];
+    if(typeof v==='number') return v;
+    if(v==null||v==='') return -Infinity;
+    if(typeof v==='string' && /^-?[\d,\.]+$/.test(v.trim())) return num(v);
+    return String(v);
+  }
+  function cmpRows(a,b,c){
+    var x=sortValOf(a,c), y=sortValOf(b,c);
+    if(typeof x==='number' && typeof y==='number') return x-y;
+    return String(x).localeCompare(String(y),'zh-Hans-CN');
+  }
+  function buildTable(cols, rows){
+    var canProg = rows.length>0 && rows.every(function(r){ return progOf(r)!=null; });
+    var cs = canProg ? cols.concat([{label:'完成进度',key:'_prog'}]) : cols.slice();
+    var st={si:-1, sd:1, filters:{}};
+    var wrap=document.createElement('div');
+    var tbl=document.createElement('table'); tbl.className='t';
+    var thead=document.createElement('thead'); var htr=document.createElement('tr');
+    var tb=document.createElement('tbody');
+    cs.forEach(function(c,ci){
+      var th=document.createElement('th');
+      if(String(c.label).indexOf('规格')>=0) th.className='col-spec';
+      th.classList.add('sortable');
+      var lab=document.createElement('span'); lab.textContent=c.label; th.appendChild(lab);
+      var mk=document.createElement('span'); mk.className='mk'; th.appendChild(mk);
+      var fmk=document.createElement('span'); fmk.className='fmk'; fmk.textContent='\u25be'; fmk.title='筛选本列';
+      th.appendChild(fmk);
+      th.onclick=function(e){
+        if(e.target===fmk){ e.stopPropagation(); openColFilter(th,ci); return; }
+        if(st.si===ci) st.sd=-st.sd; else { st.si=ci; st.sd=1; }
+        paint();
+      };
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr); tbl.appendChild(thead); tbl.appendChild(tb);
+
+    function view(){
+      var out=rows.slice();
+      Object.keys(st.filters).forEach(function(k){
+        var ci=Number(k), set=st.filters[k];
+        if(!set||!set.size) return;
+        out=out.filter(function(r){ return set.has(plainText(cellHtml(r,cs[ci],0))); });
+      });
+      if(st.si>=0){ var c=cs[st.si], d=st.sd;
+        out.sort(function(a,b){ return d*cmpRows(a,b,c); }); }
+      return out;
+    }
+    function paint(){
+      htr.querySelectorAll('th').forEach(function(th,i){
+        th.classList.toggle('on', st.si===i);
+        th.querySelector('.mk').textContent = st.si===i ? (st.sd>0?'\u25b2':'\u25bc') : '';
+        var fmk=th.querySelector('.fmk'), n=(st.filters[i]&&st.filters[i].size)||0;
+        fmk.classList.toggle('on', n>0);
+        fmk.textContent = n>0 ? ('\u25be'+n) : '\u25be';
+      });
+      var v=view(); tb.innerHTML='';
+      v.forEach(function(r){
+        var tr=document.createElement('tr');
+        cs.forEach(function(c,ci){
+          var td=document.createElement('td');
+          if(String(c.label).indexOf('规格')>=0) td.className='col-spec';
+          td.innerHTML=cellHtml(r,c,ci);
+          tr.appendChild(td);
+        });
+        if(r._drill){ tr.style.cursor='pointer'; tr.onclick=function(){ openDrawer._drill=true; r._drill(r); }; }
+        tb.appendChild(tr);
+      });
+      if(!v.length){
+        var tr=document.createElement('tr'), td=document.createElement('td');
+        td.colSpan=cs.length; td.className='empty'; td.textContent='当前筛选条件下无数据';
+        tr.appendChild(td); tb.appendChild(tr);
+      }
+    }
+    function closeFilt(){
+      var b=document.getElementById('thfilt');
+      if(b){ if(b._out) document.removeEventListener('click',b._out,true); b.remove(); }
+    }
+    function openColFilter(th,ci){
+      closeFilt();
+      var vals=uniq(rows.map(function(r){ return plainText(cellHtml(r,cs[ci],0)); }))
+        .sort(function(a,b){ return String(a).localeCompare(String(b),'zh-Hans-CN'); });
+      var set=new Set(st.filters[ci]||vals);
+      var box=document.createElement('div'); box.className='thfilt'; box.id='thfilt';
+      box.innerHTML='<div class="fh">'+cs[ci].label+' · 共 '+vals.length+' 项</div>';
+      vals.forEach(function(v){
+        var l=document.createElement('label');
+        var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=set.has(v);
+        cb.onchange=function(){ if(cb.checked) set.add(v); else set.delete(v); };
+        l.appendChild(cb); l.appendChild(document.createTextNode(' '+v));
+        box.appendChild(l);
+      });
+      var bar=document.createElement('div'); bar.style.cssText='margin-top:8px;display:flex;gap:6px;';
+      var bAll=document.createElement('button'); bAll.className='btn'; bAll.textContent='全选';
+      var bNone=document.createElement('button'); bNone.className='btn'; bNone.textContent='清除';
+      var bOk=document.createElement('button'); bOk.className='btn primary'; bOk.textContent='确认';
+      bAll.onclick=function(){ vals.forEach(function(v){set.add(v);}); box.querySelectorAll('input').forEach(function(cb){cb.checked=true;}); };
+      bNone.onclick=function(){ set.clear(); box.querySelectorAll('input').forEach(function(cb){cb.checked=false;}); };
+      bOk.onclick=function(){
+        if(!set.size || set.size===vals.length) delete st.filters[ci]; else st.filters[ci]=set;
+        closeFilt(); paint();
+      };
+      bar.appendChild(bAll); bar.appendChild(bNone); bar.appendChild(bOk); box.appendChild(bar);
+      document.body.appendChild(box);
+      var rc=th.getBoundingClientRect();
+      var bw=box.offsetWidth||180, bh=box.offsetHeight||220;
+      box.style.left=Math.max(8, Math.min(rc.left, window.innerWidth-bw-8))+'px';
+      box.style.top=Math.max(8, Math.min(rc.bottom+6, window.innerHeight-bh-8))+'px';
+      function out(ev){ if(!box.contains(ev.target)) closeFilt(); }
+      box._out=out;
+      setTimeout(function(){ document.addEventListener('click',out,true); },0);
+    }
+    paint();
+    wrap.appendChild(tbl);
+    return wrap;
+  }
+
   function renderDrawerState(st){
     var rows=st.rows, cols=st.cols;
     document.getElementById('dw_title').textContent=st.title;
@@ -832,20 +1028,8 @@
       grid.appendChild(c);
     });
     body.appendChild(grid);
-    // 明细表
-    var tbl=document.createElement('table'); tbl.className='t';
-    var thead=document.createElement('thead'); var htr=document.createElement('tr');
-    cols.forEach(function(c){ var th=document.createElement('th'); th.textContent=c.label; if(String(c.label).indexOf('规格')>=0) th.className='col-spec'; htr.appendChild(th); });
-    thead.appendChild(htr); tbl.appendChild(thead);
-    var tb=document.createElement('tbody');
-    rows.forEach(function(r, ri){
-      var tr=document.createElement('tr');
-      cols.forEach(function(c){ var td=document.createElement('td'); if(String(c.label).indexOf('规格')>=0) td.className='col-spec'; td.innerHTML=c.render?c.render(r, ri):(r[c.key]??'');
-        tr.appendChild(td); });
-      if(r._drill){ tr.style.cursor='pointer'; tr.onclick=function(){ openDrawer._drill=true; r._drill(r); }; }
-      tb.appendChild(tr);
-    });
-    tbl.appendChild(tb); body.appendChild(tbl);
+    // 明细表（全列排序 + 列内筛选 + 自动「完成进度」列）
+    body.appendChild(buildTable(cols, rows));
     // 每日需交趋势（迷你图；仅当存在交货日期 + 采购数量时渲染，如周计划 SKU 无此数据则跳过）
     var hasDaily = flattenRows(rows).some(function(r){ return r.delivery && r.delivery!=='—' && num(r.po_qty)>0; });
     if(hasDaily){
@@ -894,7 +1078,15 @@
     return Object.keys(map).map(function(k){
       var r=map[k];
       r.rate = r.po_qty ? r.received/r.po_qty*100 : 0;
-      if(!r.status) r.status = r.remain>0 ? '在途' : '已完成';
+      // ⭐ 状态必须按【订单整体】重算，不能继承第一行的状态：
+      //    该订单首行可能是「已收完的关单行」→ 整单被误标「已完成」，而实际还有剩余。
+      r.od = r.items.reduce(function(a,o){ return Math.max(a, num(o.overdue_days)); }, 0);
+      r.remainDays = r.items.reduce(function(a,o){
+        var d=num(o.remain_days); return (d>0 && (a===0 || d<a)) ? d : a; }, 0);
+      r.biz_closed = r.remain<=0 && r.items.every(function(o){ return o.biz_closed; });
+      if(r.remain<=0) r.status='已完成';
+      else if(r.od>0) r.status='逾期'+r.od+'天';
+      else r.status='剩'+r.remainDays+'天';
       r.spuCnt = uniq(r.items.map(function(o){return o.spu;})).length;   // 该订单包含多少个 SPU
       r._drill=function(){ openDrawer(r.doc_no+' · SKU 明细', r.items, skuCols(),
         '订单行 <b>'+r.lines+'</b> ｜ SPU <b>'+r.spuCnt+'</b> 个 ｜ 采购 <b>'+fmt(r.po_qty)+'</b> ｜ 已收 <b>'+fmt(r.received)+'</b> ｜ 剩余 <b>'+fmt(r.remain)+'</b>',
@@ -994,8 +1186,8 @@
   // ---------- KPI 卡片 ----------
   function renderCards(elId, cards){
     var box=document.getElementById(elId); box.innerHTML='';
-    cards.forEach(function(c){
-      var d=document.createElement('div'); d.className='card'+(c.warn?' kpi-warn':'');
+    cards.forEach(function(c,i){
+      var d=document.createElement('div'); d.className='card'+(c.warn?' kpi-warn':'')+' g'+((i%5)+1);
       d.innerHTML='<div class="lab">'+c.lab+'</div><div class="val" style="color:'+(c.color||'var(--text)')+'">'+c.val+'</div>'+(c.hint?'<div class="hint">'+c.hint+'</div>':'');
       box.appendChild(d);
     });
@@ -1070,7 +1262,9 @@
     ]);
     // 柱状图：当前 scope 供应商剩余（横向条形）
     var scope=state.ovScope||'core';
-    var scopeRows=rows.filter(function(o){ return scope==='core'?CORE.has(o.supplier_short):!CORE.has(o.supplier_short); });
+    var mm=monthLabel();
+    var scopeRows=rows.filter(function(o){ return scope==='core'?CORE.has(o.supplier_short):!CORE.has(o.supplier_short); })
+      .filter(function(o){ return o.month===mm; });   // 跟随全局月份
     var top = uniq(scopeRows.map(function(o){return o.supplier_short;}))
       .map(function(s){ var s2=scopeRows.filter(function(o){return o.supplier_short===s;});
         return {s:s, rem:sumBy(s2,'remain')}; })
@@ -1090,8 +1284,6 @@
       var s2=scopeRows.filter(function(o){return o.supplier_short===d.s;});
       var v = dim==='received'?sumBy(s2,'received')
         : dim==='po_qty'?sumBy(s2,'po_qty')
-        : dim==='thismonth'?sumBy(s2.filter(function(o){return o.month===TODAY_M;}),'remain')
-        : dim==='nextmonth'?sumBy(s2.filter(function(o){return o.month===nextMonthName();}),'remain')
         : sumBy(s2,'remain');
       return {name:d.s, value:v};
     }).sort(function(a,b){return b.value-a.value;}).slice(0,8);
@@ -1115,9 +1307,7 @@
 
   // 全部供应商 · 每日需交数量趋势（按交货日期升序，折线面积图）
   function renderOverviewDaily(rows){
-    var segBox=document.getElementById('ov_daily_seg'); if(!segBox) return;
-    var m = state.dailyMonth==='next' ? nextMonthName() : TODAY_M;
-    segBox.querySelectorAll('span').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-m')===(state.dailyMonth||'this')); });
+    var m = monthLabel();
     var sub=rows.filter(function(o){ return o.month===m && o.delivery && o.delivery!=='—'; });
     var byDay={};
     sub.forEach(function(o){ var d=o.delivery; if(!byDay[d]) byDay[d]={day:d, po:0, rem:0, rows:[]};
@@ -1188,18 +1378,21 @@
     });
     // 气泡图（按 产线标签 / 时效标签 聚合；点击气泡下钻明细）
     var bd=state.bubDim;
-    var groups=uniq(rows.map(function(o){return o[bd];})).filter(function(x){return x;});
-    var bData=groups.map(function(g){ var s=rows.filter(function(o){return o[bd]===g;});
-      return {name:g, orders:s.length, po:sumBy(s,'po_qty'), rem:sumBy(s,'remain'), items:s}; });
+    var mm2=monthLabel();
+    var bubRows=rows.filter(function(o){ return o.month===mm2; });
+    var groups=uniq(bubRows.map(function(o){return o[bd];})).filter(function(x){return x;});
+    var bData=groups.map(function(g){ var s=bubRows.filter(function(o){return o[bd]===g;});
+      return {name:g, orders:uniq(s.map(function(o){return o.doc_no;})).length,
+        po:sumBy(s,'po_qty'), rem:sumBy(s,'remain'), items:s}; });
     var c2=getChart('sup_bub');
     c2.setOption({
       tooltip:Object.assign({trigger:'item',formatter:function(p){var v=p.data.value;
-        return p.data.name+'<br/>订单 '+v[0]+' 单<br/>采购 '+fmt(v[1])+'<br/>剩余 '+fmt(v[2]);}},TT),
-      grid:{left:70,right:30,top:20,bottom:50},
-      xAxis:Object.assign({},AX,{type:'value',name:'订单数'}),
-      yAxis:Object.assign({},AX,{type:'value',name:'采购总量'}),
-      series:[{type:'scatter',symbolSize:function(d){return Math.max(12,Math.sqrt(d[2])/16);},
-        data:bData.map(function(d,i){return {name:d.name,value:[d.orders,d.po,d.rem],
+        return p.data.name+'<br/>计划数量 '+fmt(v[0])+'<br/>剩余收料 '+fmt(v[1])+'<br/>订单 '+v[2]+' 张';}},TT),
+      grid:{left:86,right:34,top:26,bottom:54},
+      xAxis:Object.assign({},AX,{type:'value',name:'计划数量(采购数量)'}),
+      yAxis:Object.assign({},AX,{type:'value',name:'剩余收料数量'}),
+      series:[{type:'scatter',symbolSize:function(d){return Math.max(14,Math.min(64,Math.sqrt(d[2])*2.8));},
+        data:bData.map(function(d,i){return {name:d.name,value:[d.po,d.rem,d.orders],
           itemStyle:{color:PALETTE[i%PALETTE.length],shadowBlur:14,shadowColor:'rgba(124,58,237,0.30)'}};})}]
     });
     c2.off('click'); c2.on('click',function(p){ var d=bData[p.dataIndex]; if(!d) return;
@@ -1257,7 +1450,8 @@
 
   // ================= 页3 产能负荷 =================
   // 口径：负荷率 = 该月「剩余收料(在途)」合计 ÷ 该供应商月产能（月产能为月度值，不跨月累加）
-  function capMonthLabel(){ return state.capMonth==='next' ? nextMonthName() : TODAY_M; }
+  function monthLabel(){ return state.month==='next' ? nextMonthName() : TODAY_M; }
+  function capMonthLabel(){ return monthLabel(); }
   function supplierLoad(){
     var capMap={}; CAP.forEach(function(c){capMap[c.short]=c;});
     var m=capMonthLabel();
@@ -1283,6 +1477,7 @@
     return html+'</tbody></table>';
   }
   function renderCapacity(){
+    var _mt=document.getElementById('cap_month_txt'); if(_mt) _mt.textContent=monthLabel();
     var load=supplierLoad();
     var loadAll=Object.keys(load).map(function(s){return load[s];}).filter(function(x){return x.cap>0;});
     // 核心/普通 范围筛选（作用：负荷分布 / 详情 / 状态 / 占比排序；核心vs普通环形图始终对比全量）
@@ -1486,16 +1681,12 @@
         if(r) openWeeklySpu(r.short, r.wkSub, r); };
     });
   }
-  function wkMonthLabel(){ return state.wkMonth==='next' ? nextMonthName() : TODAY_M; }
+  function wkMonthLabel(){ return monthLabel(); }
   function renderWeekly(){
     var thr=state.wkThr;
     var scope=state.weekScope||'all';
     var seg=scopeSeg('wk_scope_seg', scope);
     var wm=wkMonthLabel();
-    var segBox2=document.getElementById('wk_month_box');
-    if(segBox2) segBox2.innerHTML='<div class="seg seg-sm" id="wk_month_seg">'
-      +'<span class="'+(state.wkMonth!=='next'?'on':'')+'" data-m="this">本月('+TODAY_M+')</span>'
-      +'<span class="'+(state.wkMonth==='next'?'on':'')+'" data-m="next">下月('+nextMonthName()+')</span></div>';
     var wkMap={}; WEEKLY.forEach(function(w){ var k=w.supplier_short||w.supplier_full; wkMap[k]=num(wkMap[k])+num(w.plan_qty); });
     var supMap={};
     ORDERS.forEach(function(o){ var k=o.supplier_short;
@@ -1626,8 +1817,65 @@
     if(segBox) bindScopeSeg('od_scope_seg','odScope',function(){renderOverdue();});
   }
 
+  // ---------- 全局月份开关（注入到每个页面标题右侧） ----------
+  function buildMonthSwitch(){
+    document.querySelectorAll('.page-title').forEach(function(t){
+      if(t.querySelector('.pt-month')) return;
+      var d=document.createElement('div');
+      d.className='pt-month'; d.setAttribute('data-gm','1');
+      d.innerHTML='<span data-m="this">本月</span><span data-m="next">下月</span>';
+      t.appendChild(d);
+    });
+    syncMonthSwitch();
+  }
+  function syncMonthSwitch(){
+    document.querySelectorAll('[data-gm] span[data-m]').forEach(function(x){
+      x.classList.toggle('on', x.getAttribute('data-m')===state.month);
+    });
+  }
+
+  // ---------- 筛选生效提示（chips）：明确告诉用户「筛了什么、在哪生效」 ----------
+  var FILTER_NAMES={supplier:'供应商',month:'月份',pline:'产线标签',timing:'时效标签',
+    material:'物料名称',spu:'SPU',creator:'创建人'};
+  function renderFilterChips(){
+    var box=document.getElementById('f_chips'); if(!box) return;
+    var f=state.filters, html='<span class="fc-lab">筛选生效中：</span>', n=0;
+    Object.keys(FILTER_NAMES).forEach(function(k){
+      var set=f[k]; if(!set||!set.size) return;
+      Array.from(set).sort().forEach(function(v){
+        n++;
+        html+='<span class="fc"><b>'+FILTER_NAMES[k]+'：</b>'+v
+          +'<i data-fk="'+k+'" data-fv="'+String(v).replace(/"/g,'&quot;')+'" title="移除">\u2715</i></span>';
+      });
+    });
+    if(f.keyword){ n++;
+      html+='<span class="fc"><b>搜索：</b>'+f.keyword+'<i data-fk="keyword" title="移除">\u2715</i></span>'; }
+    if(!n){
+      box.innerHTML='<span class="fc-lab">筛选生效中：</span><span class="fc-none">'
+        +'当前无筛选（用上方筛选器多选后用「确认」生效；生效条件会显示在这里）</span>';
+      return;
+    }
+    html+='<button class="btn" id="f_clear_all" style="margin-left:6px">清除全部（'+n+'）</button>';
+    box.innerHTML=html;
+    box.querySelectorAll('i[data-fk]').forEach(function(el){
+      el.onclick=function(){
+        var k=el.getAttribute('data-fk');
+        if(k==='keyword'){ f.keyword=''; var si=document.getElementById('f_search'); if(si) si.value=''; }
+        else { f[k].delete(el.getAttribute('data-fv')); refreshSummary('f_'+k, f[k]); }
+        renderCurrent();
+      };
+    });
+    var ca=document.getElementById('f_clear_all');
+    if(ca) ca.onclick=function(){
+      Object.keys(FILTER_NAMES).forEach(function(k){ if(f[k]&&f[k].clear) f[k].clear(); });
+      f.keyword=''; var si=document.getElementById('f_search'); if(si) si.value='';
+      document.getElementById('f_reset').click();
+    };
+  }
+
   // ---------- 渲染调度 ----------
   function renderCurrent(){
+    renderFilterChips();
     if(state.page==='overview') renderOverview();
     else if(state.page==='supplier') renderSupplier();
     else if(state.page==='capacity') renderCapacity();
@@ -1666,21 +1914,22 @@
   document.getElementById('navToggle').addEventListener('click',toggleNav);
   document.getElementById('f_search').addEventListener('input',function(e){ state.filters.keyword=e.target.value.trim(); renderCurrent(); });
   document.getElementById('f_reset').onclick=function(){
-    ['supplier','month','pline','timing','material','spu'].forEach(function(k){ state.filters[k].clear(); });
+    ['supplier','month','pline','timing','material','spu','creator'].forEach(function(k){ state.filters[k].clear(); });
     state.filters.keyword=''; document.getElementById('f_search').value='';
-    ['f_supplier','f_month','f_pline','f_timing','f_material','f_spu'].forEach(function(id){ var d=document.getElementById(id); if(d) d.querySelector('summary').textContent=d.querySelector('summary').textContent.replace(/ \(\d+\)$/,''); });
+    ['f_supplier','f_month','f_pline','f_timing','f_material','f_spu','f_creator'].forEach(function(id){ var d=document.getElementById(id); if(d) d.querySelector('summary').textContent=d.querySelector('summary').textContent.replace(/ \(\d+\)$/,''); });
     buildFilters(); renderCurrent(); toast('筛选已重置');
   }
   document.getElementById('ov_ring_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-dim]'); if(!s)return;
     state.ringDim=s.getAttribute('data-dim'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderOverview(); });
   document.getElementById('ov_scope_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-s]'); if(!s)return;
     state.ovScope=s.getAttribute('data-s'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderOverview(); });
-  document.getElementById('ov_daily_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-m]'); if(!s)return;
-    state.dailyMonth=s.getAttribute('data-m'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderOverviewDaily(filteredOrders()); });
-  document.getElementById('cap_month_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-m]'); if(!s)return;
-    state.capMonth=s.getAttribute('data-m'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderCapacity(); });
-  document.getElementById('wk_month_box').addEventListener('click',function(e){ var s=e.target.closest('[data-m]'); if(!s)return;
-    state.wkMonth=s.getAttribute('data-m'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderWeekly(); });
+  // 全局月份开关：一处点击，全站联动（在途分布 / Top8 / 每日需交 / 产能负荷 / 周计划 / 供应商页）
+  document.addEventListener('click',function(e){
+    var sp=e.target.closest('[data-gm] span[data-m]'); if(!sp) return;
+    if(sp.getAttribute('data-m')===state.month) return;
+    state.month=sp.getAttribute('data-m');
+    syncMonthSwitch(); renderCurrent();
+  });
   document.getElementById('cross_heat_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-m]'); if(!s)return;
     state.crossHeatSeg=s.getAttribute('data-m'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderCross(); });
   document.getElementById('sup_doc_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-t]'); if(!s)return;
@@ -1694,11 +1943,27 @@
     toast('周计划导入需在 clean.py 支持；当前为前端预览占位。请将周计划文件放入 src/ 后重新运行 clean.py + build.py');
   };
 
-  // 初始化
-  document.getElementById('m_updated').textContent=META.updated_at||'—';
-  document.getElementById('m_src').textContent=(META.source_po||'—');
-  buildFilters();
-  switchPage('overview');
+  // 初始化（失败时给出可见提示，避免「打开没数据」却无从判断）
+  window.onerror=function(msg, src, line){
+    var b=document.getElementById('errbar');
+    if(b){ b.textContent='页面脚本出错：'+msg+'（第 '+line+' 行）；若图表空白请刷新或反馈'; b.classList.add('show'); }
+    var bo=document.getElementById('boot'); if(bo) bo.classList.add('hide');
+  };
+  function boot(){
+    try{
+      document.getElementById('m_updated').textContent=META.updated_at||'—';
+      document.getElementById('m_src').textContent=(META.source_po||'—');
+      buildFilters();
+      buildMonthSwitch();
+      switchPage('overview');
+    }catch(err){
+      var b=document.getElementById('errbar');
+      if(b){ b.textContent='初始化失败：'+(err&&err.message); b.classList.add('show'); }
+    }
+    var bo=document.getElementById('boot');
+    if(bo) setTimeout(function(){ bo.classList.add('hide'); }, 80);
+  }
+  boot();
 
   // 暴露给无头测试
   window.APP={ DATA:D, ORDERS:ORDERS, CAP:CAP, computeOverviewKPI:function(){

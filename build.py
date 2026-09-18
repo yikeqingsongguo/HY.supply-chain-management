@@ -26,7 +26,7 @@ def main():
     with open(data_path, "r", encoding="utf-8") as f:
         data = f.read().strip()
     if not data.startswith("{"):
-        data = json.dumps(json.load(open(data_path, encoding="utf-8")), ensure_ascii=False)
+        data = json.dumps(json.load(open(data_path, encoding="utf-8")), ensure_ascii=False, separators=(",", ":"))
 
     echarts_tag = "<script>\n" + echarts_src + "\n</script>"
     data_tag = "<script>\nwindow.DATA = " + data + ";\n</script>"
