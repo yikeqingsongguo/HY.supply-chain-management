@@ -556,6 +556,12 @@
   function num(v){ v=Number(v); return isNaN(v)?0:v; }
   function uniq(a){ return Array.from(new Set(a.filter(function(x){return x!==''&&x!=null;}))); }
   function sumBy(arr,key){ var s=0; for(var i=0;i<arr.length;i++) s+=num(arr[i][key]); return s; }
+  // 交货日期排序：原始格式不补零（2026-9-2 / 2026-10-2），字符串比较会错序，
+  // 且 new Date('2026-9-2') 在 Safari 不可靠 → 统一用数值比较（年*372+月*31+日）
+  function dateNum(s){ if(!s||s==='—') return Infinity;
+    var p=String(s).split('-'); if(p.length<3) return Infinity;
+    return (Number(p[0])||0)*372 + (Number(p[1])||0)*31 + (Number(p[2])||0); }
+  function dateCmp(a,b){ return dateNum(a)-dateNum(b); }
 
   // ---------- 核心/普通 供应商范围筛选（复用：月度表 / 周计划 / 逾期汇总） ----------
   var SCOPE_ITEMS=[['all','全部'],['core','核心供应商'],['normal','普通供应商']];
@@ -726,7 +732,7 @@
     var flat=flattenRows(rows);
     var byDay={};
     flat.forEach(function(o){ var d=o.delivery; if(d&&d!=='—'){ byDay[d]=num(byDay[d])+num(o.po_qty); } });
-    var days=Object.keys(byDay).sort(function(a,b){ return new Date(a)-new Date(b); });
+    var days=Object.keys(byDay).sort(dateCmp);
     if(charts.dw_daily){ try{charts.dw_daily.dispose();}catch(e){} delete charts.dw_daily; }
     if(!days.length) return;
     var c=getChart('dw_daily');
@@ -933,7 +939,7 @@
     var byDay={};
     sub.forEach(function(o){ var d=o.delivery; if(!byDay[d]) byDay[d]={day:d, po:0, rows:[]};
       byDay[d].po+=num(o.po_qty); byDay[d].rows.push(o); });
-    var days=Object.keys(byDay).sort(function(a,b){ return new Date(a)-new Date(b); });
+    var days=Object.keys(byDay).sort(dateCmp);
     var c=getChart('ov_daily');
     if(!days.length){
       c.setOption({title:{text:'（'+m+'无交货数据）',left:'center',top:'middle',textStyle:{color:'#635F69',fontSize:12}},
