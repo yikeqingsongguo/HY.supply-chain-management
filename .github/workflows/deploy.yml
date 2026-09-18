@@ -35,10 +35,16 @@ jobs:
       - name: Build single-file index.html
         run: python build.py
 
+      - name: Stage only the built dashboard
+        # 只发布单文件看板；不要把 src/*.xlsx、clean.py 等源数据/脚本发布成公开站点
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .     # 含 index.html / data.json / vendor（按需）
+          path: _site
 
   deploy:
     needs: build
