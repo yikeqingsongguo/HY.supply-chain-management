@@ -391,7 +391,8 @@ def clean():
             checks.append((_label, _got, _exp, abs(_got - _exp) < 0.5))
 
     meta = {
-        "updated_at": dt.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        # 北京时间（UTC+8）：CI 在 UTC 跑，若用裸 now() 会显示成 UTC，看着像旧数据
+        "updated_at": dt.datetime.now(dt.timezone(dt.timedelta(hours=8))).strftime("%Y-%m-%d %H:%M"),
         "source_po": os.path.basename(po_path),
         "source_cap": os.path.basename(cap_path) if cap_path else None,
         "source_weekly": os.path.basename(weekly_path) if weekly_path else None,
