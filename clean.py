@@ -173,7 +173,9 @@ def pick_unique(folder, keyword, label):
 
 
 def load_first_sheet(path):
-    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    # 注意：某些 WPS/金蝶导出的 xlsx 在 read_only=True 下会漏读行（max_row=1），
+    # 因此去掉 read_only，改用普通模式加载。
+    wb = openpyxl.load_workbook(path, data_only=True)
     ws = wb[wb.sheetnames[0]]
     rows = list(ws.iter_rows(min_row=1, values_only=True))
     wb.close()
