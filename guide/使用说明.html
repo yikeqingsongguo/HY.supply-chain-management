@@ -1,0 +1,111 @@
+<!DOCTYPE html><html lang='zh-CN'><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width,initial-scale=1'/><title>供应链在途数据看板 · 使用说明</title><style>
+:root{--ink:#3A2E4D;--mut:#7A7088;--purple:#7C3AED;--line:#E7E1F2;--bg:#F4F1FA;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:'Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;line-height:1.75;}
+.wrap{max-width:1080px;margin:0 auto;padding:40px 24px 80px;}
+h1{font-size:30px;margin:0 0 6px;letter-spacing:.3px}
+h2{font-size:22px;margin:44px 0 12px;padding-left:12px;border-left:5px solid var(--purple);}
+h3{font-size:18px;margin:30px 0 10px;color:#5B3FA6}
+h4{font-size:15px;margin:20px 0 8px}
+p{margin:10px 0}
+a{color:var(--purple)}
+hr{border:none;border-top:1px dashed var(--line);margin:34px 0}
+blockquote{margin:14px 0;padding:12px 18px;background:#fff;border-left:5px solid #A78BFA;
+ border-radius:0 12px 12px 0;color:#554B66;box-shadow:0 6px 18px rgba(124,58,237,.06)}
+code{background:#EFEAFA;border-radius:6px;padding:2px 6px;font-size:13px;color:#6D28D9}
+figure{margin:18px 0;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;
+ box-shadow:0 10px 28px rgba(124,58,237,.08)}
+svg.fig{display:block;width:100%;height:auto}
+img.fig{display:block;width:100%;height:auto;border-radius:10px}
+figcaption{margin-top:8px;text-align:center;font-size:12.5px;color:var(--mut)}
+table{width:100%;border-collapse:collapse;margin:14px 0;background:#fff;border-radius:14px;overflow:hidden;
+ box-shadow:0 8px 22px rgba(124,58,237,.07);font-size:14px}
+th{background:var(--purple);color:#fff;text-align:left;padding:10px 14px;font-weight:700}
+td{padding:9px 14px;border-top:1px solid var(--line)}
+tbody tr:nth-child(even){background:#FAF8FE}
+ul,ol{margin:10px 0;padding-left:24px}
+li{margin:4px 0}
+strong{color:#4C1D95}
+sub{color:var(--mut)}
+</style></head><body><div class='wrap'><h1>供应链在途数据看板 · 新手使用说明与操作指引</h1>
+<blockquote>面向第一次使用本网页的同事。<strong>配图均为看板真实截图</strong>，图中的<strong>红色编号 ①②③…</strong> 对应下方「操作步骤」的编号。<br/>在线地址：<strong>https://yikeqingsongguo.github.io/HY.supply-chain-management/</strong></blockquote>
+<hr/>
+<h2>0. 30 秒了解</h2>
+<ul><li><strong>它是什么</strong>：把采购在途数据（采购订单 + 供应商产能 + 周计划）做成网页看板。纯网页、数据已内嵌，打开即最新。</li><li><strong>能回答什么</strong>：现在还有多少没到货？谁的完成率低？哪些供应商逾期了？这个月产能吃得下吗？下周要追多少单？</li><li><strong>一句话用法</strong>：<strong>上面先筛选 → 中间看图表 → 点一下往下钻。</strong></li><li><strong>不用装东西</strong>：无后端、无登录、无外部请求。</li></ul>
+<hr/>
+<h2>1. 第一次打开：整体界面</h2>
+<figure><img class="fig" src="imgs/overview-full.png" alt=""/><figcaption>整体界面（真实页面）</figcaption></figure>
+<p>打开后从上到下是 5 块，对应图中编号：</p>
+<table><thead><tr><th>编号</th><th>区域</th><th>作用</th></tr></thead><tbody><tr><td>①</td><td>顶部<strong>标签页</strong></td><td>切换 6 个页面：在途概览 / 供应商分析 / 产能负荷 / 周数据计划 / 逾期分析 / 交叉分析</td></tr><tr><td>②</td><td><strong>通用筛选条</strong></td><td>供应商 / 月份 / 产线标签 / 时效标签 / 创建人 + 搜索 + 重置（<strong>每个页面共用</strong>）</td></tr><tr><td>③</td><td><strong>筛选反馈 chips</strong></td><td>实时显示"你正在筛什么"，可单项移除或一键清除</td></tr><tr><td>④</td><td><strong>本月 / 下月 开关</strong></td><td>在每个页面标题右侧，点一下<strong>全站联动</strong></td></tr><tr><td>⑤</td><td><strong>KPI 卡片</strong></td><td>关键指标，一眼看全局</td></tr><tr><td>⑥</td><td><strong>图表 / 表格</strong></td><td><strong>点柱子、扇区、气泡、行</strong> 即可下钻明细</td></tr></tbody></table>
+<blockquote><strong>手机 / 窄屏</strong>：标签页会折叠成 <strong>☰ 汉堡按钮</strong>，点开再选页面。</blockquote>
+<hr/>
+<h2>2. 通用操作（在哪个页面都一样）</h2>
+<h3>2.1 顶部筛选条怎么用</h3>
+<figure><img class="fig" src="imgs/filter.png" alt=""/><figcaption>筛选条（真实页面）</figcaption></figure>
+<table><thead><tr><th>编号</th><th>控件</th><th>怎么用</th></tr></thead><tbody><tr><td>①</td><td>供应商下拉</td><td>点开<strong>勾选</strong>多个供应商；<strong>清空勾选 = 全部</strong></td></tr><tr><td>②</td><td>月份下拉</td><td>选 <code>本月 / 下月 / 全部</code></td></tr><tr><td>③</td><td>创建人下拉</td><td>按采购/创建人过滤</td></tr><tr><td>④</td><td>搜索框</td><td>直接打字，跨字段匹配：<strong>单据号 / 物料 / 规格 / 供应商</strong></td></tr><tr><td>⑤</td><td>重置</td><td><strong>一键清空所有筛选</strong>，回到全量</td></tr><tr><td>⑥</td><td>筛选反馈 chips</td><td>见下节</td></tr></tbody></table>
+<h3>2.2 筛选反馈 chips：随时知道"我筛了什么"</h3>
+<ul><li>任何筛选生效后，筛选条下方会出现 chips，例如 <code>供应商：贝瑞卡 ×</code>、<code>本月 ×</code>。</li><li><strong>点某个 chip 的 ×</strong> → 只移除这一项。</li><li><strong>点「清除全部」</strong> → 一次性清空。</li><li>没筛选时显示「当前无筛选」。</li></ul>
+<h3>2.3 本月 / 下月 全局开关</h3>
+<figure><img class="fig" src="imgs/month.png" alt=""/><figcaption>页面标题与月份开关（真实页面）</figcaption></figure>
+<ul><li>① 每个页面都有标题；② 标题右侧是 <code>本月 / 下月</code> 按钮。</li><li><strong>点一下，全站联动</strong>：在途分布、Top8 占比、每日需交、产能负荷、周计划等都会跟着切月。</li><li>⚠️ <strong>有意不跟随的两处</strong>：<strong>逾期分析</strong> 与 <strong>交叉分析热力图</strong> 始终按<strong>全量 / 双月</strong>展示（方便一眼看全部风险，不是故障）。</li></ul>
+<h3>2.4 点击下钻：看板的核心玩法</h3>
+<figure><img class="fig" src="imgs/drawer.png" alt=""/><figcaption>下钻抽屉（真实页面）</figcaption></figure>
+<ul><li>图上几乎<strong>任何元素都能点</strong>：柱子、扇区、气泡、热力格、表格行、折线点 → 右侧滑出<strong>抽屉</strong>。</li><li>抽屉是<strong>两级</strong>：</li><li>第一级 <strong>订单汇总</strong>：一行 = 一个采购订单号（含 SPU 数、订单行数）。</li><li>第二级 <strong>SKU 明细</strong>：物料名称 / 规格型号 / SKU / 数量 / 已收 / 剩余 / 交货日期 / 状态。</li><li>图 ④ 的操作：① 点 <code>‹</code> <strong>返回上一级</strong>；② 看面包屑确认当前层级；③ <strong>点某一行</strong> → 进入该订单的 SKU 明细；④ 点 <code>✕</code> 关闭。</li></ul>
+<h3>2.5 表格排序与列筛选</h3>
+<figure><img class="fig" src="imgs/table.png" alt=""/><figcaption>表格操作（真实页面）</figcaption></figure>
+<ul><li><strong>① 排序</strong>：点表头 <strong>▲▼</strong> 图标，升序/降序切换。</li><li><strong>② 列内筛选</strong>：关键列表头带 <strong>▾</strong>，点开勾选该列的值（如只看某几个供应商）。</li><li><strong>③ 点行</strong>：展开/下钻该行明细。</li><li>明细表会自动带一列 <strong>「完成进度」</strong>；<strong>未满 100% 时保留 1 位小数</strong>（避免"100% 却仍有剩余"的误导）。</li></ul>
+<hr/>
+<h2>3. 逐页指引（每页：作用 → 操作步骤 → 小贴士）</h2>
+<h3>页面 ① 在途概览</h3>
+<figure><img class="fig" src="imgs/page-overview.png" alt=""/><figcaption>在途概览（真实页面）</figcaption></figure>
+<p><strong>这个页面回答</strong>：整体采购/已收/剩余/完成率如何？谁占大头？哪天要交得最多？</p>
+<p><strong>操作步骤</strong>（对应图中编号）：</p>
+<ol><li>④ 用标题右侧 <strong>本月 / 下月</strong> 选择统计月份。</li><li>⑤ 看 <strong>8 张 KPI 卡</strong>：总计划数量、剩余收料数量、完成率、供应商总数、逾期供应商数、逾期订单数、逾期数量、最大/平均逾期天数。</li><li>「整体在途分布」里切 <strong>核心 / 普通</strong>，<strong>点柱体</strong> → 下钻订单 → SKU。</li><li>「Top8 供应商数据占比」里切口径（<strong>在途剩余 / 已收料 / 采购总量</strong>），<strong>点扇区</strong> → 下钻该供应商。</li><li>「供应商月度订单数据」表里 <strong>点本月/下月的数字</strong> → 下钻该月该供应商明细。</li><li>「每日需交趋势」里 <strong>点数据点</strong> → 下钻当日订单。</li></ol>
+<p><strong>小贴士</strong>：③ 筛选后 chips 会显示当前条件；⑥ 记住"图表都能点"。</p>
+<hr/>
+<h3>页面 ② 供应商分析</h3>
+<figure><img class="fig" src="imgs/page-supplier.png" alt=""/><figcaption>供应商分析（真实页面）</figcaption></figure>
+<p><strong>这个页面回答</strong>：各产线/各时效的订单分布如何？谁订得多但到得少？</p>
+<p><strong>操作步骤</strong>：</p>
+<ol><li>① 先选 <strong>单据类型</strong>：全部 / 标准采购 / VMI 采购（影响本页全部数据）。</li><li>看 4 张 KPI：订单行数、采购总量、已完成 / 在途、逾期订单数。</li><li><strong>气泡图</strong>（②）：<strong>X = 计划数量，Y = 剩余收料数量，气泡大小 = 订单张数</strong>；可切 <strong>产线标签 / 时效标签</strong>，<strong>点气泡</strong> → 下钻。</li><li>「各产线收料与负荷汇总表」「时效标签收料与负荷汇总表」：<strong>③ 点「详情」</strong> → 下钻订单 → SKU。</li></ol>
+<p><strong>小贴士</strong>：气泡越大 = 涉及订单越多；越靠右、越靠上 = 订得多且还没到。</p>
+<hr/>
+<h3>页面 ③ 产能负荷</h3>
+<figure><img class="fig" src="imgs/page-capacity.png" alt=""/><figcaption>产能负荷（真实页面）</figcaption></figure>
+<p><strong>这个页面回答</strong>：这个月的在途量，相对供应商月产能有多满？谁超额、谁空闲？</p>
+<p><strong>口径</strong>：负荷率 = 该月<strong>在途（剩余收料）</strong> ÷ 供应商<strong>月产能</strong>；月产能是<strong>月度值，不跨月累加</strong>。</p>
+<p><strong>操作步骤</strong>：</p>
+<ol><li>① 确认页面顶部的<strong>统计月份</strong>（由本月/下月开关控制）。</li><li>② 点「产能负荷率分布」里的<strong>某个区间</strong> → 右侧<strong>负荷率详情表只显示该区间</strong>的供应商（联动）。</li><li>看「超额 / 饱和 / 空闲」三态：<strong>&gt;100% 超额、80–100% 饱和、&lt;80% 空闲</strong>。</li><li>点环形图的<strong>扇区</strong>或排序<strong>柱体</strong> → 下钻该供应商。</li></ol>
+<hr/>
+<h3>页面 ④ 周数据计划</h3>
+<figure><img class="fig" src="imgs/page-weekly.png" alt=""/><figcaption>周数据计划（真实页面）</figcaption></figure>
+<p><strong>这个页面回答</strong>：把"在途剩余 + 未来周计划"合起来，谁需要追单？</p>
+<p><strong>口径</strong>：合计 = 在途剩余收料 + 周计划数量；按<strong>分界值</strong>分成图 A（≥）与图 B（&lt;），<strong>两图各自独立比例尺</strong>。</p>
+<p><strong>操作步骤</strong>：</p>
+<ol><li>① 调整<strong>分界值</strong>（默认 5000，步长 500）→ 图 A / 图 B 自动重新分组。</li><li>② 有新数据时点 <strong>导入周计划文件…</strong> 上传 <code>.xlsx</code>（前端预览占位；正式数据走 <code>clean.py</code> 更新）。</li><li>③ <strong>点柱体</strong> → 下钻「SPU → SKU」。</li><li>「各供应商本周计划数量汇总表」里 <strong>点某行</strong> → 下钻该供应商本周计划明细。</li></ol>
+<hr/>
+<h3>页面 ⑤ 逾期分析</h3>
+<figure><img class="fig" src="imgs/page-overdue.png" alt=""/><figcaption>逾期分析（真实页面）</figcaption></figure>
+<p><strong>这个页面回答</strong>：哪些供应商、哪些订单<strong>交期已过却还没交</strong>？</p>
+<p><strong>口径</strong>：逾期 = 交货日期 &lt; 今天 <strong>且</strong> 剩余收料 &gt; 0。</p>
+<p><strong>操作步骤</strong>：</p>
+<ol><li>① 看 <strong>4 张逾期 KPI</strong>：逾期供应商数、逾期订单数、逾期数量、最大/平均逾期天数。</li><li>② 「逾期供应商数量 TOP」<strong>点柱体</strong> → 下钻该供应商逾期明细。</li><li>③ 「逾期供应商汇总表」（一行一家）里 <strong>排序 / 筛选</strong>，<strong>点行</strong> → 展开明细。</li><li>本页<strong>不跟随</strong>本月/下月开关，始终展示全量逾期。</li></ol>
+<hr/>
+<h3>页面 ⑥ 交叉分析</h3>
+<figure><img class="fig" src="imgs/page-cross.png" alt=""/><figcaption>交叉分析（真实页面）</figcaption></figure>
+<p><strong>这个页面回答</strong>：把"供应商 × 本月/下月"的在途量并排对比，谁两月都吃紧？</p>
+<p><strong>操作步骤</strong>：</p>
+<ol><li>① 选热力图<strong>显示范围</strong>：<code>TOP 20 / 全部（可滚动）/ 仅核心</code>。</li><li>② <strong>点某个热力格</strong> → 下钻该供应商<strong>当月</strong>明细。<strong>颜色越深 = 在途剩余越多</strong>。</li><li>「工厂逾期数量 TOP」<strong>点柱体</strong> → 下钻该供应商逾期明细。</li></ol>
+<p><strong>小贴士</strong>：本页保持<strong>双月对比全量</strong>，不随本月/下月开关变化。</p>
+<hr/>
+<h2>4. 操作速查表</h2>
+<table><thead><tr><th>我想…</th><th>这样做</th></tr></thead><tbody><tr><td>只看某几个供应商</td><td>① 筛选条「供应商」下拉勾选</td></tr><tr><td>只看本月 / 下月</td><td>② 标题右侧 <code>本月 / 下月</code>，或「月份」下拉</td></tr><tr><td>只看核心供应商</td><td>图上的「核心 / 普通」切换，或筛选条</td></tr><tr><td>看某根柱 / 扇区背后是谁</td><td><strong>点它</strong> → 右侧抽屉</td></tr><tr><td>从汇总看到具体 SKU</td><td>抽屉里<strong>点订单行</strong> → SKU 明细</td></tr><tr><td>回到上一层</td><td>抽屉左上角 <strong><code>‹</code></strong></td></tr><tr><td>按某列排队</td><td>点表头 <strong>▲▼</strong></td></tr><tr><td>只看某列的部分值</td><td>点表头 <strong>▾</strong> 勾选</td></tr><tr><td>确认自己筛了什么</td><td>看筛选条下方 <strong>chips</strong>；点 × 或「清除全部」</td></tr><tr><td>清空所有筛选</td><td>点 <strong>重置</strong></td></tr></tbody></table>
+<hr/>
+<h2>5. 常见问题（FAQ）</h2>
+<p><strong>Q1：为什么「逾期分析 / 交叉分析」点本月/下月没反应？</strong><br/>A：这两页<strong>刻意</strong>保持全量 / 双月对比，一眼看全部风险，不跟随开关。</p>
+<p><strong>Q2：页面右上角的时间是数据更新时间吗？</strong><br/>A：那是<strong>页面构建时间</strong>，不是数据时间。判断数据是否更新，看 <strong>KPI 数字有没有变化</strong>。</p>
+<p><strong>Q3：数字和 ERP 对不上？</strong><br/>A：看板<strong>保留</strong> ERP 中标记「业务关闭」的行（其剩余收料为 0，不影响在途口径），所以采购总量 / 已收量会比"只算在途"的口径大 —— 这是<strong>有意</strong>的，避免低估采购与已收。完成率 = 已收料 ÷ 采购数量。</p>
+<p><strong>Q4：手机上怎么用？</strong><br/>A：标签页折叠成 <strong>☰ 汉堡按钮</strong>；表格可横向滚动。</p>
+<p><strong>Q5：数据怎么更新？</strong><br/>A：维护者把新 Excel <strong>同名覆盖</strong>到仓库 <code>src/</code>（采购订单.xlsx / 产能.xlsx / 周计划文件），推送后自动构建上线。详见项目 <code>README.md</code>。</p>
+<p><strong>Q6：能离线用吗？</strong><br/>A：可以。<code>index.html</code> 是<strong>单文件</strong>，双击即可在浏览器打开，无需网络（数据已内嵌）。</p></div></body></html>

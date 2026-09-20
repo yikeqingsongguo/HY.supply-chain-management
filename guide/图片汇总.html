@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;color:#3A2E4D;font-size:12px;line-height:1.7}
+  .cover{height:96vh;display:flex;flex-direction:column;justify-content:center;padding:0 6mm}
+  .cover h1{font-size:30px;margin:0 0 6px;color:#4C1D95}
+  .cover .sub{font-size:13px;color:#7A7088;margin-bottom:22px}
+  .cover ol{margin:0;padding-left:1.6em;font-size:12.5px}
+  .cover li{margin:3px 0}
+  .cover .meta{margin-top:26px;font-size:11px;color:#9A93A8;border-top:1px dashed #E7E1F2;padding-top:10px}
+  .fig{page-break-inside:avoid;margin:0 0 9mm}
+  .fig h2{font-size:15px;margin:0 0 4px;color:#4C1D95}
+  .fig .no{display:inline-block;background:#7C3AED;color:#fff;border-radius:7px;padding:1px 8px;margin-right:8px;font-size:12px}
+  .fig img{width:100%;height:auto;border:1px solid #E7E1F2;border-radius:8px;box-shadow:0 3px 12px rgba(124,58,237,.10)}
+  .fig p{margin:4px 2px 0;font-size:11px;color:#5C5470}
+</style></head><body>
+<div class="cover">
+  <h1>供应链在途数据看板 · 使用指引图集</h1>
+  <div class="sub">真实页面截图汇编 · 编号与《使用说明》操作步骤一一对应</div>
+  <ol><li><b>01</b>　整体界面</li><li><b>02</b>　筛选条特写</li><li><b>03</b>　本月 / 下月 开关特写</li><li><b>04</b>　页面 ① 在途概览</li><li><b>05</b>　下钻抽屉（两级）</li><li><b>06</b>　页面 ② 供应商分析</li><li><b>07</b>　页面 ③ 产能负荷</li><li><b>08</b>　页面 ④ 周数据计划</li><li><b>09</b>　页面 ⑤ 逾期分析</li><li><b>10</b>　页面 ⑥ 交叉分析</li><li><b>11</b>　表格排序与列筛选特写</li></ol>
+  <div class="meta">在线看板：https://yikeqingsongguo.github.io/HY.supply-chain-management/　｜　数据源：采购订单.xlsx / 产能.xlsx / 周计划　｜　生成日期：2026-09-18</div>
+</div>
+<section class="fig">
+    <h2><span class="no">01</span>整体界面</h2>
+    <img src="imgs/overview-full.png"/>
+    <p>打开网页后的第一屏：① 标签页切换 6 个页面；② 通用筛选条；③ 筛选反馈 chips；④ 本月/下月开关；⑤ KPI 卡片；⑥ 点图表元素即可下钻。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">02</span>筛选条特写</h2>
+    <img src="imgs/filter.png"/>
+    <p>① 供应商下拉多选；② 月份；③ 创建人；④ 搜索（单据号/物料/规格/供应商）；⑤ 重置清空全部；⑥ 已生效筛选 chips：点 × 移除单项或清除全部。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">03</span>本月 / 下月 开关特写</h2>
+    <img src="imgs/month.png"/>
+    <p>每个页面标题右侧都有「本月 / 下月」；点一下全站联动切换统计月份。逾期分析与交叉分析刻意保持全量/双月，不跟随。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">04</span>页面 ① 在途概览</h2>
+    <img src="imgs/page-overview.png"/>
+    <p>8 张 KPI 卡（总计划/剩余/完成率/供应商数/逾期供应商/逾期订单/逾期数量/逾期天数）；整体在途分布（核心/普通切换，点柱体下钻）；Top8 占比（切口径，点扇区下钻）；每日需交趋势（点数据点下钻当日订单）。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">05</span>下钻抽屉（两级）</h2>
+    <img src="imgs/drawer.png"/>
+    <p>点击图表/表格行从右侧滑出：① ‹ 返回上一级；② 面包屑显示当前层级；③ 点某行 → 进入该订单的 SKU 明细；④ ✕ 关闭。两级 = 订单汇总 → SKU 明细。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">06</span>页面 ② 供应商分析</h2>
+    <img src="imgs/page-supplier.png"/>
+    <p>① 单据类型：全部/标准采购/VMI；气泡图 X=计划数量、Y=剩余收料、气泡大小=订单张数（产线/时效口径切换）；两张汇总表点「详情」下钻。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">07</span>页面 ③ 产能负荷</h2>
+    <img src="imgs/page-capacity.png"/>
+    <p>负荷率 = 该月在途(剩余收料) ÷ 供应商月产能（不跨月累加）。① 统计月份由顶部开关控制；② 点负荷率区间 → 右侧详情表联动。>100% 超额 / 80–100% 饱和 / <80% 空闲。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">08</span>页面 ④ 周数据计划</h2>
+    <img src="imgs/page-weekly.png"/>
+    <p>合计 = 在途剩余 + 周计划，按分界值分图 A（≥）/图 B（<），两图独立比例尺。① 调分界值重新分组；② 导入新一周周计划；③ 点柱体下钻 SPU → SKU。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">09</span>页面 ⑤ 逾期分析</h2>
+    <img src="imgs/page-overdue.png"/>
+    <p>逾期 = 交期 < 今天 且 剩余收料 > 0。① 4 张逾期 KPI；② 点 TOP 柱体下钻该供应商逾期明细；③ 汇总表一行一家，点行展开明细。本页不跟随本月/下月开关。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">10</span>页面 ⑥ 交叉分析</h2>
+    <img src="imgs/page-cross.png"/>
+    <p>供应商 × 本月/下月热力图：① 显示范围 TOP20/全部/仅核心；② 点单元格下钻该供应商当月明细，颜色越深 = 剩余越多；另有工厂逾期数量 TOP。</p>
+  </section>
+<section class="fig">
+    <h2><span class="no">11</span>表格排序与列筛选特写</h2>
+    <img src="imgs/table.png"/>
+    <p>① 点表头 ▲▼ 升/降序；② 关键列 ▾ 列内勾选筛选；③ 点行展开明细。明细表自动带「完成进度」列，未满 100% 保留 1 位小数。</p>
+  </section>
+</body></html>

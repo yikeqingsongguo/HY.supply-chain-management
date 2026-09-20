@@ -8,3 +8,7 @@ _check.js
 biz_check.js
 _test.js
 headless_test.js
+
+# 自动化同步：配置含敏感信息、日志无版本价值
+automation/kingdee_config.json
+automation/logs/
