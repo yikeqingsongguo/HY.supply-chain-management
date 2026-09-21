@@ -1,0 +1,23 @@
+如果右键「以管理员身份运行 register_tasks.bat」没有反应，请按下面步骤手动注册（100% 可见报错）：
+
+1. 在 C:\Users\admin\WorkBuddy\2026-09-17-11-48-46\supply-dashboard\automation 文件夹地址栏输入 cmd，按回车。
+2. 在打开的命令行里依次执行下面三条命令：
+
+schtasks /create /tn "KingdeeSync-0915" /tr "\"C:\Users\admin\WorkBuddy\2026-09-17-11-48-46\supply-dashboard\automation\sync_kingdee.bat\"" /sc daily /st 09:15 /rl HIGHEST /f
+
+schtasks /create /tn "KingdeeSync-1430" /tr "\"C:\Users\admin\WorkBuddy\2026-09-17-11-48-46\supply-dashboard\automation\sync_kingdee.bat\"" /sc daily /st 14:30 /rl HIGHEST /f
+
+schtasks /create /tn "KingdeeSync-1745" /tr "\"C:\Users\admin\WorkBuddy\2026-09-17-11-48-46\supply-dashboard\automation\sync_kingdee.bat\"" /sc daily /st 17:45 /rl HIGHEST /f
+
+3. 验证是否创建成功：
+   schtasks /query /tn "KingdeeSync-*"
+
+4. 手动跑一次测试：
+   schtasks /run /tn "KingdeeSync-1430"
+
+5. 观察日志：
+   type logs\sync.log
+
+说明：
+- 上面的命令需要在普通 CMD（不是 PowerShell）里执行，且 CMD 本身已经以管理员身份运行。
+- 如果提示「访问被拒绝」，说明 CMD 没有管理员权限；请关闭后用「右键开始菜单 → Windows 终端（管理员）」再试。
