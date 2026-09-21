@@ -242,6 +242,10 @@
   .bar-mini{height:12px;border-radius:9999px;background:var(--recess);box-shadow:var(--clay-pressed-s);
     overflow:hidden;min-width:74px;display:inline-block;vertical-align:middle;}
   .bar-mini i{display:block;height:100%;background:var(--grad);}
+  /* 完成进度三档配色：<50% 红 / 50–80% 橙 / ≥80% 绿 */
+  .bar-mini.lo i{background:#E24B4A;}
+  .bar-mini.mid i{background:#BA7517;}
+  .bar-mini.hi i{background:#639922;}
 
   /* ---------- drawer ---------- */
   .drawer-mask{position:fixed;inset:0;background:rgba(51,47,58,0.28);z-index:90;display:none;}
@@ -534,7 +538,7 @@
   </div>
   <div class="panel" style="grid-column:1/-1">
     <h3>各产线收料与负荷汇总</h3>
-    <div class="ph-sub">表头：产线标签 / SPU总数 / 详情 / 采购订单数量 / 已收 / 剩余 / 计划 / 进度 / 供应商数（点击“详情”下钻该产线）</div>
+    <div class="ph-sub">表头：产线标签 / SPU总数 / 详情 / 采购订单数量 / 已收 / 剩余 / 计划 / 完成进度 / 供应商数（点击“详情”下钻该产线）</div>
     <div id="sup_line_table"></div>
   </div>
   <div class="panel" style="grid-column:1/-1">
@@ -776,6 +780,13 @@ window.DATA = {"meta":{"updated_at":"2026-09-20 18:11","source_po":"采购订单
   // 进度专用：未满 100% 时保留 1 位小数，避免出现「100% 但仍有剩余」的误导
   function pctP(n){ if(n==null) return '—'; if(n>=99.95) return '100%';
     return (Math.floor(n*10)/10).toFixed(1)+'%'; }
+  // 完成进度分档（仅影响展示配色，不参与任何口径计算）：<50% 红 / 50–80% 橙 / ≥80% 绿
+  function progLvl(n){ return n==null ? '' : (n<50 ? 'lo' : (n<80 ? 'mid' : 'hi')); }
+  function progBar(n){
+    if(n==null) return '—';
+    var x=Math.min(100,Math.max(0,num(n)));
+    return '<span class="bar-mini '+progLvl(n)+'"><i style="width:'+x.toFixed(1)+'%"></i></span> '+pctP(n);
+  }
   function num(v){ v=Number(v); return isNaN(v)?0:v; }
   function uniq(a){ return Array.from(new Set(a.filter(function(x){return x!==''&&x!=null;}))); }
   function sumBy(arr,key){ var s=0; for(var i=0;i<arr.length;i++) s+=num(arr[i][key]); return s; }
@@ -935,7 +946,7 @@ window.DATA = {"meta":{"updated_at":"2026-09-20 18:11","source_po":"采购订单
   }
   function plainText(html){ return String(html==null?'':html).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim(); }
   function cellHtml(r,c,i){
-    if(c.key==='_prog') return pctP(progOf(r));
+    if(c.key==='_prog') return progBar(progOf(r));
     var v = c.render ? c.render(r,i) : (r[c.key]??'');
     return String(v==null?'':v);
   }
@@ -1110,13 +1121,13 @@ window.DATA = {"meta":{"updated_at":"2026-09-20 18:11","source_po":"采购订单
   document.getElementById('dw_back').onclick=drawerBack;
   document.getElementById('dmask').onclick=closeDrawer;
 
-  // ---------- 通用下钻层级：先「订单汇总」（一行=一个采购订单号），再「SKU 明细」 ----------
-  // 订单汇总：同订单号的多行合并成一张订单
+  // ---------- 通用下钻层级：先「订单汇总」（一行 = 一个「采购订单号 × SPU」），再「SKU 明细」 ----------
+  // 订单汇总：同订单号 + 同 SPU 的多行合并成一行（一张订单含多个 SPU 时拆成多行）
   function orderSummary(rows){
     var map={};
     rows.forEach(function(o){
-      var k=o.doc_no||'—';
-      if(!map[k]) map[k]={doc_no:k, supplier_short:o.supplier_short, material_name:o.material_name,
+      var k=(o.doc_no||'—')+'||'+(o.spu||'—');
+      if(!map[k]) map[k]={doc_no:o.doc_no, spu:o.spu, supplier_short:o.supplier_short, material_name:o.material_name,
         lines:0, po_qty:0, received:0, remain:0, delivery:o.delivery, rate:0, status:o.status, items:[]};
       var r=map[k];
       r.lines++; r.po_qty+=num(o.po_qty); r.received+=num(o.received); r.remain+=num(o.remain);
@@ -1136,10 +1147,9 @@ window.DATA = {"meta":{"updated_at":"2026-09-20 18:11","source_po":"采购订单
       if(r.remain<=0) r.status='已完成';
       else if(r.od>0) r.status='逾期'+r.od+'天';
       else r.status='剩'+r.remainDays+'天';
-      r.spuCnt = uniq(r.items.map(function(o){return o.spu;})).length;   // 该订单包含多少个 SPU
-      r._drill=function(){ openDrawer(r.doc_no+' · SKU 明细', r.items, skuCols(),
-        '订单行 <b>'+r.lines+'</b> ｜ SPU <b>'+r.spuCnt+'</b> 个 ｜ 采购 <b>'+fmt(r.po_qty)+'</b> ｜ 已收 <b>'+fmt(r.received)+'</b> ｜ 剩余 <b>'+fmt(r.remain)+'</b>',
-        '<b>订单</b> › <b style="color:var(--text)">'+r.doc_no+'</b>'); };
+      r._drill=function(){ openDrawer(r.doc_no+' · SPU '+r.spu+' · SKU 明细', r.items, skuCols(),
+        '订单行 <b>'+r.lines+'</b> ｜ 采购 <b>'+fmt(r.po_qty)+'</b> ｜ 已收 <b>'+fmt(r.received)+'</b> ｜ 剩余 <b>'+fmt(r.remain)+'</b>',
+        '<b>订单</b> › <b style="color:var(--text)">'+r.doc_no+'</b> › <b style="color:var(--text)">SPU '+r.spu+'</b>'); };
       return r;
     }).sort(function(a,b){ return dateCmp(a.delivery,b.delivery) || b.po_qty-a.po_qty; });
   }
@@ -1147,7 +1157,7 @@ window.DATA = {"meta":{"updated_at":"2026-09-20 18:11","source_po":"采购订单
   function openOrderSummary(rows, title, crumbs){
     var list=orderSummary(rows);
     openDrawer(title, list, ORDER_SUM_COLS,
-      '订单 <b>'+list.length+'</b> 张 ｜ 订单行 <b>'+rows.length+'</b> ｜ 采购 <b>'+fmt(sumBy(list,'po_qty'))+'</b> ｜ 剩余 <b>'+fmt(sumBy(list,'remain'))+'</b>',
+      '订单 <b>'+uniq(list.map(function(r){return r.doc_no;})).length+'</b> 张 ｜ SPU 行 <b>'+list.length+'</b> ｜ 订单行 <b>'+rows.length+'</b> ｜ 采购 <b>'+fmt(sumBy(list,'po_qty'))+'</b> ｜ 剩余 <b>'+fmt(sumBy(list,'remain'))+'</b>',
       crumbs||'<b>订单汇总</b>');
   }
   var ORDER_SUM_COLS=[
@@ -1155,12 +1165,11 @@ window.DATA = {"meta":{"updated_at":"2026-09-20 18:11","source_po":"采购订单
     {label:'供应商',key:'supplier_short',render:function(r){return '<span class="tag '+(CORE.has(r.supplier_short)?'core':'norm')+'">'+r.supplier_short+'</span>';}},
     {label:'物料名称',key:'material_name'},
     {label:'订单行数',key:'lines',render:function(r){return r.lines+' 行';}},
-    {label:'SPU 数',key:'spuCnt',render:function(r){return '<span class="tag core">'+r.spuCnt+' 个</span>';}},
+    {label:'SPU',key:'spu'},
     {label:'采购数量',key:'po_qty',render:function(r){return fmt(r.po_qty);}},
     {label:'已收',key:'received',render:function(r){return fmt(r.received);}},
     {label:'剩余',key:'remain',render:function(r){return fmt(r.remain);}},
     {label:'交货日期',key:'delivery'},
-    {label:'进度',key:'rate',render:function(r){return pct(r.rate);}},
     {label:'状态',key:'status',render:function(r){return statusTag(r);}}
   ];
   // SKU 明细列：一行 = 一条订单行（物料 / 规格型号 / SKU / 数量）
@@ -1458,10 +1467,10 @@ window.DATA = {"meta":{"updated_at":"2026-09-20 18:11","source_po":"采购订单
       return {pline:d.name, spus:spus, po:pp, rec:rr, rem:sumBy(s,'remain'),
         plan:sumBy(s,'po_qty'), rate:pp?rr/pp*100:0, sups:sups, rows:s};
     });
-    var html='<table class="t"><thead><tr><th>产线标签</th><th>SPU总数</th><th>详情</th><th>采购订单数量</th><th>已收</th><th>剩余</th><th>计划</th><th>进度</th><th>供应商数</th></tr></thead><tbody>';
-    lineRows.forEach(function(r){ html+='<tr><td>'+r.pline+'</td><td>'+r.spus+'</td><td class="link" data-pl="'+r.pline+'">查看</td><td>'+fmt(r.po)+'</td><td>'+fmt(r.rec)+'</td><td>'+fmt(r.rem)+'</td><td>'+fmt(r.plan)+'</td><td><span class="bar-mini"><i style="width:'+Math.min(100,r.rate)+'%"></i></span> '+pct(r.rate)+'</td><td>'+r.sups+'</td></tr>'; });
+    var html='<table class="t"><thead><tr><th>产线标签</th><th>SPU总数</th><th>详情</th><th>采购订单数量</th><th>已收</th><th>剩余</th><th>计划</th><th>完成进度</th><th>供应商数</th></tr></thead><tbody>';
+    lineRows.forEach(function(r){ html+='<tr><td>'+r.pline+'</td><td>'+r.spus+'</td><td class="link" data-pl="'+r.pline+'">查看</td><td>'+fmt(r.po)+'</td><td>'+fmt(r.rec)+'</td><td>'+fmt(r.rem)+'</td><td>'+fmt(r.plan)+'</td><td>'+progBar(r.rate)+'</td><td>'+r.sups+'</td></tr>'; });
     var totPo=sumBy(lineRows,'po'),totRec=sumBy(lineRows,'rec'),totRem=sumBy(lineRows,'rem');
-    html+='</tbody><tfoot><tr><td>合计</td><td>'+uniq(rows.map(function(o){return o.spu;})).length+'</td><td></td><td>'+fmt(totPo)+'</td><td>'+fmt(totRec)+'</td><td>'+fmt(totRem)+'</td><td>'+fmt(totPo)+'</td><td>'+pct(totPo?totRec/totPo*100:0)+'</td><td>'+uniq(rows.map(function(o){return o.supplier_short;})).length+'</td></tr></tfoot></table>';
+    html+='</tbody><tfoot><tr><td>合计</td><td>'+uniq(rows.map(function(o){return o.spu;})).length+'</td><td></td><td>'+fmt(totPo)+'</td><td>'+fmt(totRec)+'</td><td>'+fmt(totRem)+'</td><td>'+fmt(totPo)+'</td><td>'+progBar(totPo?totRec/totPo*100:0)+'</td><td>'+uniq(rows.map(function(o){return o.supplier_short;})).length+'</td></tr></tfoot></table>';
     document.getElementById('sup_line_table').innerHTML=html;
     document.getElementById('sup_line_table').querySelectorAll('[data-pl]').forEach(function(el){
       el.onclick=function(){ var pl=el.getAttribute('data-pl'); var s=rows.filter(function(o){return o.pline===pl;});
@@ -1481,10 +1490,10 @@ window.DATA = {"meta":{"updated_at":"2026-09-20 18:11","source_po":"采购订单
         sups:uniq(s.map(function(o){return o.supplier_short;})).length,
         po:pp, rec:rr, rem:sumBy(s,'remain'), plan:pp, rate:pp?rr/pp*100:0, rows:s};
     }).sort(function(a,b){return b.po-a.po;});
-    var h2='<table class="t"><thead><tr><th>时效标签</th><th>SPU总数</th><th>详情</th><th>采购订单数量</th><th>已收</th><th>剩余</th><th>计划</th><th>进度</th><th>供应商数</th></tr></thead><tbody>';
-    timData.forEach(function(r){ h2+='<tr><td>'+r.tim+'</td><td>'+r.spus+'</td><td class="link" data-tm="'+r.tim+'">查看</td><td>'+fmt(r.po)+'</td><td>'+fmt(r.rec)+'</td><td>'+fmt(r.rem)+'</td><td>'+fmt(r.plan)+'</td><td><span class="bar-mini"><i style="width:'+Math.min(100,r.rate)+'%"></i></span> '+pct(r.rate)+'</td><td>'+r.sups+'</td></tr>'; });
+    var h2='<table class="t"><thead><tr><th>时效标签</th><th>SPU总数</th><th>详情</th><th>采购订单数量</th><th>已收</th><th>剩余</th><th>计划</th><th>完成进度</th><th>供应商数</th></tr></thead><tbody>';
+    timData.forEach(function(r){ h2+='<tr><td>'+r.tim+'</td><td>'+r.spus+'</td><td class="link" data-tm="'+r.tim+'">查看</td><td>'+fmt(r.po)+'</td><td>'+fmt(r.rec)+'</td><td>'+fmt(r.rem)+'</td><td>'+fmt(r.plan)+'</td><td>'+progBar(r.rate)+'</td><td>'+r.sups+'</td></tr>'; });
     var t2po=sumBy(timData,'po'),t2rec=sumBy(timData,'rec'),t2rem=sumBy(timData,'rem');
-    h2+='</tbody><tfoot><tr><td>合计</td><td>'+uniq(rows.map(function(o){return o.spu;})).length+'</td><td></td><td>'+fmt(t2po)+'</td><td>'+fmt(t2rec)+'</td><td>'+fmt(t2rem)+'</td><td>'+fmt(t2po)+'</td><td>'+pct(t2po?t2rec/t2po*100:0)+'</td><td>'+uniq(rows.map(function(o){return o.supplier_short;})).length+'</td></tr></tfoot></table>';
+    h2+='</tbody><tfoot><tr><td>合计</td><td>'+uniq(rows.map(function(o){return o.spu;})).length+'</td><td></td><td>'+fmt(t2po)+'</td><td>'+fmt(t2rec)+'</td><td>'+fmt(t2rem)+'</td><td>'+fmt(t2po)+'</td><td>'+progBar(t2po?t2rec/t2po*100:0)+'</td><td>'+uniq(rows.map(function(o){return o.supplier_short;})).length+'</td></tr></tfoot></table>';
     var tel=document.getElementById('sup_timing_table');
     if(tel){
       tel.innerHTML=h2;
