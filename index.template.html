@@ -1916,10 +1916,13 @@
     var wm=wkMonthLabel();
     var wkMap={}; WEEKLY.forEach(function(w){ var k=w.supplier_short||w.supplier_full; wkMap[k]=num(wkMap[k])+num(w.plan_qty); });
     var supMap={};
+    // 以周计划供应商为基准，确保所有周计划行都进入汇总（即使所选月份没有在途剩余）
+    Object.keys(wkMap).forEach(function(k){ supMap[k]={short:k, remain:0, po:0, wk:num(wkMap[k])}; });
     ORDERS.forEach(function(o){ var k=o.supplier_short;
       if(o.month!==wm) return;   // 在途剩余只取所选月份
-      if(!supMap[k]) supMap[k]={short:k, remain:0, po:0}; supMap[k].remain+=num(o.remain); supMap[k].po+=num(o.po_qty); });
-    Object.keys(supMap).forEach(function(k){ supMap[k].wk=wkMap[k]||0; supMap[k].total=supMap[k].remain+supMap[k].wk; });
+      if(!supMap[k]) supMap[k]={short:k, remain:0, po:0, wk:0};
+      supMap[k].remain+=num(o.remain); supMap[k].po+=num(o.po_qty); });
+    Object.keys(supMap).forEach(function(k){ supMap[k].total=supMap[k].remain+supMap[k].wk; });
     var arr=Object.keys(supMap).map(function(k){return supMap[k];}).filter(function(x){return x.total>0;});
     arr=scopeFilter(arr, scope);
     var A=arr.filter(function(x){return x.total>=thr;}).sort(function(a,b){return b.total-a.total;});
