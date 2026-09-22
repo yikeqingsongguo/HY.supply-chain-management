@@ -28,6 +28,58 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+# 无控制台环境下启动子进程（后台 pythonw 调度器场景），
+# 避免子进程因控制台被回收而收到 CTRL_CLOSE_EVENT（0xC000013A）被强杀。
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+# 本机未独立安装 Git，git 由 WorkBuddy 管理的 PortableGit 提供；
+# 正常登录会话（含后台调度器）的 PATH 里没有它，必须用绝对路径。
+_GIT_HARD_CANDIDATES = [
+    r"C:\Program Files\Git\cmd\git.exe",
+    r"C:\Program Files (x86)\Git\cmd\git.exe",
+    r"C:\Users\admin\AppData\Local\Programs\Git\cmd\git.exe",
+]
+
+
+def resolve_git(cfg=None):
+    """解析 git 可执行文件绝对路径，避免依赖 PATH。"""
+    cands = []
+    # 1) 配置显式指定
+    try:
+        if cfg:
+            g = cfg.get("paths", {}).get("git_exe")
+            if g:
+                cands.append(g)
+    except Exception:
+        pass
+    # 2) 自动发现 WorkBuddy PortableGit（任意版本，优先新版）
+    try:
+        base = Path.home() / ".workbuddy" / "binaries" / "PortableGit" / "versions"
+        if base.exists():
+            for d in sorted(base.iterdir(), reverse=True):
+                for sub in ("cmd", "mingw64/bin"):
+                    p = d / sub / "git.exe"
+                    if p.exists():
+                        cands.append(str(p))
+    except Exception:
+        pass
+    # 3) 常规安装位置
+    cands.extend(_GIT_HARD_CANDIDATES)
+    # 4) 兜底：PATH
+    try:
+        w = shutil.which("git")
+        if w:
+            cands.append(w)
+    except Exception:
+        pass
+    for c in cands:
+        try:
+            if c and Path(c).exists():
+                return c
+        except Exception:
+            pass
+    return "git"
+
 
 def log(msg):
     line = f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}"
@@ -88,7 +140,8 @@ def run_subprocess(cmd, cwd=None, env=None, timeout=300):
         text=True,
         encoding="utf-8",
         errors="replace",
-        timeout=timeout
+        timeout=timeout,
+        creationflags=NO_WINDOW,
     )
     if result.stdout:
         for line in result.stdout.strip().splitlines():
@@ -123,6 +176,8 @@ def main():
     target_file = dashboard_dir / "src" / paths["target_filename"]
     incoming_dir = collector_dir / "data" / "incoming"
     python_exe = paths.get("python_exe", r"C:\Users\admin\AppData\Local\Programs\Python\Python312\python.exe")
+    git_exe = resolve_git(cfg)
+    log(f"使用 git: {git_exe}")
 
     # 环境变量注入金蝶凭证（kingdee_collector 优先读环境变量）
     env = os.environ.copy()
@@ -153,18 +208,20 @@ def main():
         # 3) git 提交并推送
         log("=== 步骤 3/4: git push ===")
         msg = git_cfg.get("commit_message", "daily: Kingdee 在途数据同步")
-        run_subprocess(["git", "add", "-A"], cwd=str(dashboard_dir))
-        # 仅当有变更才提交；无变更时 git diff --exit-code 返回 1
+        # 只提交看板数据源 src/，避免误提交 .lnk/.workbuddy/ 等无关文件
+        run_subprocess([git_exe, "add", "-A", "--", "src"], cwd=str(dashboard_dir))
+        # 仅当有变更才提交；无变更时 git diff --exit-code 返回 0
         diff = subprocess.run(
-            ["git", "diff", "--cached", "--exit-code"],
+            [git_exe, "diff", "--cached", "--exit-code"],
             cwd=str(dashboard_dir),
-            capture_output=True
+            capture_output=True,
+            creationflags=NO_WINDOW,
         )
         if diff.returncode == 0:
             log("看板无变更，无需提交")
         else:
-            run_subprocess(["git", "commit", "-m", msg], cwd=str(dashboard_dir))
-            run_subprocess(["git", "push", "origin", "main"], cwd=str(dashboard_dir))
+            run_subprocess([git_exe, "commit", "-m", msg], cwd=str(dashboard_dir))
+            run_subprocess([git_exe, "push", "origin", "main"], cwd=str(dashboard_dir))
             log("已推送至 origin/main，GitHub Actions 将自动部署")
 
         log("=== 同步完成 ===")
