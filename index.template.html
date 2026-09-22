@@ -1204,54 +1204,48 @@
     body.appendChild(grid);
     // 明细表（全列排序 + 列内筛选 + 自动「完成进度」列 + 右上角导出 Excel）
     body.appendChild(buildTable(cols, rows, st.title));
-    // 供应商「应交 / 剩余」直方图（原「每日需交趋势」面积折线已按需求替换为按供应商统计）
-    var hasDaily = flattenRows(rows).some(function(r){ return num(r.po_qty)>0 || num(r.remain)>0; });
+    // 每日需交趋势（阴影面积折线；仅当存在交货日期 + 采购数量时渲染，如周计划 SKU 无此数据则跳过）
+    var hasDaily = flattenRows(rows).some(function(r){ return r.delivery && r.delivery!=='—' && num(r.po_qty)>0; });
     if(hasDaily){
       var card=document.createElement('div'); card.className='d-card';
-      card.innerHTML='<div class="d-lab">供应商应交 / 剩余</div><div id="dw_daily" class="chart" style="height:290px"></div>';
+      card.innerHTML='<div class="d-lab">每日需交趋势</div><div id="dw_daily" class="chart" style="height:180px"></div>';
       body.appendChild(card);
       renderDrawerDaily(rows);
     } else if(charts.dw_daily){ try{charts.dw_daily.dispose();}catch(e){} delete charts.dw_daily; }
   }
-  /* 抽屉内「供应商应交 / 剩余」直方图：同一个供应商两根柱并排（应交=采购数量，剩余=未交数量），
-     按合计降序取前 20 家；点柱子下钻该供应商的订单汇总。 */
+  /* 抽屉内「每日需交趋势」：按交货日期升序的面积折线（smooth + 渐变阴影），
+     点数据点下钻当日订单汇总。 */
   function renderDrawerDaily(rows){
     var flat=flattenRows(rows);
-    var bySup={};
-    flat.forEach(function(o){
-      var s=o.supplier_short||o.supplier||'—';
-      if(!bySup[s]) bySup[s]={s:s, po:0, rem:0};
-      bySup[s].po+=num(o.po_qty); bySup[s].rem+=num(o.remain);
-    });
-    var arr=Object.keys(bySup).map(function(k){return bySup[k];})
-      .filter(function(d){ return d.po>0 || d.rem>0; })
-      .sort(function(a,b){ return (b.po+b.rem)-(a.po+a.rem); })
-      .slice(0,20);
+    var byDay={};
+    flat.forEach(function(o){ var d=o.delivery; if(d&&d!=='—'){
+      if(!byDay[d]) byDay[d]={day:d, po:0, rem:0, rows:[]};
+      byDay[d].po+=num(o.po_qty); byDay[d].rem+=num(o.remain); byDay[d].rows.push(o); } });
+    var days=Object.keys(byDay).sort(dateCmp);
     if(charts.dw_daily){ try{charts.dw_daily.dispose();}catch(e){} delete charts.dw_daily; }
-    var host=document.getElementById('dw_daily'); if(!host||!arr.length) return;
+    if(!days.length) return;
+    var dayArr=days.map(function(d){return byDay[d];});
     var c=getChart('dw_daily');
     c.setOption({
-      tooltip:Object.assign({trigger:'axis',axisPointer:{type:'shadow'},
-        formatter:function(ps){ var d=arr[ps[0].dataIndex]; if(!d) return '';
-          return d.s+'<br/>应交 '+fmt(d.po)+'<br/>剩余 '+fmt(d.rem); }},TT),
-      legend:{data:['应交','剩余'],top:0,right:8,textStyle:{color:'#635F69',fontSize:12}},
-      grid:{left:72,right:20,top:38,bottom:56},
-      xAxis:Object.assign({},AX,{type:'category',data:arr.map(function(d){return d.s;}),
-        axisLabel:Object.assign({},AX.axisLabel,{interval:0,rotate:38,fontSize:10})}),
-      yAxis:Object.assign({},AX,{type:'value',name:'数量'}),
-      series:[
-        {name:'应交',type:'bar',barGap:'14%',barWidth:'32%',data:arr.map(function(d){return d.po;}),
-          itemStyle:barFill('#C3BFFB','#7C3AED',false)},
-        {name:'剩余',type:'bar',barWidth:'32%',data:arr.map(function(d){return d.rem;}),
-          itemStyle:barFill('#BFE3D6','#10B981',false)}
-      ]
+      tooltip:Object.assign({trigger:'axis',axisPointer:{type:'line'},
+        formatter:function(ps){ var d=dayArr[ps[0].dataIndex]; if(!d) return '';
+          return d.day+'<br/>需交数量 '+fmt(d.po)+'<br/>剩余数量 '+fmt(d.rem)+'<br/>订单 '+d.rows.length+' 单'; }},TT),
+      grid:{left:55,right:15,top:15,bottom:35},
+      xAxis:Object.assign({},AX,{type:'category',boundaryGap:false,data:days,
+        axisLabel:Object.assign({},AX.axisLabel,{fontSize:9,rotate:35,interval:0})}),
+      yAxis:Object.assign({type:'value'},AX),
+      series:[{type:'line',smooth:true,symbol:'circle',symbolSize:7,showSymbol:days.length<=40,
+        data:dayArr.map(function(d){return d.po;}),
+        lineStyle:{width:3,color:'#7C3AED',shadowBlur:12,shadowColor:'rgba(124,58,237,0.35)',shadowOffsetY:4},
+        itemStyle:{color:'#7C3AED',borderColor:'#fff',borderWidth:2},
+        areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,
+          colorStops:[{offset:0,color:'rgba(124,58,237,0.38)'},{offset:1,color:'rgba(124,58,237,0.02)'}]}}}]
     }, true);
     c.off('click');
     c.on('click',function(p){
-      var d=arr[p.dataIndex]; if(!d) return;
-      var sub=flat.filter(function(o){ return (o.supplier_short||o.supplier||'—')===d.s; });
-      if(sub.length) openOrderSummary(sub, '供应商 '+d.s+' · 订单汇总',
-        '<b>供应商应交 / 剩余</b> › <b style="color:var(--text)">'+d.s+'</b>');
+      var d=dayArr[p.dataIndex]; if(!d) return;
+      openOrderSummary(d.rows, '每日需交 '+d.day+' · 订单汇总',
+        '<b>每日需交趋势</b> › <b style="color:var(--text)">'+d.day+'</b>');
     });
   }
   function closeDrawer(){ document.getElementById('drawer').classList.remove('open');
