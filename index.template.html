@@ -230,13 +230,12 @@
   table.t tfoot td{font-family:var(--f-head);font-weight:800;color:var(--text);border-top:2px solid rgba(124,58,237,0.22);}
   /* spec column keeps its halved width */
   table.t th.col-spec,table.t td.col-spec{width:var(--spec-w);max-width:var(--spec-w);white-space:normal;word-break:break-word;line-height:1.4;}
-  /* SPU 列：Clay 投影阴影，与相邻的数量列区分开 */
-  table.t th.col-spu{width:96px;}
-  table.t td.col-spu{width:96px;max-width:96px;font-family:var(--f-head);font-weight:800;letter-spacing:.02em;
-    color:#4B45C6;background:#fff;border-radius:10px;
-    box-shadow:4px 4px 10px rgba(163,177,198,0.55),-3px -3px 8px rgba(255,255,255,0.9);
-    position:relative;z-index:1;}
-  table.t tbody tr:hover td.col-spu{background:#fff;box-shadow:5px 5px 12px rgba(163,177,198,0.7),-3px -3px 8px rgba(255,255,255,0.95);}
+  /* SPU 列：圆框线胶囊 + 加粗 + 居中（替代原「白底投影阴影」，避免突兀） */
+  table.t th.col-spu,table.t td.col-spu{width:96px;text-align:center;}
+  table.t td.col-spu .spu-chip{display:inline-block;padding:2px 13px;border-radius:9999px;
+    border:1.5px solid rgba(124,58,237,0.42);font-family:var(--f-head);font-weight:800;
+    letter-spacing:.02em;color:#5B21B6;line-height:1.55;background:transparent;}
+  table.t tbody tr:hover td.col-spu .spu-chip{border-color:rgba(124,58,237,0.72);}
 
   /* 表格右上角导出条 */
   .tbl-tools{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin:0 0 10px;}
@@ -916,6 +915,8 @@
   function plainText(html){ return String(html==null?'':html).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim(); }
   function cellHtml(r,c,i){
     if(c.key==='_prog') return progBar(progOf(r));
+    // SPU 列统一渲染为「圆框线胶囊 + 加粗」（全局所有含「SPU」列的明细表）
+    if(String(c.label)==='SPU'){ var sv=r[c.key]; return '<span class="spu-chip">'+String(sv==null?'':sv)+'</span>'; }
     var v = c.render ? c.render(r,i) : (r[c.key]??'');
     return String(v==null?'':v);
   }
@@ -1232,7 +1233,7 @@
     c.setOption({
       tooltip:Object.assign({trigger:'axis',axisPointer:{type:'shadow'},
         formatter:function(ps){ var d=arr[ps[0].dataIndex]; if(!d) return '';
-          return d.s+'<br/>应交 '+fmt(d.po)+'<br/>剩余 '+fmt(d.rem)+'<br/>合计 '+fmt(d.po+d.rem); }},TT),
+          return d.s+'<br/>应交 '+fmt(d.po)+'<br/>剩余 '+fmt(d.rem); }},TT),
       legend:{data:['应交','剩余'],top:0,right:8,textStyle:{color:'#635F69',fontSize:12}},
       grid:{left:72,right:20,top:38,bottom:56},
       xAxis:Object.assign({},AX,{type:'category',data:arr.map(function(d){return d.s;}),
@@ -1336,10 +1337,11 @@
     var map={};
     rows.forEach(function(o){
       var k=(o.doc_no||'—')+'||'+(o.spu||'—');
-      if(!map[k]) map[k]={doc_no:o.doc_no, doc_type:o.doc_type, spu:o.spu, material_name:o.material_name,
-        lines:0, po_qty:0, remain:0, maxOd:0, delivery:o.delivery, items:[]};
-      var r=map[k]; r.lines++; r.po_qty+=num(o.po_qty); r.remain+=num(o.remain);
+      if(!map[k]) map[k]={doc_no:o.doc_no, doc_type:o.doc_type, spu:o.spu, supplier_short:o.supplier_short, material_name:o.material_name,
+        lines:0, po_qty:0, received:0, remain:0, maxOd:0, delivery:o.delivery, items:[]};
+      var r=map[k]; r.lines++; r.po_qty+=num(o.po_qty); r.received+=num(o.received); r.remain+=num(o.remain);
       r.maxOd=Math.max(r.maxOd, num(o.overdue_days)); r.items.push(o);
+      if(!r.supplier_short && o.supplier_short) r.supplier_short=o.supplier_short;
       if(!r.material_name && o.material_name) r.material_name=o.material_name;
       if(!r.doc_type && o.doc_type) r.doc_type=o.doc_type;
       if(dateNum(o.delivery) < dateNum(r.delivery)) r.delivery=o.delivery;
@@ -1359,6 +1361,7 @@
   }
   var OD_SUM_COLS=[
     {label:'单据类型',key:'doc_type',render:function(r){return docTypeTag(r.doc_type);}},
+    {label:'供应商',key:'supplier_short',render:function(r){return '<span class="tag '+(CORE.has(r.supplier_short)?'core':'norm')+'">'+r.supplier_short+'</span>';}},
     {label:'采购订单号',key:'doc_no'},
     {label:'SPU',key:'spu'},
     {label:'物料名称',key:'material_name'},
@@ -1453,8 +1456,8 @@
     var rows=filteredOrders();
     /* 顶部「本月/下月」只作用于第一行 4 张卡片（与下方柱图/环形图同口径）；
        第二行 4 张逾期卡片保持全量——逾期是跨月指标，按单月算会漏掉往月未交部分。 */
-    var mKpi=monthLabel();
-    var mrows=rows.filter(function(o){ return o.month===mKpi; });
+    var mKpi=monthTag();
+    var mrows=isAllMonths() ? rows : rows.filter(function(o){ return o.month===monthLabel(); });
     var po=sumBy(mrows,'po_qty'), rec=sumBy(mrows,'received'), rem=sumBy(mrows,'remain');
     var rate=po?rec/po*100:0;
     var sups=uniq(mrows.map(function(o){return o.supplier_short;})).length;
@@ -1473,8 +1476,8 @@
     // 柱状图：当前 scope 供应商剩余（横向条形）
     var scope=state.ovScope||'core';
     var mm=monthLabel();
-    var scopeRows=rows.filter(function(o){ return scope==='core'?CORE.has(o.supplier_short):!CORE.has(o.supplier_short); })
-      .filter(function(o){ return o.month===mm; });   // 跟随全局月份
+    var scopeRows=rows.filter(function(o){ return scope==='core'?CORE.has(o.supplier_short):!CORE.has(o.supplier_short); });
+    if(!isAllMonths()) scopeRows=scopeRows.filter(function(o){ return o.month===mm; });   // 跟随全局月份（「合计」则不过滤）
     var top = uniq(scopeRows.map(function(o){return o.supplier_short;}))
       .map(function(s){ var s2=scopeRows.filter(function(o){return o.supplier_short===s;});
         return {s:s, rem:sumBy(s2,'remain')}; })
@@ -1517,8 +1520,8 @@
 
   // 全部供应商 · 每日需交数量趋势（按交货日期升序，折线面积图）
   function renderOverviewDaily(rows){
-    var m = monthLabel();
-    var sub=rows.filter(function(o){ return o.month===m && o.delivery && o.delivery!=='—'; });
+    var m = monthTag();
+    var sub=rows.filter(function(o){ return (isAllMonths()||o.month===monthLabel()) && o.delivery && o.delivery!=='—'; });
     var byDay={};
     sub.forEach(function(o){ var d=o.delivery; if(!byDay[d]) byDay[d]={day:d, po:0, rem:0, rows:[]};
       byDay[d].po+=num(o.po_qty); byDay[d].rem+=num(o.remain); byDay[d].rows.push(o); });
@@ -1555,8 +1558,8 @@
     var docs=filteredOrders();
     if(state.docType!=='all') docs=docs.filter(function(o){return o.doc_type===state.docType;});
     /* 顶部「本月/下月」联动本页卡片与图表；逾期卡保持全量（只受单据类型约束） */
-    var mKpi=monthLabel();
-    var rows=docs.filter(function(o){ return o.month===mKpi; });
+    var mKpi=monthTag();
+    var rows=isAllMonths() ? docs : docs.filter(function(o){ return o.month===monthLabel(); });
     var po=sumBy(rows,'po_qty'), rec=sumBy(rows,'received'), rem=sumBy(rows,'remain');
     var k=overdueKPI(docs);
     var dtHint=state.docType==='all'?'全部单据':(String(state.docType).indexOf('VMI')>=0?'VMI采购':'标准采购');
@@ -1593,7 +1596,7 @@
     // 气泡图（按 产线标签 / 时效标签 聚合；点击气泡下钻明细）
     var bd=state.bubDim;
     var mm2=monthLabel();
-    var bubRows=rows.filter(function(o){ return o.month===mm2; });
+    var bubRows=isAllMonths() ? rows : rows.filter(function(o){ return o.month===mm2; });
     var groups=uniq(bubRows.map(function(o){return o[bd];})).filter(function(x){return x;});
     var bData=groups.map(function(g){ var s=bubRows.filter(function(o){return o[bd]===g;});
       return {name:g, orders:uniq(s.map(function(o){return o.doc_no;})).length,
@@ -1666,7 +1669,12 @@
 
   // ================= 页3 产能负荷 =================
   // 口径：负荷率 = 该月「剩余收料(在途)」合计 ÷ 该供应商月产能（月产能为月度值，不跨月累加）
+  // 「合计」= 不做月份过滤（全量）；只在概览/供应商分析两页可用
+  function isAllMonths(){ return state.month==='all'; }
+  // 月份名；state.month==='all' 时回落到本月（供产能/周计划等无「合计」的页面使用，保证不炸）
   function monthLabel(){ return state.month==='next' ? nextMonthName() : TODAY_M; }
+  // 卡片/图表文案里的月份标签（支持「合计」）
+  function monthTag(){ return isAllMonths() ? '合计' : monthLabel(); }
   function capMonthLabel(){ return monthLabel(); }
   function supplierLoad(){
     var capMap={}; CAP.forEach(function(c){capMap[c.short]=c;});
@@ -1919,7 +1927,9 @@
     // 堆叠柱：在途剩余(实心) + 周计划(斜纹)，柱顶显示合计
     function drawBar(id, list, titleTxt){
       var c=getChart(id);
-      if(!list.length){ c.setOption({title:{text:'（无数据）',left:'center',top:'middle',textStyle:{color:'#635F69',fontSize:12}},xAxis:{show:false},yAxis:{show:false},series:[]}); return; }
+      // ⚠️ 必须传 notMerge=true：原「无数据」分支曾 setOption({xAxis:{show:false},yAxis:{show:false}}),
+      //    merge 模式下 show:false 会被永久粘住 → 之后有数据了坐标轴/斜纹也不恢复（图 B 踩过）。
+      if(!list.length){ c.setOption({title:{text:'（无数据）',left:'center',top:'middle',textStyle:{color:'#635F69',fontSize:12}},xAxis:{show:false},yAxis:{show:false},series:[]}, true); return; }
       var maxv=Math.max.apply(null,list.map(function(x){return x.total;}));
       c.setOption({
         title:{text:titleTxt,left:0,top:0,textStyle:{color:'#332F3A',fontSize:13,fontWeight:700}},
@@ -1943,7 +1953,7 @@
             label:{show:true,position:'top',color:'#332F3A',fontWeight:700,fontSize:11,
               formatter:function(p){return fmt(list[p.dataIndex].total);}}}
         ]
-      });
+      }, true);
       c.off('click'); c.on('click',function(p){ var d=list[p.dataIndex]; if(!d) return;
         var wkSub=WEEKLY.filter(function(w){return (w.supplier_short||w.supplier_full)===d.short;});
         if(wkSub.length){
@@ -2038,19 +2048,29 @@
   }
 
   // ---------- 全局月份开关（注入到每个页面标题右侧） ----------
+  // 「合计」只加在月份口径生效的两页（在途概览 / 供应商分析）；产能页等不加
+  var MONTH_ALL_PAGES={overview:1, supplier:1};
   function buildMonthSwitch(){
     document.querySelectorAll('.page-title').forEach(function(t){
       if(t.querySelector('.pt-month')) return;
+      var pg=t.closest('.page'); var pid=pg?pg.id.replace('page_',''):'';
       var d=document.createElement('div');
       d.className='pt-month'; d.setAttribute('data-gm','1');
-      d.innerHTML='<span data-m="this">本月</span><span data-m="next">下月</span>';
+      d.innerHTML=(MONTH_ALL_PAGES[pid]?'<span data-m="all">合计</span>':'')
+        +'<span data-m="this">本月</span><span data-m="next">下月</span>';
       t.appendChild(d);
     });
     syncMonthSwitch();
   }
   function syncMonthSwitch(){
-    document.querySelectorAll('[data-gm] span[data-m]').forEach(function(x){
-      x.classList.toggle('on', x.getAttribute('data-m')===state.month);
+    document.querySelectorAll('[data-gm]').forEach(function(g){
+      var hasAll=!!g.querySelector('span[data-m="all"]');
+      g.querySelectorAll('span[data-m]').forEach(function(x){
+        var m=x.getAttribute('data-m');
+        // 无「合计」的页面（如产能）在 state.month==='all' 时回落到「本月」高亮
+        var on=(m===state.month)||(state.month==='all'&&!hasAll&&m==='this');
+        x.classList.toggle('on',on);
+      });
     });
   }
 
