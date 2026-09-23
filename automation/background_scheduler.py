@@ -196,6 +196,8 @@ def main(run_now=False):
         sys.exit(0)
 
     write_pid()
+    next_sec = seconds_until_next_trigger()
+    log(f"调度器已就绪（PID {os.getpid()}），距离下一次调度还有 {next_sec // 60} 分钟")
     try:
         # 启动时检查是否刚刚错过某个点（例如机器从睡眠中唤醒后启动）
         missed, target = should_run_after_wake()
@@ -204,6 +206,8 @@ def main(run_now=False):
             run_sync_with_retry()
 
         last_check = datetime.now()
+        last_hb = datetime.now()
+        HEARTBEAT_SEC = 300  # 每 5 分钟写一条存活心跳
         while True:
             now = datetime.now()
 
@@ -225,9 +229,13 @@ def main(run_now=False):
                 wait_sec = seconds_until_next_trigger(now)
                 # 每次最多睡 60 秒，避免长 sleep 失效
                 sleep_sec = max(1, min(60, wait_sec))
-                if wait_sec > 60 and now.minute % 5 == 0 and now.second < 30:
+                # ⚠️ 心跳不能用「分钟%5==0 且 秒<30」判断：sleep(60) 会把秒数相位
+                #    固定在启动那一秒（如 :32），永远命中不了「秒<30」→ 日志一片寂静，
+                #    无法判断调度器是死是活。改为按「距上次心跳 ≥5 分钟」判定。
+                if wait_sec > 60 and (now - last_hb).total_seconds() >= HEARTBEAT_SEC:
                     next_time = now + timedelta(seconds=wait_sec)
-                    log(f"距离下一次调度 {next_time:%H:%M} 还有 {wait_sec // 60} 分钟")
+                    log(f"存活心跳（PID {os.getpid()}）：距离下一次调度 {next_time:%H:%M} 还有 {wait_sec // 60} 分钟")
+                    last_hb = now
                 time.sleep(sleep_sec)
 
             last_check = now
