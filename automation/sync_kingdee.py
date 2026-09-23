@@ -32,6 +32,10 @@ if hasattr(sys.stderr, "reconfigure"):
 # 避免子进程因控制台被回收而收到 CTRL_CLOSE_EVENT（0xC000013A）被强杀。
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
+# 复制目标文件可能正被 Excel/WPS 打开而短暂占用（曾报 PermissionError: [Errno 13]）→ 带重试
+COPY_MAX_ATTEMPTS = 5
+COPY_RETRY_DELAY = 3  # 秒
+
 # 本机未独立安装 Git，git 由 WorkBuddy 管理的 PortableGit 提供；
 # 正常登录会话（含后台调度器）的 PATH 里没有它，必须用绝对路径。
 _GIT_HARD_CANDIDATES = [
@@ -202,7 +206,21 @@ def main():
         # 2) 复制到看板 src
         log("=== 步骤 2/4: 复制到看板 src ===")
         latest = find_latest_export(incoming_dir)
-        shutil.copy2(str(latest), str(target_file))
+        copy_err = None
+        for _try in range(1, COPY_MAX_ATTEMPTS + 1):
+            try:
+                shutil.copy2(str(latest), str(target_file))
+                copy_err = None
+                break
+            except PermissionError as e:
+                copy_err = e
+                log(f"复制被占用（第 {_try}/{COPY_MAX_ATTEMPTS} 次）: {e}")
+                if _try < COPY_MAX_ATTEMPTS:
+                    time.sleep(COPY_RETRY_DELAY)
+        if copy_err is not None:
+            log(f"❌ 复制失败：{target_file} 被其他程序占用。"
+                f"请关闭正在打开该文件的 Excel/WPS（或退出同步目录预览）后重试。")
+            raise copy_err
         log(f"已覆盖: {target_file}")
 
         # 3) git 提交并推送
