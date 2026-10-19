@@ -108,7 +108,7 @@ def fetch_online_page():
 
 
 def extract_updated_at(html):
-    m = re.search(r'updated_at["\']?\s*[:=]\s*["\']?([^",\}\s]+)', html)
+    m = re.search(r'updated_at["\']?\s*[:=]\s*["\']?([^",}]+)', html)
     return m.group(1) if m else "unknown"
 
 
