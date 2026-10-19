@@ -419,18 +419,23 @@ def clean():
     # ---------- 准交率（独立数据源：收料通知单 + 全量采购订单） ----------
     # 失败不影响在途数据产出；缺源表时 otd=None，前端显示待接入。
     otd = None
+    otd_error = None
     if build_otd:
         try:
             otd = build_otd(args.src)
         except Exception as _e:
+            import traceback
+            otd_error = traceback.format_exc()
             print(f"⚠️ 准交率计算失败（不影响在途数据）：{type(_e).__name__}: {_e}")
+            print(otd_error)
 
     # 列式编码：orders 是 4k+ 行 × 25 字段，若写成对象数组，光重复的键名就约 1.2MB。
     # 改为「列名数组 + 行数组」后可省约 58% 体积（前端一次性还原成对象，见 index.template.html）。
     _ocols = list(orders[0].keys()) if orders else []
     _orows = [[o.get(c) for c in _ocols] for o in orders]
     out = {"meta": meta, "orders_cols": _ocols, "orders_rows": _orows,
-           "capacity": list(cap_map.values()), "weekly": weekly, "otd": otd}
+           "capacity": list(cap_map.values()), "weekly": weekly, "otd": otd,
+           "otd_error": otd_error}
     with open(os.path.join(HERE, "data.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 
