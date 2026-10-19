@@ -38,6 +38,11 @@ try:
 except ImportError:
     sys.exit("缺少依赖 openpyxl，请先: pip install openpyxl")
 
+try:
+    from otd import build_otd
+except ImportError:
+    build_otd = None
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "src")
 
@@ -411,12 +416,21 @@ def clean():
         "self_check_ok": all(c[3] is not False for c in checks) if any(c[2] is not None for c in checks) else None,
     }
 
+    # ---------- 准交率（独立数据源：收料通知单 + 全量采购订单） ----------
+    # 失败不影响在途数据产出；缺源表时 otd=None，前端显示待接入。
+    otd = None
+    if build_otd:
+        try:
+            otd = build_otd(args.src)
+        except Exception as _e:
+            print(f"⚠️ 准交率计算失败（不影响在途数据）：{type(_e).__name__}: {_e}")
+
     # 列式编码：orders 是 4k+ 行 × 25 字段，若写成对象数组，光重复的键名就约 1.2MB。
     # 改为「列名数组 + 行数组」后可省约 58% 体积（前端一次性还原成对象，见 index.template.html）。
     _ocols = list(orders[0].keys()) if orders else []
     _orows = [[o.get(c) for c in _ocols] for o in orders]
     out = {"meta": meta, "orders_cols": _ocols, "orders_rows": _orows,
-           "capacity": list(cap_map.values()), "weekly": weekly}
+           "capacity": list(cap_map.values()), "weekly": weekly, "otd": otd}
     with open(os.path.join(HERE, "data.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 
@@ -428,6 +442,15 @@ def clean():
     ov = [o for o in orders if o['overdue_days'] > 0]
     print(f"逾期订单数: {len(ov)}  逾期供应商数: {len(set(o['supplier_short'] for o in ov))}")
     print(f"Σ采购数量={sum_po:,.0f}  Σ已收料={sum_rec:,.0f}  Σ剩余收料={sum_rem:,.0f}")
+
+    if otd:
+        _d = otd["periods"][-1]
+        _c = _d["coverage"]
+        print(f"准交率[{_d['period']}]: {_d['overall']['rate']}%  "
+              f"单号覆盖 {_c['unique_rate']}%  行覆盖 {_c['row_rate']}%  "
+              f"未知缺失 {len(_d['unknown_missing'])} 个  已知例外 {len(_d['excluded_known'])} 个")
+    else:
+        print("准交率: 未计算（缺 src/otd_recv.xlsx 或 src/otd_po_full.xlsx）")
 
     print("=== 自检：与源表「合计」行比对 ===")
     if not erp_total:

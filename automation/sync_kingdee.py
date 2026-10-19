@@ -168,6 +168,21 @@ def find_latest_export(incoming_dir):
     return latest
 
 
+def copy_with_retry(src, dst):
+    """复制并处理 Excel/WPS 占用导致的 PermissionError；失败返回异常对象。"""
+    copy_err = None
+    for _try in range(1, COPY_MAX_ATTEMPTS + 1):
+        try:
+            shutil.copy2(str(src), str(dst))
+            return None
+        except PermissionError as e:
+            copy_err = e
+            log(f"复制被占用（第 {_try}/{COPY_MAX_ATTEMPTS} 次）: {e}")
+            if _try < COPY_MAX_ATTEMPTS:
+                time.sleep(COPY_RETRY_DELAY)
+    return copy_err
+
+
 def main():
     cfg = load_config()
     kd = cfg["kingdee"]
@@ -203,28 +218,37 @@ def main():
             timeout=600
         )
 
-        # 2) 复制到看板 src
-        log("=== 步骤 2/4: 复制到看板 src ===")
+        # 2) 复制到看板 src（在途口径，现有页面使用）
+        log("=== 步骤 2/5: 复制在途采购订单 ===")
         latest = find_latest_export(incoming_dir)
-        copy_err = None
-        for _try in range(1, COPY_MAX_ATTEMPTS + 1):
-            try:
-                shutil.copy2(str(latest), str(target_file))
-                copy_err = None
-                break
-            except PermissionError as e:
-                copy_err = e
-                log(f"复制被占用（第 {_try}/{COPY_MAX_ATTEMPTS} 次）: {e}")
-                if _try < COPY_MAX_ATTEMPTS:
-                    time.sleep(COPY_RETRY_DELAY)
+        copy_err = copy_with_retry(latest, target_file)
         if copy_err is not None:
             log(f"❌ 复制失败：{target_file} 被其他程序占用。"
                 f"请关闭正在打开该文件的 Excel/WPS（或退出同步目录预览）后重试。")
             raise copy_err
         log(f"已覆盖: {target_file}")
 
+        # 2b) 导出全量采购订单（含已关闭），供准交率使用
+        log("=== 步骤 3/5: 金蝶导出全量采购订单（含已关闭） ===")
+        env_full = env.copy()
+        env_full["KINGDEE_PO_SCHEME"] = "默认方案（个人）"
+        run_subprocess(
+            [python_exe, str(collector_dir / "kingdee_collector.py"), "--export-only"],
+            cwd=str(collector_dir),
+            env=env_full,
+            timeout=900
+        )
+        log("=== 步骤 4/5: 复制全量采购订单 ===")
+        latest_full = find_latest_export(incoming_dir)
+        full_target = dashboard_dir / "src" / "otd_po_full.xlsx"
+        copy_err = copy_with_retry(latest_full, full_target)
+        if copy_err is not None:
+            log(f"❌ 复制失败：{full_target} 被其他程序占用。")
+            raise copy_err
+        log(f"已覆盖: {full_target}")
+
         # 3) git 提交并推送
-        log("=== 步骤 3/4: git push ===")
+        log("=== 步骤 5/5: git push ===")
         msg = git_cfg.get("commit_message", "daily: Kingdee 在途数据同步")
         # 只提交看板数据源 src/，避免误提交 .lnk/.workbuddy/ 等无关文件
         run_subprocess([git_exe, "add", "-A", "--", "src"], cwd=str(dashboard_dir))
