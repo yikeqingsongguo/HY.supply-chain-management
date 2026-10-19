@@ -1,0 +1,14 @@
+{
+  "version": "1.1.0",
+  "date": "2026-10-19",
+  "type": "minor",
+  "title": "新增准交率分析页（收料单+全量采购订单）",
+  "description": "新增第7个Tab「准交率」：KPI、供应商/采购员排名、准交逾期构成、明细表、月份与维度切换；新增 otd.py 与 data.json.otd；同步管道改为在途+全量双导出。",
+  "reason": "原在途采购订单方案缺少已关闭订单，源单覆盖率仅29.9%，准交率失真；改用「默认方案（个人）」全量行级数据后，10月单号覆盖99.73%。",
+  "impact": "新增一页，不改动原6页口径；clean.py 增加 otd/otd_error 字段；sync_kingdee.py 每轮多一次全量导出（约+30s）；仓库新增 src/otd_recv.xlsx、src/otd_po_full.xlsx。",
+  "data_updated_at": "2026-10-19 12:43",
+  "parent_version": "v1.0.0",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-10-19 12:47:31"
+}
