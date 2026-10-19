@@ -608,7 +608,19 @@
 <!-- ============ 页5 周数据计划 ============ -->
 <section class="page" id="page_weekly">
   <div class="page-title"><span class="pico" style="--pico:#F59E0B"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="16" rx="4.5" fill="#F59E0B"/><rect x="3" y="5" width="18" height="5" rx="4.5" fill="#FCD34D"/><rect x="7" y="2.6" width="2.6" height="4.6" rx="1.3" fill="#B45309"/><rect x="14.4" y="2.6" width="2.6" height="4.6" rx="1.3" fill="#B45309"/><circle cx="8.6" cy="14" r="1.7" fill="#fff"/><circle cx="15.4" cy="14" r="1.7" fill="#fff"/></svg></span><span>周数据计划</span></div>
-  <div class="page-sub">合计（在途剩余 + 周计划）按分界值分组，图 A / 图 B 独立比例尺；点击柱体下钻需下单明细</div>
+  <div class="page-sub">采购管理台（映射表管理 / 申请单匹配 / 供应商透视 / 未匹配补录 / 漏下单核查），原周计划图表保留为第二视图</div>
+  <div class="ctl-inline">
+    <span class="lab">视图：</span>
+    <div class="seg" id="wk_view_seg">
+      <span class="on" data-v="console">采购管理台</span>
+      <span data-v="charts">原周计划图表</span>
+    </div>
+    <span class="lab" style="margin-left:10px">管理台数据与交互与原网页一致；原图表视图保留在途剩余+周计划堆叠对比</span>
+  </div>
+  <div id="wk_console_box">
+    <iframe id="wk_console" src="console/index.html" title="采购申请单与订单分配管理台" style="width:100%;height:1500px;border:0;border-radius:24px;background:#fff;display:block"></iframe>
+  </div>
+  <div id="wk_charts_box" style="display:none">
   <div class="ctl-inline">
     <span class="lab">分界值：合计 ≥</span>
     <input class="numin" id="wk_thr" type="number" value="5000" step="500" min="0" />
@@ -635,6 +647,7 @@
     </div>
   </div>
   <div id="wk_note"></div>
+  </div><!-- /wk_charts_box -->
 </section>
 
 <!-- ============ 页6 逾期分析 ============ -->
@@ -690,8 +703,9 @@
 
 <!-- ============ 页7 准交率分析 ============ -->
 <section class="page" id="page_otd">
+<style>#page_otd .pt-month{display:none}</style>
   <div class="page-title"><span class="pico" style="--pico:#10B981"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8.4" stroke="#10B981" stroke-width="2.6"/><path d="M7.8 12.2l2.7 2.7 5.7-6" stroke="#10B981" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>准交率分析</span></div>
-  <div class="page-sub" id="otd_sub">按收料日期统计供应商 / 采购员准交率：准交 = 收料日期 ≤ 采购单交货日期；分母 = 源单采购数量（按源单+物料去重）</div>
+  <div class="page-sub" id="otd_sub">按订单到货期统计：准交率 = Σ到货期内数量 ÷ Σ订单数量（数量加权，逐单封顶 100%）；仅保留 10 位采购订单创建人</div>
   <div class="ctl-inline">
     <span class="lab">统计月份：</span>
     <div class="seg" id="otd_period_seg"></div>
@@ -836,7 +850,8 @@
     ovScope:'core', crossHeatSeg:'top20',
     monthScope:'all', weekScope:'all', odScope:'all', capScope:'all', odSort:'qty',
     month:'this',                                               // month = 全局「本月/下月」开关（此前各面板各自为政）
-    otdPeriod:(OTD&&OTD.default_period)||null, otdDim:'supplier', otdSort:'po_qty' };
+    otdPeriod:(OTD&&OTD.default_period)||null, otdDim:'supplier', otdSort:'po_qty',
+    wkView:'console' };
 
   function applyFilters(rows){
     var f=state.filters;
@@ -2155,6 +2170,7 @@
 
   // ================= 页7 准交率分析 =================
   function otdRateColor(r){ return r>=60 ? '#10B981' : (r>=30 ? '#F59E0B' : '#EF4444'); }
+  function otdPct(n){ return (Math.round(num(n)*10)/10).toFixed(1)+'%'; }
   function otdPeriodObj(){
     if(!OTD || !OTD.periods || !OTD.periods.length) return null;
     var ps=OTD.periods;
@@ -2167,25 +2183,30 @@
     if(!OTD){
       if(kpiBox) kpiBox.innerHTML='';
       if(tbl) tbl.innerHTML='<div class="empty">准交率数据未生成：请把收料通知单与全量采购订单放入 src/ 后重跑 clean.py</div>';
+      var nt0=document.getElementById('otd_note');
+      if(nt0 && D.otd_error){
+        nt0.innerHTML='<div class="panel" style="border-left:5px solid var(--red)"><h3>准交率计算异常</h3><div class="ph-sub">'
+          +String(D.otd_error).replace(/</g,'&lt;').slice(0,900)+'</div></div>';
+      }
       return;
     }
     var p=otdPeriodObj(); if(!p) return;
 
     var seg=document.getElementById('otd_period_seg');
     if(seg){ seg.innerHTML=OTD.periods.map(function(x){
-      return '<span class="'+(x.period===p.period?'on':'')+'" data-p="'+x.period+'">'+x.label+'</span>';
+      return '<span class="'+(x.period===p.period?'on':'')+'" data-p="'+x.period+'">'+x.label+(x.valid===false?' · 参考':'')+'</span>';
     }).join(''); }
     var dimSeg=document.getElementById('otd_dim_seg');
     if(dimSeg){ dimSeg.querySelectorAll('span').forEach(function(s){ s.classList.toggle('on', s.getAttribute('data-d')===state.otdDim); }); }
 
     var o=p.overall, c=p.coverage;
+    var unfilled=Math.max(num(o.po_qty)-num(o.ontime),0);
     var missQty=(p.excluded_known||[]).reduce(function(s,m){ return s+num(m.qty); },0);
     renderCards('otd_kpi',[
-      {lab:'整体准交率',val:pct(o.rate),hint:p.label+' 准交数量 ÷ 订单数量',color:'var(--blue)'},
-      {lab:'准交数量',val:fmt(o.ontime),hint:'收料日期 ≤ 采购单交期',color:'var(--green)'},
-      {lab:'逾期数量',val:fmt(o.late),hint:'晚于采购单交期',color:'var(--red)'},
-      {lab:'单号覆盖率',val:pct(c.unique_rate),hint:c.unique_matched+' / '+c.unique_total+' 个源单号',color:'var(--purple)'},
-      {lab:'行覆盖率',val:pct(c.row_rate),hint:c.rows_matched+' / '+c.rows_total+' 条收料行',color:'var(--amber)'}
+      {lab:'整体准交率',val:otdPct(o.rate),hint:p.label+' · 数量加权',color:'var(--blue)'},
+      {lab:'准交数量',val:fmt(o.ontime),hint:'到货期内累计收料（逐单封顶）',color:'var(--green)'},
+      {lab:'订单数量',val:fmt(o.po_qty),hint:p.label+' 已到期订单',color:'var(--purple)'},
+      {lab:'整单交齐率',val:otdPct(o.full_rate),hint:(o.full_orders||0)+' / '+(o.order_lines||0)+' 单交齐',color:'var(--red)'}
     ]);
 
     var label=state.otdDim==='buyer'?'采购员':'供应商';
@@ -2200,9 +2221,9 @@
         formatter:function(ps){
           var i=ps[0].dataIndex, x=top[top.length-1-i];
           if(!x) return '';
-          return '<b>'+x.name+'</b><br/>准交率：'+x.rate+'%'+(x.over?'（超交）':'')
+          return '<b>'+x.name+'</b><br/>准交率：'+x.rate+'%（数量加权）'
             +'<br/>准交 '+fmt(x.ontime)+' / 订单 '+fmt(x.po_qty)
-            +'<br/>逾期 '+fmt(x.late)+' ｜ 收料行 '+x.rows;
+            +'<br/>订单 '+x.orders+' 单 · 整单交齐 '+x.full_orders+' 单';
         }},
       grid:{left:118,right:76,top:10,bottom:18},
       xAxis:{type:'value',max:100,axisLine:{lineStyle:{color:'#635F69'}},
@@ -2220,7 +2241,7 @@
       }]
     }, true);
     var rs=document.getElementById('otd_rank_sub');
-    if(rs){ rs.textContent=p.label+' · 按'+(state.otdSort==='po_qty'?'订单数量':'准交率')+'降序 · TOP 15 · 超 100% 封顶显示'; }
+    if(rs){ rs.textContent=p.label+' · 数量加权 · 按'+((state.otdSort==='po_qty')?'订单数量':'准交率')+'降序 · TOP 15'; }
 
     var ch2=getChart('otd_donut');
     ch2.setOption({
@@ -2231,38 +2252,59 @@
         itemStyle:{borderRadius:10,borderColor:'rgba(255,255,255,0.85)',borderWidth:2,
           shadowBlur:18,shadowColor:'rgba(124,58,237,0.22)'},
         label:{show:true,formatter:'{b}\n{d}%',color:'#332F3A',fontSize:11},
-        data:[{name:'准交',value:o.ontime,itemStyle:{color:'#10B981'}},
-              {name:'逾期',value:o.late,itemStyle:{color:'#EF4444'}}]}]
+        data:[{name:'准交',value:num(o.ontime),itemStyle:{color:'#10B981'}},
+              {name:'未交',value:unfilled,itemStyle:{color:'#EF4444'}}]}]
     }, true);
     var ds=document.getElementById('otd_donut_sub');
-    if(ds){ ds.textContent=p.label+' · 准交 '+fmt(o.ontime)+' / 逾期 '+fmt(o.late)+' · 准时占比 '+o.ontime_share+'%'; }
+    if(ds){ ds.textContent=p.label+' · 准交 '+fmt(o.ontime)+' / 未交 '+fmt(unfilled)+' · 数量加权 '+o.rate+'%'; }
 
-    var cover='<b>覆盖校验</b>：单号 '+c.unique_rate+'%（'+c.unique_matched+'/'+c.unique_total+'）｜ 行 '+c.row_rate+'%（'+c.rows_matched+'/'+c.rows_total+'）';
+    var cover='<b>覆盖校验</b>：单号覆盖率 '+c.unique_rate+'%（'+c.unique_matched+'/'+c.unique_total+'）｜ 行覆盖率 '+c.row_rate+'%（'+c.rows_matched+'/'+c.rows_total+'）';
+    cover+=' ｜ 有收料订单 '+(c.orders_with_receipt||0)+'/'+(o.order_lines||0);
     if((p.excluded_known||[]).length){ cover+=' ｜ 已知例外 '+p.excluded_known.length+' 个固资单（'+fmt(missQty)+' 件，未计入）'; }
     if((p.unknown_missing||[]).length){ cover+=' ｜ <span style="color:var(--red)">未知缺失 '+p.unknown_missing.length+' 个（准交率暂停发布）</span>'; }
     var cv=document.getElementById('otd_cover'); if(cv) cv.innerHTML=cover;
 
     var ttl=document.getElementById('otd_tbl_title'); if(ttl) ttl.textContent=label+'准交率明细';
     var tsub=document.getElementById('otd_tbl_sub');
-    if(tsub){ tsub.textContent=p.label+' · 按订单数量降序 · 点击表头切换排序 · 超交按 100% 封顶并标注'; }
+    if(tsub){ tsub.textContent=p.label+' · 数量加权 · 按订单数量降序 · 点击表头排序 · 点击行查看逐单明细'; }
 
     if(tbl){
       var h='<table class="t"><thead><tr>';
       h+='<th class="sortable'+(state.otdSort==='po_qty'?' on':'')+'" data-s="po_qty">'+label+' / 订单数量<span class="mk">↕</span></th>';
       h+='<th class="sortable'+(state.otdSort==='ontime'?' on':'')+'" data-s="ontime">准交数量<span class="mk">↕</span></th>';
-      h+='<th>逾期数量</th>';
+      h+='<th>未交数量</th>';
       h+='<th class="sortable'+(state.otdSort==='rate'?' on':'')+'" data-s="rate">准交率<span class="mk">↕</span></th>';
-      h+='<th>收料行数</th><th>备注</th></tr></thead><tbody>';
-      list.forEach(function(x){
-        h+='<tr><td><span class="tag norm">'+x.name+'</span> <span style="color:var(--dim);font-size:12px">'+fmt(x.po_qty)+'</span></td>'
+      h+='<th>订单行数</th><th>整单交齐</th></tr></thead><tbody>';
+      list.forEach(function(x,i){
+        h+='<tr data-i="'+i+'"><td><span class="tag norm">'+x.name+'</span> <span style="color:var(--dim);font-size:12px">'+fmt(x.po_qty)+'</span></td>'
           +'<td>'+fmt(x.ontime)+'</td><td>'+fmt(x.late)+'</td>'
-          +'<td>'+progBar(x.rate_capped)+'</td><td>'+x.rows+'</td>'
-          +'<td>'+(x.over?'<span class="tag core">超交 '+x.rate+'%</span>':'')+'</td></tr>';
+          +'<td>'+progBar(x.rate_capped)+'</td><td>'+x.orders+'</td>'
+          +'<td>'+x.full_orders+' / '+x.orders+'</td></tr>';
       });
       h+='</tbody></table>';
       tbl.innerHTML=h;
       tbl.querySelectorAll('th[data-s]').forEach(function(th){
-        th.onclick=function(){ state.otdSort=th.getAttribute('data-s'); renderOTD(); };
+        th.onclick=function(ev){ ev.stopPropagation(); state.otdSort=th.getAttribute('data-s'); renderOTD(); };
+      });
+      tbl.querySelectorAll('tr[data-i]').forEach(function(tr){
+        tr.onclick=function(){
+          var x=list[+tr.getAttribute('data-i')]; if(!x) return;
+          var sub=(p.order_details||[]).filter(function(o){
+            return state.otdDim==='buyer' ? o.creator===x.name : o.supplier===x.name;
+          });
+          var cols=[
+            {label:'订单号',key:'doc'},
+            {label:'物料编码',key:'material'},
+            {label:'交货日期',key:'delivery'},
+            {label:'订单数量',key:'po_qty'},
+            {label:'到货期内数量',key:'ontime'},
+            {label:'整单交齐',key:'full_txt'}
+          ];
+          openDrawer(x.name+' · 准交订单明细', sub, cols,
+            '订单 <b>'+sub.length+'</b> 单 ｜ 准交率 <b>'+x.rate+'%</b> ｜ 整单交齐 <b>'+x.full_orders+'/'+x.orders+'</b>',
+            '<b>'+(state.otdDim==='buyer'?'采购员':'供应商')+'</b> › <b style="color:var(--text)">'+x.name+'</b>',
+            [['订单数量', x.po_qty], ['准交数量', x.ontime]]);
+        };
       });
       attachExport(tbl, label+'准交率明细');
     }
@@ -2274,10 +2316,18 @@
         +p.unknown_missing.map(function(m){ return m.doc+'（'+m.rows+' 行）'; }).join('、')
         +'。请先补齐采购订单数据，避免准交率失真。</div></div>';
     }else{
+      if(p.valid===false){
+        note+='<div class="panel" style="grid-column:1/-1;border-left:5px solid var(--amber)"><h3>该月数据不完整，仅供参考</h3>'
+          +'<div class="ph-sub">'+p.validity_note+'</div></div>';
+      }
       var ex=(p.excluded_known||[]).map(function(m){ return m.doc+'（'+m.reason+'，'+m.rows+' 行/'+fmt(m.qty)+' 件）'; }).join('、');
-      note='<div class="panel" style="grid-column:1/-1"><h3>口径与数据说明</h3>'
-        +'<div class="ph-sub">准交率 = 准交数量 ÷ 订单数量；准时占比 = 准交数量 ÷ 期间收料量。两者差异来自未收完订单的订单量仍计入分母。'
-        +(ex?('<br/>已知例外（未计入）：'+ex):'')+'</div></div>';
+      note+='<div class="panel" style="grid-column:1/-1"><h3>口径与数据说明</h3>'
+        +'<div class="ph-sub">统计总体：交货日期 <b>'+p.delivery_start+' ~ '+p.delivery_end+'</b>（已到期）。'
+        +'准交率 = <b>Σ到货期内数量 ÷ Σ订单数量</b>（数量加权），逐单封顶 100%；'
+        +'到货期内数量 = 收料日期 ≤ 采购单交货日期的累计收料（优先合格入库关联数量，空且行状态正常时取实收数量）。'
+        +'<br/>人员：仅保留 '+OTD.creator_whitelist.join('、')+'；已排除 '+OTD.excluded_creators.join('、')+'。'
+        +(ex?('<br/>已知例外（未计入覆盖）：'+ex):'')
+        +'</div></div>';
     }
     var nt=document.getElementById('otd_note'); if(nt) nt.innerHTML=note;
   }
@@ -2356,6 +2406,25 @@
     var s=e.target.closest('[data-d]'); if(!s) return;
     state.otdDim=s.getAttribute('data-d'); renderOTD();
   });
+  function syncWkView(){
+    var c=document.getElementById('wk_console_box'), h=document.getElementById('wk_charts_box');
+    var isConsole=(state.wkView!=='charts');
+    if(c) c.style.display=isConsole?'':'none';
+    if(h) h.style.display=isConsole?'none':'';
+    if(!isConsole){
+      setTimeout(function(){
+        ['wk_a','wk_b'].forEach(function(id){ if(charts[id]){ try{charts[id].resize();}catch(e){} } });
+      },60);
+    }
+  }
+  var wkViewSeg=document.getElementById('wk_view_seg');
+  if(wkViewSeg) wkViewSeg.addEventListener('click',function(e){
+    var s=e.target.closest('[data-v]'); if(!s) return;
+    state.wkView=s.getAttribute('data-v');
+    this.querySelectorAll('span').forEach(function(x){ x.classList.toggle('on',x===s); });
+    syncWkView();
+    if(state.wkView==='charts'){ renderWeekly(); }
+  });
   document.getElementById('wk_thr').addEventListener('input',function(e){ state.wkThr=num(e.target.value)||0; renderWeekly(); });
   document.getElementById('wk_import').onclick=function(){ document.getElementById('wk_file').click(); };
   document.getElementById('wk_file').onchange=function(e){
@@ -2375,6 +2444,7 @@
       document.getElementById('m_src').textContent=(META.source_po||'—');
       buildFilters();
       buildMonthSwitch();
+      syncWkView();
       switchPage('overview');
     }catch(err){
       var b=document.getElementById('errbar');
