@@ -2,15 +2,19 @@
 """
 构建管理台数据文件（console/weekly.json、console/apply.csv）。
 
-weekly.json 口径：仅周计划数量（用户确认），按供应商聚合；
-明细 items 额外关联采购申请单，补齐「申请单单据编号」与「领星创建人」。
+口径（2026-10-20 起）：**申请单驱动**
+  - 数据源：`src/otd_apply.xlsx`（金蝶「采购申请单列表 → 周计划申请(共享)」，每日同步）
+  - 待下单数量 = 采购申请单「剩余数量」（= 批准数量 − 已下单数量）
+  - 只取「剩余数量 > 0」的行
+  - 供应商：① console/map.json（物料编码 → 供应商全称/简称/采购员）
+            ② 采购订单历史（物料编码 → 供应商）兜底
+            ③ 都没有 → 归入「待填写」分组，等人工指定
+  - 明细保留：单据编号（CGSQ/JDYPP/JDYPR…）、领星创建人、规格型号、采购员、申请/批准数量
 
-关联策略（申请单是按物料编码的台账，周计划是领星 SKU，两套编码不能直接对等）：
-  1) SKU 规范化精确匹配：去非字母数字、大写、去 SP 前缀
-  2) 兜底：物料名称 + 规格型号
-未命中时留空，前端显示「—」。
+旧的 `src/周计划9.22.xlsx` 不再参与待下单计算（9/22 快照已过期）。
 """
 import csv
+import datetime as dt
 import json
 import os
 import re
@@ -23,6 +27,7 @@ except ImportError:
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "src")
 CONSOLE = os.path.join(HERE, "console")
+PENDING = "待填写"
 
 
 def norm_code(s):
@@ -30,147 +35,261 @@ def norm_code(s):
     return re.sub(r"^SP(?=[A-Z])", "", t)
 
 
-def norm_text(s):
-    return re.sub(r"[\s\u3000]", "", str(s or ""))
+def raw_code(s):
+    return re.sub(r"[^A-Za-z0-9]", "", str(s or "")).upper()
 
 
-def load_apply_map(apply_path):
-    """物料编码 -> {docs, ling, name, spec}；再按 名称+规格 建二级索引。"""
-    by_code, by_spec = {}, {}
-    if not apply_path or not os.path.exists(apply_path) or openpyxl is None:
-        return by_code, by_spec
-    wb = openpyxl.load_workbook(apply_path, data_only=True)
-    ws = wb[wb.sheetnames[0]]
-    rows = list(ws.iter_rows(values_only=True))
-    wb.close()
-    header = [str(c).strip() if c is not None else "" for c in rows[0]]
-    idx = {h: i for i, h in enumerate(header) if h}
-    # 同名列（备注）取第一次出现
-    for r in rows[1:]:
-        def g(k):
-            i = idx.get(k)
-            return r[i] if i is not None and i < len(r) else None
+def num(v):
+    try:
+        return float(str(v).replace(",", "").strip())
+    except Exception:
+        return 0.0
 
-        code = norm_code(g("物料编码"))
-        doc = str(g("单据编号") or "").strip()
-        ling = str(g("领星创建人") or "").strip()
-        spec = norm_text(g("规格型号"))
-        name = norm_text(g("物料名称"))
-        if not code and not spec:
+
+def to_date(v):
+    if isinstance(v, dt.datetime):
+        return v.date()
+    if isinstance(v, dt.date):
+        return v
+    t = str(v or "").strip()[:10].replace("/", "-")
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", t)
+    if m:
+        return dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    return None
+
+
+def load_map_index():
+    """map.json: [[物料编码, 供应商全称, 采购员, 供应商简称], ...]"""
+    idx = {}
+    p = os.path.join(CONSOLE, "map.json")
+    if not os.path.exists(p):
+        return idx
+    try:
+        rows = json.load(open(p, encoding="utf-8"))
+    except Exception:
+        return idx
+    for row in rows:
+        if not isinstance(row, (list, tuple)) or len(row) < 4:
             continue
-        rec = {"doc": doc, "ling": ling}
-        if code:
-            a = by_code.setdefault(code, {"docs": [], "lings": []})
-            if doc and doc not in a["docs"]:
-                a["docs"].append(doc)
-            if ling and ling not in a["lings"]:
-                a["lings"].append(ling)
-        if spec and name:
-            a = by_spec.setdefault((name, spec), {"docs": [], "lings": []})
-            if doc and doc not in a["docs"]:
-                a["docs"].append(doc)
-            if ling and ling not in a["lings"]:
-                a["lings"].append(ling)
-    return by_code, by_spec
+        code = raw_code(row[0])
+        if code and code not in idx:
+            idx[code] = {"name": str(row[1] or "").strip(), "buyer": str(row[2] or "").strip(),
+                         "short": str(row[3] or "").strip()}
+    return idx
+
+
+def load_po_supplier_index():
+    """采购订单历史：物料编码 -> 供应商（map.json 未覆盖时兜底）"""
+    idx = {}
+    p = os.path.join(SRC, "采购订单.xlsx")
+    if not os.path.exists(p) or openpyxl is None:
+        return idx
+    try:
+        wb = openpyxl.load_workbook(p, data_only=True)
+        ws = wb[wb.sheetnames[0]]
+        rows = list(ws.iter_rows(values_only=True))
+        wb.close()
+    except Exception:
+        return idx
+    h = [str(c).strip() if c is not None else "" for c in rows[0]]
+    i = {k: n for n, k in enumerate(h)}
+    if "物料编码" not in i or "供应商" not in i:
+        return idx
+    for r in rows[1:]:
+        code = raw_code(r[i["物料编码"]])
+        sup = str(r[i["供应商"]] or "").strip()
+        if code and sup and code not in idx:
+            idx[code] = {"name": sup, "short": "", "buyer": ""}
+    return idx
+
+
+def load_cap_short():
+    """产能表：供应商全称 -> 简称"""
+    out = {}
+    p = os.path.join(SRC, "产能.xlsx")
+    if not os.path.exists(p) or openpyxl is None:
+        return out
+    try:
+        wb = openpyxl.load_workbook(p, data_only=True)
+        ws = wb[wb.sheetnames[0]]
+        rows = list(ws.iter_rows(values_only=True))
+        wb.close()
+    except Exception:
+        return out
+    h = [str(c).strip() if c is not None else "" for c in rows[0]]
+    i = {k: n for n, k in enumerate(h)}
+    if "供应商" not in i:
+        return out
+    for r in rows[1:]:
+        full = str(r[i["供应商"]] or "").strip()
+        short = str(r[i.get("供应商简称", -1)] or "").strip() if "供应商简称" in i else ""
+        if full:
+            out[full] = short or full
+    return out
 
 
 def build():
     os.makedirs(CONSOLE, exist_ok=True)
-    with open(os.path.join(HERE, "data.json"), encoding="utf-8") as f:
-        data = json.load(f)
+    core = set()
+    updated_at = None
+    try:
+        data = json.load(open(os.path.join(HERE, "data.json"), encoding="utf-8"))
+        core = set((data.get("meta") or {}).get("core_suppliers") or [])
+        updated_at = (data.get("meta") or {}).get("updated_at")
+    except Exception:
+        pass
 
-    core = set((data.get("meta") or {}).get("core_suppliers") or [])
-    weekly = data.get("weekly") or []
     apply_path = os.path.join(SRC, "otd_apply.xlsx")
-    by_code, by_spec = load_apply_map(apply_path)
+    if not os.path.exists(apply_path) or openpyxl is None:
+        print("⚠️ 缺少 src/otd_apply.xlsx 或 openpyxl，跳过待下单数据")
+        return
 
-    agg = {}
-    hit_code = hit_spec = hit_none = 0
-    for r in weekly:
-        full = r.get("supplier_full") or ""
-        short = r.get("supplier_short") or full
-        a = agg.setdefault(full, {
-            "name": full, "short": short, "plan": 0.0,
-            "skus": set(), "spus": set(), "buyers": set(), "items": [],
-        })
-        qty = float(r.get("plan_qty") or 0)
-        a["plan"] += qty
-        if r.get("sku"):
-            a["skus"].add(r["sku"])
-        if r.get("spu"):
-            a["spus"].add(r["spu"])
-        if r.get("buyer"):
-            a["buyers"].add(r["buyer"])
+    map_idx = load_map_index()
+    po_idx = load_po_supplier_index()
+    cap_short = load_cap_short()
 
-        code = norm_code(r.get("sku"))
-        m = by_code.get(code)
-        if m:
-            hit_code += 1
-        else:
-            m = by_spec.get((norm_text(r.get("material_name")), norm_text(r.get("spec"))))
-            if m:
-                hit_spec += 1
+    wb = openpyxl.load_workbook(apply_path, data_only=True)
+    ws = wb[wb.sheetnames[0]]
+    rows = list(ws.iter_rows(values_only=True))
+    wb.close()
+    h = [str(c).strip() if c is not None else "" for c in rows[0]]
+    i = {k: n for n, k in enumerate(h)}
+
+    def g(r, *keys):
+        for k in keys:
+            n = i.get(k)
+            if n is not None and n < len(r):
+                v = r[n]
+                if v is not None and str(v).strip() != "":
+                    return v
+        return None
+
+    groups = {}
+    hit_map = hit_po = miss = 0
+    total_qty = 0.0
+    skipped_zero = 0
+    skipped_bad = 0
+
+    for r in rows[1:]:
+        remain = num(g(r, "剩余数量"))
+        if remain <= 0:
+            skipped_zero += 1
+            continue
+        code_raw = str(g(r, "物料编码") or "").strip()
+        # 跳过源表末尾的「合计」行（物料编码为空、单据编号=合计）
+        if not code_raw:
+            skipped_bad += 1
+            continue
+        code = raw_code(code_raw)
+        info = map_idx.get(code)
+        src = "map"
+        if not info:
+            info = po_idx.get(code)
+            src = "po" if info else ""
+        if info:
+            full = info.get("name") or ""
+            short = info.get("short") or cap_short.get(full) or full
+            buyer = info.get("buyer") or str(g(r, "采购员") or "").strip()
+            if src == "map":
+                hit_map += 1
             else:
-                hit_none += 1
-        a["items"].append({
-            "sku": r.get("sku") or "",
-            "spu": r.get("spu") or "",
-            "name": r.get("material_name") or "",
-            "spec": r.get("spec") or "",
-            "buyer": r.get("buyer") or "",
-            "qty": round(qty, 1),
-            "doc": "、".join((m or {}).get("docs") or []),
-            "ling": "、".join((m or {}).get("lings") or []),
+                hit_po += 1
+        else:
+            full, short, buyer = "", PENDING, str(g(r, "采购员") or "").strip()
+            miss += 1
+
+        key = short or full or PENDING
+        grp = groups.setdefault(key, {
+            "name": full or ("未匹配供应商（待人工填写）" if key == PENDING else key),
+            "short": key,
+            "core": key in core,
+            "pending": key == PENDING,
+            "plan": 0.0,
+            "skus": set(),
+            "spus": set(),
+            "buyers": set(),
+            "docs": set(),
+            "items": [],
+        })
+        qty = round(remain, 1)
+        total_qty += qty
+        grp["plan"] += qty
+        if code_raw:
+            grp["skus"].add(code_raw)
+        spu = "".join(ch for ch in code_raw if ch.isdigit())[:4]
+        if spu:
+            grp["spus"].add(spu)
+        if buyer:
+            grp["buyers"].add(buyer)
+        doc = str(g(r, "单据编号") or "").strip()
+        if doc:
+            grp["docs"].add(doc)
+        grp["items"].append({
+            "sku": code_raw,
+            "spu": spu,
+            "name": str(g(r, "物料名称") or "").strip(),
+            "spec": str(g(r, "规格型号") or "").strip(),
+            "buyer": buyer,
+            "qty": qty,
+            "doc": doc,
+            "ling": str(g(r, "领星创建人") or "").strip(),
+            "date": (to_date(g(r, "创建日期")) or "").isoformat() if to_date(g(r, "创建日期")) else "",
+            "apply_qty": round(num(g(r, "申请数量")), 1),
+            "approved_qty": round(num(g(r, "批准数量")), 1),
+            "ordered_qty": round(num(g(r, "订单数量")), 1),
+            "status": str(g(r, "数据状态") or "").strip(),
+            "mapped": bool(info),
         })
 
     suppliers = []
-    for a in agg.values():
+    for key, grp in groups.items():
         suppliers.append({
-            "name": a["name"],
-            "short": a["short"],
-            "core": a["short"] in core,
-            "plan": round(a["plan"], 1),
-            "skus": len(a["skus"]),
-            "spus": len(a["spus"]),
-            "buyers": sorted(a["buyers"]),
-            "items": a["items"],
+            "name": grp["name"],
+            "short": grp["short"],
+            "core": grp["core"],
+            "pending": grp["pending"],
+            "plan": round(grp["plan"], 1),
+            "skus": len(grp["skus"]),
+            "spus": len(grp["spus"]),
+            "docs": len(grp["docs"]),
+            "buyers": sorted(grp["buyers"]),
+            "items": grp["items"],
         })
-    suppliers.sort(key=lambda x: -x["plan"])
+    suppliers.sort(key=lambda x: (not x["pending"], -x["plan"]))
 
     out = {
-        "updated_at": (data.get("meta") or {}).get("updated_at"),
-        "total_plan": round(sum(x["plan"] for x in suppliers), 1),
-        "rows": len(weekly),
-        "supplier_count": len(suppliers),
-        "core_count": sum(1 for x in suppliers if x["core"]),
-        "apply_source": os.path.basename(apply_path),
-        "apply_match": {"by_sku": hit_code, "by_spec": hit_spec, "miss": hit_none},
+        "updated_at": updated_at,
+        "source": "apply",
+        "source_file": os.path.basename(apply_path),
+        "total_plan": round(total_qty, 1),
+        "rows": sum(len(x["items"]) for x in suppliers),
+        "supplier_count": len([x for x in suppliers if not x["pending"]]),
+        "core_count": len([x for x in suppliers if x["core"]]),
+        "pending": {
+            "rows": len([it for x in suppliers if x["pending"] for it in x["items"]]),
+            "qty": round(sum(x["plan"] for x in suppliers if x["pending"]), 1),
+        },
+        "apply_match": {"by_map": hit_map, "by_po": hit_po, "pending": miss,
+                        "skipped_zero": skipped_zero, "skipped_bad": skipped_bad},
         "suppliers": suppliers,
     }
     with open(os.path.join(CONSOLE, "weekly.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 
     # apply.csv 供管理台自动载入解析（金蝶 xlsx 在内联 SheetJS 里会内存溢出）
-    if os.path.exists(apply_path):
-        wb = openpyxl.load_workbook(apply_path, data_only=True)
-        ws = wb[wb.sheetnames[0]]
-        rows = list(ws.iter_rows(values_only=True))
-        wb.close()
+    def cv(v):
+        if isinstance(v, (dt.datetime, dt.date)):
+            return "%d/%d/%d" % (v.year, v.month, v.day)
+        return "" if v is None else v
 
-        def cv(v):
-            import datetime as dt
-            if isinstance(v, (dt.datetime, dt.date)):
-                return v.strftime("%Y/%-m/%-d") if os.name != "nt" else "%d/%d/%d" % (v.year, v.month, v.day)
-            return "" if v is None else v
+    with open(os.path.join(CONSOLE, "apply.csv"), "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        for r in rows:
+            w.writerow([cv(x) for x in r])
 
-        with open(os.path.join(CONSOLE, "apply.csv"), "w", encoding="utf-8", newline="") as f:
-            w = csv.writer(f)
-            for r in rows:
-                w.writerow([cv(x) for x in r])
-
-    print("console/weekly.json 供应商 %d（核心 %d）｜周计划 %s｜申请单关联 SKU %d / 规格 %d / 未命中 %d"
-          % (out["supplier_count"], out["core_count"], out["total_plan"],
-             hit_code, hit_spec, hit_none))
+    print("待下单（申请单驱动）：%d 行 / %s 件 ｜ 供应商 %d 家 + 待填写 %s 件（%d 行）｜ 映射 map %d / PO %d / 未映射 %d"
+          % (out["rows"], out["total_plan"], out["supplier_count"], out["pending"]["qty"],
+             out["pending"]["rows"], hit_map, hit_po, miss))
 
 
 if __name__ == "__main__":

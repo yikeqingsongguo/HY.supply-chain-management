@@ -744,6 +744,32 @@ table.wk-items th .wk-fil.on{background:#7C3AED;color:#fff}
 .wk-fil-panel label input{width:14px;height:14px}
 tr.wk-total td{background:#FAF8FF;font-weight:600;border-top:2px solid var(--line)}
 tr.wk-total td .muted{font-weight:400;color:var(--muted)}
+table.wk-items td.wk-ck,table.wk-items th.wk-ck{text-align:center;padding-left:4px;padding-right:4px}
+table.wk-items td.wk-ck input{width:15px;height:15px;cursor:pointer}
+.wk-op{display:inline-block;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;
+  color:#6D28D9;font-size:11.5px;cursor:pointer;white-space:nowrap}
+.wk-op:hover{background:#F5F0FF;border-color:#C4B5FD}
+.wk-assignbar{display:none;align-items:center;gap:10px;margin-top:10px;padding:9px 12px;border-radius:10px;
+  background:#F5F0FF;border:1px solid #DDD6FE;font-size:12.5px;color:#5B21B6}
+.wk-assignbar.on{display:flex}
+.wk-assignbar b{font-size:13px}
+.wk-assign-mask{position:fixed;inset:0;background:rgba(30,20,50,.32);z-index:10000;display:flex;align-items:center;justify-content:center}
+.wk-assign{background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(50,30,90,.28);width:380px;padding:20px 22px}
+.wk-assign h4{margin:0 0 4px;font-size:15px;color:#332F3A}
+.wk-assign .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+.wk-assign label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
+.wk-assign select,.wk-assign input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;
+  font-size:13px;box-sizing:border-box;background:#fff}
+.wk-assign .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+tr.wk-pending td{background:#FFF8F7}
+tr.wk-pending .wk-bar i{background:#F97316}
+.tag.pending{background:#FEE2E2;color:#B91C1C;border:1px solid #FECACA;white-space:nowrap}
+#tab-unmatch.fold-help .rule.mb12,
+#tab-unmatch.fold-help .note,
+#tab-unmatch.fold-help .tbl-tools{display:none!important}
+
+table.wk td b{white-space:nowrap}
+
 
 </style>
 </head>
@@ -1202,7 +1228,7 @@ tr.wk-total td .muted{font-weight:400;color:var(--muted)}
   <div id="tab-supplier" class="hidden">
 <div id="wkPlanPanel">
   <div class="card">
-    <div class="card-hd"><h3>③ 待下单汇总</h3><span class="hint">周计划数量，按供应商汇总；点击行查看 SKU 明细</span></div>
+    <div class="card-hd"><h3>③ 待下单汇总</h3><span class="hint">申请单「剩余数量」口径，按供应商汇总；未匹配供应商进「待填写」分组，可批量指定</span></div>
     <div class="card-bd">
       <div class="stats" id="wkStats"></div>
       <div class="wk-toolbar">
@@ -1214,6 +1240,17 @@ tr.wk-total td .muted{font-weight:400;color:var(--muted)}
         <span style="margin-left:10px">阶梯分界：</span>
         <input class="inp" type="number" id="wkThr" value="5000" step="500" min="0">
         <span>≥ 该值进入表 A，&lt; 该值进入表 B</span>
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn sm" id="btnWkMapExport" title="导出为 map.json 兼容格式，可合并进映射表">导出映射</button>
+        <button class="btn sm" id="btnWkMapReset" title="清除本机临时指定的供应商">清除临时映射</button>
+      </div>
+      <div class="wk-assignbar" id="wkAssignBar">
+        <b>已选 <span id="wkSelCount">0</span> 行</b>
+        <span style="color:var(--muted)">指定供应商：</span>
+        <select class="inp" id="wkAssignSel" style="max-width:220px"></select>
+        <button class="btn sm" id="wkAssignApply">应用到选中行</button>
+        <button class="btn sm" id="wkAssignClear">取消选择</button>
+        <span class="hint" style="color:var(--muted)">指定后立即重算分组，改动存本机；确认无误后点「导出映射」合并进 map.json</span>
       </div>
     </div>
   </div>
@@ -1268,7 +1305,7 @@ tr.wk-total td .muted{font-weight:400;color:var(--muted)}
   <!-- ============ TAB 4: 未匹配补录（联想输入） ============ -->
   <div id="tab-unmatch" class="hidden">
     <div class="card">
-      <div class="card-hd"><h3>④ 未匹配 SKU 联想补录</h3><span class="hint">输入供应商简称自动带出全称和采购员，保存后同步到匹配结果</span></div>
+      <div class="card-hd"><h3>④ 未匹配 SKU 联想补录</h3><span class="hint">输入供应商简称自动带出全称和采购员，保存后同步到匹配结果</span><button class="btn sm" id="umFoldBtn" style="margin-left:auto">收起说明</button></div>
       <div class="card-bd">
         <div class="rule mb12" id="unmatchSummary">未匹配 SKU 数 <b id="unmatchCount">—</b></div>
         <div class="tbl-tools">
@@ -16346,17 +16383,24 @@ function renderCheckQuickFilters() {
   rows.forEach(function (r) { if (r.supplier) supSet[r.supplier] = 1; if (r.buyer) buySet[r.buyer] = 1; });
   var sups = Object.keys(supSet).sort();
   var buys = Object.keys(buySet).sort();
-  function fill(sel, vals, label) {
-    var cur = sel.value;
+  /* 重建下拉时必须让「UI 选中值」与「state 过滤值」保持一致：
+     旧实现只把 select 重置为 ''，state 里仍是旧值 → 看起来是「全部采购员」，
+     实际表格已被过滤，用户感知为「选了采购员后按钮和数据都丢了」。 */
+  function fill(sel, vals, label, stateKey) {
+    var cur = state[stateKey] || sel.value || '';
     sel.innerHTML = '<option value="">' + label + '</option>';
     vals.forEach(function (v) {
       var opt = document.createElement('option'); opt.value = v; opt.textContent = v;
       sel.appendChild(opt);
     });
-    sel.value = vals.indexOf(cur) >= 0 ? cur : '';
+    if (cur && vals.indexOf(cur) < 0) {
+      cur = '';
+      state[stateKey] = '';   // 选项已不存在 → 同步清空过滤，避免出现「空下拉 + 有过滤」
+    }
+    sel.value = cur;
   }
-  fill(supSel, sups, '全部工厂');
-  fill(buySel, buys, '全部采购员');
+  fill(supSel, sups, '全部工厂', 'checkSupplierFilter');
+  fill(buySel, buys, '全部采购员', 'checkBuyerFilter');
 }
 
 function renderCheckGroups() {
@@ -18012,13 +18056,34 @@ window.__test = {
 <script id="dash-auto-js">
 (function(){
   var WK = null;
+  var WK_RAW = [];            // 服务端原始分组（不被本地映射污染）
   var WK_SCOPE = 'all';
-  var WK_FIELD = {};   // { 供应商简称: { 列key: Set(值) } }
+  var WK_FIELD = {};          // { 简称: { 列key: Set } }
   var WK_PANEL = null;
+  var WK_SEL = {};            // { "doc|sku": true }
+  var LOCAL_MAP = {};         // { sku: {short, name} }
+  var LS_KEY = 'wk_sup_map_v1';
+  var COLS = [
+    {key:'sku',  label:'SKU',        w:138},
+    {key:'spu',  label:'SPU',        w:56},
+    {key:'name', label:'物料名称',    w:100},
+    {key:'spec', label:'规格',        w:132, cls:'spec-cell'},
+    {key:'buyer',label:'采购员',      w:66},
+    {key:'doc',  label:'申请单单号',   w:126},
+    {key:'ling', label:'领星创建人',   w:82},
+    {key:'qty',  label:'待下单',      w:72, num:true}
+  ];
 
   function nf(n){ return (Math.round((n||0)*10)/10).toLocaleString('zh-CN'); }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
     return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+
+  function loadLocal(){
+    try{ LOCAL_MAP = JSON.parse(localStorage.getItem(LS_KEY)||'{}') || {}; }catch(e){ LOCAL_MAP = {}; }
+  }
+  function saveLocal(){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(LOCAL_MAP)); }catch(e){}
+  }
 
   function loadApply(){
     var m = document.getElementById('applyAutoMeta');
@@ -18039,25 +18104,56 @@ window.__test = {
     }).catch(function(){ if(m) m.textContent='自动载入失败，请点右侧「重新上传」'; });
   }
 
-  // ---------- 供应商范围 ----------
+  // ---------- 用本地映射重算分组 ----------
+  function rebuild(){
+    if(!WK) return;
+    var base = {};
+    WK_RAW.forEach(function(s){ base[s.short] = {name:s.name, core:!!s.core, pending:!!s.pending}; });
+    var groups = {};
+    WK_RAW.forEach(function(s){
+      (s.items||[]).forEach(function(it){
+        var ov = LOCAL_MAP[it.sku];
+        var short = ov ? ov.short : s.short;
+        var meta = base[short] || {name:(ov&&ov.name)||short, core:false, pending:short==='待填写'};
+        var g = groups[short];
+        if(!g){
+          g = groups[short] = {name:meta.name, short:short, core:!!meta.core, pending:!!meta.pending,
+            plan:0, skus:{}, spus:{}, docs:{}, buyers:{}, items:[]};
+        }
+        g.plan += (it.qty||0);
+        if(it.sku) g.skus[it.sku]=1;
+        if(it.spu) g.spus[it.spu]=1;
+        if(it.doc) g.docs[it.doc]=1;
+        if(it.buyer) g.buyers[it.buyer]=1;
+        g.items.push(it);
+      });
+    });
+    var arr = Object.keys(groups).map(function(k){
+      var g=groups[k];
+      return {name:g.name, short:g.short, core:g.core, pending:g.pending,
+        plan:Math.round(g.plan*10)/10,
+        skus:Object.keys(g.skus).length, spus:Object.keys(g.spus).length,
+        docs:Object.keys(g.docs).length,
+        buyers:Object.keys(g.buyers).sort(), items:g.items};
+    });
+    arr.sort(function(a,b){ return (a.pending===b.pending) ? (b.plan-a.plan) : (a.pending?1:-1); });
+    WK.suppliers = arr;
+    WK.total_plan = Math.round(arr.reduce(function(s,x){return s+x.plan;},0)*10)/10;
+    WK.supplier_count = arr.filter(function(x){return !x.pending;}).length;
+    WK.core_count = arr.filter(function(x){return x.core;}).length;
+    WK.pending = {
+      rows: arr.filter(function(x){return x.pending;}).reduce(function(s,x){return s+x.items.length;},0),
+      qty: Math.round(arr.filter(function(x){return x.pending;}).reduce(function(s,x){return s+x.plan;},0)*10)/10
+    };
+    WK.rows = arr.reduce(function(s,x){return s+x.items.length;},0);
+  }
+
   function scopeList(){
     var list = (WK && WK.suppliers) || [];
     if(WK_SCOPE === 'core') return list.filter(function(x){ return !!x.core; });
-    if(WK_SCOPE === 'normal') return list.filter(function(x){ return !x.core; });
+    if(WK_SCOPE === 'normal') return list.filter(function(x){ return !x.core && !x.pending; });
     return list;
   }
-
-  // ---------- 明细表列定义 ----------
-  var COLS = [
-    {key:'sku',  label:'SKU',        w:150},
-    {key:'spu',  label:'SPU',        w:62},
-    {key:'name', label:'物料名称',    w:112},
-    {key:'spec', label:'规格',        w:128, cls:'spec-cell'},
-    {key:'buyer',label:'采购员',      w:76},
-    {key:'doc',  label:'申请单单号',   w:142},
-    {key:'ling', label:'领星创建人',   w:96},
-    {key:'qty',  label:'待下单',      w:80, num:true}
-  ];
 
   function closePanel(){
     if(WK_PANEL && WK_PANEL.parentNode) WK_PANEL.parentNode.removeChild(WK_PANEL);
@@ -18065,7 +18161,6 @@ window.__test = {
   }
 
   function openPanel(btn, sup, col){
-    var host = btn.closest('table');
     var key = col.key;
     var values = {}, all = (sup.items||[]).map(function(it){ return String(it[key]||''); });
     all.forEach(function(v){ values[v] = 1; });
@@ -18084,7 +18179,7 @@ window.__test = {
     document.body.appendChild(panel);
 
     var r = btn.getBoundingClientRect();
-    panel.style.left = Math.min(r.left + window.scrollX, window.innerWidth - 220) + 'px';
+    panel.style.left = Math.min(r.left + window.scrollX, window.innerWidth - 300) + 'px';
     panel.style.top  = (r.bottom + window.scrollY + 4) + 'px';
 
     panel.addEventListener('click', function(e){ e.stopPropagation(); });
@@ -18102,7 +18197,6 @@ window.__test = {
       if(set.size === vals.length) delete WK_FIELD[sup.short][key];
       else WK_FIELD[sup.short][key] = set;
       if(close) closePanel();
-      // 重绘该供应商的展开明细（勾选时保持面板打开，便于连续多选）
       var sub = document.querySelector('tr.wk-sub[data-short="'+sup.short+'"]');
       if(sub){
         var td = sub.querySelector('td');
@@ -18114,6 +18208,8 @@ window.__test = {
     WK_PANEL = panel;
   }
 
+  function rowKey(it){ return (it.doc||'') + '|' + (it.sku||''); }
+
   function wkItemsHtml(sup){
     var items = (sup.items||[]).slice().sort(function(a,b){ return (b.qty||0)-(a.qty||0); });
     var f = WK_FIELD[sup.short] || {};
@@ -18123,34 +18219,38 @@ window.__test = {
       if(set && set.size) items = items.filter(function(it){ return set.has(String(it[c.key]||'')); });
     });
 
-    var h = '<table class="wk wk-items"><colgroup>'
+    var h = '<table class="wk wk-items"><colgroup><col style="width:34px">'
       + COLS.map(function(c){ return '<col style="width:'+c.w+'px">'; }).join('')
-      + '</colgroup><thead><tr>';
+      + '<col style="width:56px"></colgroup><thead><tr>'
+      + '<th class="wk-ck"><input type="checkbox" class="wk-ck-all" title="全选本表"></th>';
     COLS.forEach(function(c){
       var on = !!(f[c.key] && f[c.key].size);
       h += '<th'+(c.num?' style="text-align:right"':'')+'>'+c.label
         + (c.key==='qty' ? '' : '<button class="wk-fil'+(on?' on':'')+'" type="button" data-k="'+c.key+'" title="筛选 '+c.label+'">▾</button>')
         + '</th>';
     });
-    h += '</tr></thead><tbody>';
+    h += '<th style="text-align:center">操作</th></tr></thead><tbody>';
     items.forEach(function(it){
-      h += '<tr>';
+      var k = rowKey(it);
+      h += '<tr data-k="'+esc(k)+'">';
+      h += '<td class="wk-ck"><input type="checkbox" class="wk-ck-one"'+(WK_SEL[k]?' checked':'')+'></td>';
       h += '<td class="mono" title="'+esc(it.sku)+'">'+esc(it.sku)+'</td>';
       h += '<td class="mono">'+esc(it.spu)+'</td>';
       h += '<td title="'+esc(it.name)+'">'+esc(it.name)+'</td>';
       h += '<td class="spec-cell" title="'+esc(it.spec)+'">'+esc(it.spec)+'</td>';
       h += '<td>'+esc(it.buyer)+'</td>';
-      h += '<td class="mono"'+(it.doc?'':' style="color:var(--muted)"')+' title="'+esc(it.doc)+'">'+esc(it.doc||'—')+'</td>';
-      h += '<td'+(it.ling?'':' style="color:var(--muted)"')+'>'+esc(it.ling||'—')+'</td>';
+      h += '<td class="mono" title="'+esc(it.doc)+'">'+esc(it.doc||'—')+'</td>';
+      h += '<td>'+esc(it.ling||'—')+'</td>';
       h += '<td style="text-align:right;font-variant-numeric:tabular-nums">'+nf(it.qty)+'</td>';
+      h += '<td style="text-align:center"><button class="wk-op" data-op="assign">指定</button></td>';
       h += '</tr>';
     });
     if(!items.length){
-      h += '<tr><td colspan="'+COLS.length+'" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
+      h += '<tr><td colspan="'+(COLS.length+2)+'" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
     }else{
       var sum = items.reduce(function(a,b){ return a + (b.qty||0); }, 0);
-      h += '<tr class="wk-total"><td colspan="7">合计 <span class="muted">'+items.length+' 行</span></td>'
-        + '<td style="text-align:right">'+nf(sum)+'</td></tr>';
+      h += '<tr class="wk-total"><td colspan="8">合计 <span class="muted">'+items.length+' 行</span></td>'
+        + '<td style="text-align:right">'+nf(sum)+'</td><td></td></tr>';
     }
     h += '</tbody></table>';
     return h;
@@ -18166,7 +18266,93 @@ window.__test = {
         if(WK_PANEL) closePanel(); else openPanel(btn, sup, col);
       };
     });
-    // 展开后恢复筛选高亮
+    var all = sub.querySelector('.wk-ck-all');
+    if(all){
+      all.onclick = function(ev){
+        ev.stopPropagation();
+        sub.querySelectorAll('tr[data-k]').forEach(function(tr){
+          var k = tr.getAttribute('data-k');
+          var cb = tr.querySelector('.wk-ck-one');
+          if(!cb) return;
+          cb.checked = all.checked;
+          if(all.checked) WK_SEL[k] = 1; else delete WK_SEL[k];
+        });
+        updateSelBar();
+      };
+    }
+    sub.querySelectorAll('tr[data-k]').forEach(function(tr){
+      var k = tr.getAttribute('data-k');
+      var cb = tr.querySelector('.wk-ck-one');
+      if(cb){
+        cb.onclick = function(ev){
+          ev.stopPropagation();
+          if(cb.checked) WK_SEL[k] = 1; else delete WK_SEL[k];
+          updateSelBar();
+        };
+      }
+      var op = tr.querySelector('[data-op="assign"]');
+      if(op){
+        op.onclick = function(ev){
+          ev.stopPropagation();
+          batchAssign([k]);
+        };
+      }
+    });
+  }
+
+  function updateSelBar(){
+    var n = Object.keys(WK_SEL).length;
+    var bar = document.getElementById('wkAssignBar');
+    var cnt = document.getElementById('wkSelCount');
+    if(cnt) cnt.textContent = n;
+    if(bar) bar.classList.toggle('on', n > 0);
+  }
+
+  // ---------- 供应商选择弹窗 ----------
+  function pickSupplier(title, subTxt, cb){
+    var mask = document.createElement('div');
+    mask.className = 'wk-assign-mask';
+    var opts = (WK.suppliers||[]).filter(function(x){ return !x.pending; })
+      .map(function(x){ return '<option value="'+esc(x.short)+'|'+esc(x.name)+'">'+esc(x.short)+' · '+esc(x.name)+'</option>'; })
+      .join('');
+    mask.innerHTML = '<div class="wk-assign"><h4>'+esc(title)+'</h4><div class="sub">'+esc(subTxt)+'</div>'
+      + '<label>选择已有供应商</label><select id="wkPickSel"><option value="">— 请选择 —</option>'+opts+'</select>'
+      + '<label>或填写新的供应商（简称）</label><input id="wkPickNew" placeholder="例如：新动力">'
+      + '<label>新供应商全称（可选）</label><input id="wkPickFull" placeholder="例如：广州新动力皮具有限公司">'
+      + '<div class="acts"><button class="btn sm" id="wkPickCancel">取消</button>'
+      + '<button class="btn sm primary" id="wkPickOk">确定</button></div></div>';
+    document.body.appendChild(mask);
+    var sel = mask.querySelector('#wkPickSel'), inp = mask.querySelector('#wkPickNew'), full = mask.querySelector('#wkPickFull');
+    mask.querySelector('#wkPickCancel').onclick = function(){ mask.remove(); };
+    mask.querySelector('#wkPickOk').onclick = function(){
+      var v = inp.value.trim();
+      var short, name;
+      if(v){ short = v; name = full.value.trim() || v; }
+      else if(sel.value){ var p = sel.value.split('|'); short = p[0]; name = p[1]; }
+      else { return; }
+      mask.remove();
+      cb(short, name);
+    };
+    mask.onclick = function(e){ if(e.target === mask) mask.remove(); };
+  }
+
+  function batchAssign(keys){
+    if(!keys.length) return;
+    var skus = {}, qty = 0, rows = 0;
+    WK.suppliers.forEach(function(s){
+      s.items.forEach(function(it){
+        if(keys.indexOf(rowKey(it)) < 0) return;
+        rows++; qty += it.qty||0;
+        if(it.sku) skus[it.sku] = 1;
+      });
+    });
+    var skuList = Object.keys(skus);
+    if(!skuList.length) return;
+    pickSupplier('指定供应商', '将把 '+rows+' 行 / '+skuList.length+' 个 SKU（合计 '+nf(qty)+' 件）归到所选供应商',
+      function(short, name){
+        skuList.forEach(function(sk){ LOCAL_MAP[sk] = {short:short, name:name}; });
+        saveLocal(); rebuild(); WK_SEL = {}; updateSelBar(); wkRender();
+      });
   }
 
   function wkToggle(tr){
@@ -18194,11 +18380,11 @@ window.__test = {
     if(!arr.length){ el.innerHTML = '<div class="hint">本组无供应商</div>'; return; }
     var sum = arr.reduce(function(a,b){ return a + b.plan; }, 0);
     var skuSum = arr.reduce(function(a,b){ return a + (b.skus||0); }, 0);
-    el.innerHTML = '<table class="wk"><thead><tr><th style="width:96px">供应商</th><th>待下单数量</th>'
+    el.innerHTML = '<table class="wk"><thead><tr><th style="width:142px;white-space:nowrap">供应商</th><th>待下单数量</th>'
       + '<th style="width:66px;text-align:right">占比</th><th style="width:66px;text-align:right">SKU</th><th style="width:24px"></th></tr></thead><tbody>'
       + arr.map(function(x){
-          return '<tr class="wk-row" data-short="'+x.short+'">'
-            + '<td><b>'+x.short+'</b>'+(x.core?' <span class="tag core">核心</span>':'')+'</td>'
+          return '<tr class="wk-row'+(x.pending?' wk-pending':'')+'" data-short="'+x.short+'">'
+            + '<td><b>'+x.short+'</b>'+(x.pending?' <span class="tag pending">待填写</span>':(x.core?' <span class="tag core">核心</span>':''))+'</td>'
             + '<td><div style="display:flex;align-items:center;gap:8px"><div class="wk-bar" style="flex:1"><i style="width:'
             + (max>0? (x.plan/max*100).toFixed(1):0) + '%"></i></div><span class="wk-num">'+nf(x.plan)+'</span></div></td>'
             + '<td style="text-align:right">'+(total>0?(x.plan/total*100).toFixed(1):'0.0')+'%</td>'
@@ -18227,13 +18413,14 @@ window.__test = {
     var scopeTotal = list.reduce(function(s,x){ return s + x.plan; }, 0);
     var max = Math.max.apply(null, list.map(function(x){ return x.plan; }).concat([1]));
     var coreTotal = all.filter(function(x){ return x.core; }).reduce(function(s,x){ return s + x.plan; }, 0);
+    var pending = WK.pending || {rows:0, qty:0};
 
     var st = document.getElementById('wkStats');
     if(st){
       st.innerHTML =
         '<div class="stat"><div class="s-l">全部供应商待下单</div><div class="s-v"><b>'+nf(total)+'</b> 件</div></div>'
-        +'<div class="stat"><div class="s-l">供应商</div><div class="s-v"><b>'+(WK.supplier_count||all.length)+'</b> 家 <span style="font-size:12px;color:var(--muted)">核心 '+(WK.core_count||0)+'</span></div></div>'
-        +'<div class="stat"><div class="s-l">核心 / 普通</div><div class="s-v"><b>'+nf(coreTotal)+'</b> / '+nf(total-coreTotal)+'</div></div>'
+        +'<div class="stat"><div class="s-l">供应商</div><div class="s-v"><b>'+(WK.supplier_count||0)+'</b> 家 <span style="font-size:12px;color:var(--muted)">核心 '+(WK.core_count||0)+'</span></div></div>'
+        +'<div class="stat"><div class="s-l">待填写（未映射）</div><div class="s-v" style="color:#B91C1C"><b>'+nf(pending.qty)+'</b> 件 <span style="font-size:12px;color:var(--muted)">'+pending.rows+' 行</span></div></div>'
         +'<div class="stat"><div class="s-l">当前筛选</div><div class="s-v"><b>'+nf(scopeTotal)+'</b> 件 <span style="font-size:12px;color:var(--muted)">'+list.length+' 家</span></div></div>';
     }
     wkTable(document.getElementById('wkA'), list.filter(function(x){ return x.plan >= thr; }), max, total);
@@ -18243,27 +18430,46 @@ window.__test = {
     if(sum){
       var acc = 0;
       sum.innerHTML = '<table class="wk"><thead><tr><th>供应商</th><th style="text-align:right;width:110px">待下单总数</th>'
-        + '<th style="text-align:right;width:70px">占比</th><th style="text-align:right;width:80px">累计占比</th><th>采购员</th></tr></thead><tbody>'
+        + '<th style="text-align:right;width:70px">占比</th><th style="text-align:right;width:80px">累计占比</th><th style="text-align:right;width:70px">单据</th><th>采购员</th></tr></thead><tbody>'
         + list.map(function(x){
             acc += x.plan;
             var d = scopeTotal>0 ? (acc/scopeTotal*100) : 0;
-            return '<tr><td><b>'+x.short+'</b> '+(x.core?'<span class="tag core">核心</span> ':'')
+            return '<tr><td><b>'+x.short+'</b> '+(x.pending?'<span class="tag pending">待填写</span> ':(x.core?'<span class="tag core">核心</span> ':''))
               + '<span style="color:var(--muted)">'+x.name+'</span></td>'
               + '<td style="text-align:right">'+nf(x.plan)+'</td>'
               + '<td style="text-align:right">'+(scopeTotal>0?(x.plan/scopeTotal*100).toFixed(1):'0.0')+'%</td>'
               + '<td style="text-align:right;color:var(--muted)">'+d.toFixed(1)+'%</td>'
+              + '<td style="text-align:right;color:var(--muted)">'+(x.docs||0)+'</td>'
               + '<td style="color:var(--muted)">'+(x.buyers||[]).join('、')+'</td></tr>';
           }).join('')
         + '<tr class="wk-total"><td>全部供应商合计 <span class="muted">'+list.length+' 家</span></td>'
         + '<td style="text-align:right">'+nf(scopeTotal)+'</td><td style="text-align:right">100.0%</td>'
-        + '<td style="text-align:right">—</td><td></td></tr>'
+        + '<td style="text-align:right">—</td><td></td><td></td></tr>'
         + '</tbody></table>';
     }
+    updateSelBar();
+  }
+
+  function fillAssignSelect(){
+    var sel = document.getElementById('wkAssignSel');
+    if(!sel || !WK) return;
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">— 选择供应商 —</option>'
+      + (WK.suppliers||[]).filter(function(x){ return !x.pending; }).map(function(x){
+          return '<option value="'+esc(x.short)+'|'+esc(x.name)+'">'+esc(x.short)+' · '+esc(x.name)+'</option>';
+        }).join('');
+    sel.value = cur || '';
   }
 
   function loadWk(){
     fetch('weekly.json',{cache:'no-store'}).then(function(r){ return r.json(); }).then(function(d){
-      WK = d; wkRender();
+      WK = d;
+      WK_RAW = JSON.parse(JSON.stringify(d.suppliers||[]));
+      loadLocal();
+      rebuild();
+      wkRender();
+      fillAssignSelect();
+
       var inp = document.getElementById('wkThr');
       if(inp){ inp.oninput = wkRender; }
       var bar = document.getElementById('wkScopeBar');
@@ -18278,11 +18484,73 @@ window.__test = {
           };
         });
       }
+      var applyBtn = document.getElementById('wkAssignApply');
+      if(applyBtn){
+        applyBtn.onclick = function(){
+          var keys = Object.keys(WK_SEL);
+          if(!keys.length) return;
+          var sel = document.getElementById('wkAssignSel');
+          if(!sel.value){ alert('请先选择一个供应商'); return; }
+          var p = sel.value.split('|');
+          var skus = {};
+          WK.suppliers.forEach(function(s){
+            s.items.forEach(function(it){ if(keys.indexOf(rowKey(it))>=0 && it.sku) skus[it.sku]=1; });
+          });
+          Object.keys(skus).forEach(function(sk){ LOCAL_MAP[sk] = {short:p[0], name:p[1]}; });
+          saveLocal(); rebuild(); WK_SEL = {}; wkRender(); fillAssignSelect();
+        };
+      }
+      var clearBtn = document.getElementById('wkAssignClear');
+      if(clearBtn){ clearBtn.onclick = function(){ WK_SEL = {}; updateSelBar(); document.querySelectorAll('#wkA,#wkB').forEach(function(el){
+        el.querySelectorAll('.wk-ck-one,.wk-ck-all').forEach(function(cb){ cb.checked = false; }); }); }; }
+
+      var expBtn = document.getElementById('btnWkMapExport');
+      if(expBtn){
+        expBtn.onclick = function(){
+          var bySku = {};
+          (WK.suppliers||[]).forEach(function(s){
+            (s.items||[]).forEach(function(it){
+              if(!it.sku || bySku[it.sku]) return;
+              bySku[it.sku] = [it.sku, s.name, (it.buyer||''), s.short];
+            });
+          });
+          Object.keys(LOCAL_MAP).forEach(function(sk){
+            var v = LOCAL_MAP[sk];
+            bySku[sk] = [sk, v.name, '', v.short];
+          });
+          var arr = Object.keys(bySku).map(function(k){ return bySku[k]; });
+          var blob = new Blob([JSON.stringify(arr, null, 0)], {type:'application/json'});
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'map-merge.json';
+          a.click();
+        };
+      }
+      var resetBtn = document.getElementById('btnWkMapReset');
+      if(resetBtn){
+        resetBtn.onclick = function(){
+          if(!confirm('清除本机所有临时指定的供应商？')) return;
+          LOCAL_MAP = {}; saveLocal(); rebuild(); wkRender(); fillAssignSelect();
+        };
+      }
       document.addEventListener('click', function(){ if(WK_PANEL) closePanel(); });
     }).catch(function(){});
   }
 
-  function boot(){ loadApply(); loadWk(); }
+  function bindUnmatchFold(){
+    var K='um_fold_v1';
+    var tab=document.getElementById('tab-unmatch'), btn=document.getElementById('umFoldBtn');
+    if(!tab || !btn) return;
+    function set(fold){
+      tab.classList.toggle('fold-help', fold);
+      btn.textContent = fold ? '展开说明' : '收起说明';
+      try{ localStorage.setItem(K, fold?'1':'0'); }catch(e){}
+    }
+    btn.onclick = function(){ set(!tab.classList.contains('fold-help')); };
+    try{ if(localStorage.getItem(K)==='1') set(true); }catch(e){}
+  }
+
+  function boot(){ loadApply(); loadWk(); bindUnmatchFold(); }
   if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); }
   else { setTimeout(boot, 300); }
 })();

@@ -870,7 +870,7 @@
     ovScope:'core', crossHeatSeg:'top20',
     monthScope:'all', weekScope:'all', odScope:'all', capScope:'all', odSort:'qty',
     month:'this',                                               // month = 全局「本月/下月」开关（此前各面板各自为政）
-    otdPeriod:(OTD&&OTD.default_period)||null, otdDim:'supplier', otdSort:'recv_qty',
+    otdPeriod:(OTD&&OTD.default_period)||null, otdDim:'supplier', otdSort:'rate',
     wkView:'console' };
 
   function applyFilters(rows){
@@ -2075,6 +2075,14 @@
       //    merge 模式下 show:false 会被永久粘住 → 之后有数据了坐标轴/斜纹也不恢复（图 B 踩过）。
       if(!list.length){ c.setOption({title:{text:'（无数据）',left:'center',top:'middle',textStyle:{color:'#635F69',fontSize:12}},xAxis:{show:false},yAxis:{show:false},series:[]}, true); return; }
       var maxv=Math.max.apply(null,list.map(function(x){return x.total;}));
+      // Y 轴取「1/2/5 × 10^n」友好刻度，避免出现 9999996 这类原始乘积值
+      function niceMax(v){
+        if(!(v>0)) return 10;
+        var exp=Math.floor(Math.log10(v)), base=Math.pow(10,exp), n=v/base;
+        var m = n<=1?1:(n<=2?2:(n<=5?5:10));
+        return m*base;
+      }
+      var yMax=niceMax(maxv*1.08);
       c.setOption({
         title:{text:titleTxt,left:0,top:0,textStyle:{color:'#332F3A',fontSize:13,fontWeight:700}},
         tooltip:Object.assign({trigger:'axis',axisPointer:{type:'shadow'},formatter:function(ps){
@@ -2083,8 +2091,9 @@
         legend:{show:true,top:0,right:0,icon:'roundRect',itemWidth:14,itemHeight:10,textStyle:{color:'#635F69',fontSize:11}},
         grid:{left:66,right:20,top:46,bottom:104},
         xAxis:Object.assign({},AX,{type:'category',data:list.map(function(d){return d.short;}),
-          axisLabel:Object.assign({},AX.axisLabel,{interval:0,rotate:50,fontSize:9,hideOverlap:false,margin:12})}),
-        yAxis:Object.assign({},AX,{type:'value',max:maxv*1.14}),
+          axisLabel:Object.assign({},AX.axisLabel,{interval:0,rotate:50,fontSize:12,hideOverlap:false,margin:12})}),
+        yAxis:Object.assign({},AX,{type:'value',max:yMax,name:'件',nameTextStyle:{color:'#635F69',fontSize:11},
+          axisLabel:{color:'#332F3A',fontSize:11,formatter:function(v){return v>=10000?(v/10000)+'万':v;}}}),
         series:[
           {name:'在途剩余收料',type:'bar',stack:'tot',barWidth:'52%',
             data:list.map(function(d){return {value:d.remain,itemStyle:{borderRadius:[0,0,10,10],
@@ -2447,7 +2456,8 @@
       h+='<th>收料行数</th></tr></thead><tbody>';
       list.forEach(function(x,i){
         h+='<tr data-i="'+i+'"><td><span class="tag norm">'+x.name+'</span> <span style="color:var(--dim);font-size:12px">'+fmt(x.recv_qty)+'</span></td>'
-          +'<td>'+fmt(x.ontime)+'</td><td>'+fmt(x.late)+'</td>'
+          +'<td class="drill" data-v="ontime" title="点击查看准时收料明细">'+fmt(x.ontime)+'</td>'
+          +'<td class="drill" data-v="late" title="点击查看逾期收料明细">'+fmt(x.late)+'</td>'
           +'<td>'+progBar(Math.min(x.rate,100))+'</td><td>'+x.rows+'</td></tr>';
       });
       h+='</tbody></table>';
@@ -2455,27 +2465,51 @@
       tbl.querySelectorAll('th[data-s]').forEach(function(th){
         th.onclick=function(ev){ ev.stopPropagation(); state.otdSort=th.getAttribute('data-s'); renderOTD(); };
       });
+      var detailCols=[
+        {label:'收料通知单号',key:'recv_doc'},
+        {label:'源单单号',key:'doc'},
+        {label:'SKU',key:'material'},
+        {label:'供应商',key:'supplier'},
+        {label:'交货日期',key:'delivery'},
+        {label:'收料日期',key:'receipt_date'},
+        {label:'周期',key:'days_txt'},
+        {label:'交货数量',key:'qty'},
+        {label:'判定',key:'verdict'}
+      ];
+      function drillBy(x, verdict){
+        var sub=(p.order_details||[]).filter(function(o){
+          var same = state.otdDim==='buyer' ? o.creator===x.name : o.supplier===x.name;
+          if(!same) return false;
+          if(verdict==='ontime') return o.verdict==='准时';
+          if(verdict==='late') return o.verdict!=='准时';
+          return true;
+        });
+        var tag = verdict==='ontime' ? ' · 准时收料' : (verdict==='late' ? ' · 逾期收料' : ' · 收料明细');
+        if(!sub.length){
+          toast(x.name + ' 本期没有' + (verdict==='ontime'?'准时':(verdict==='late'?'逾期':'')) + '收料记录');
+          return;
+        }
+        var sum = sub.reduce(function(a,b){ return a + num(b.qty); }, 0);
+        openDrawer(x.name+tag, sub, detailCols,
+          '收料 <b>'+sub.length+'</b> 行 ｜ 数量 <b>'+fmt(sum)+'</b> ｜ 该'+label+'收料总量 <b>'+fmt(x.recv_qty)+'</b> ｜ 准交率 <b>'+x.rate+'%</b>',
+          '<b>'+(state.otdDim==='buyer'?'采购员':'供应商')+'</b> › <b style="color:var(--text)">'+x.name+'</b>'
+            + (verdict?' › <b style="color:var(--text)">'+(verdict==='ontime'?'准时':'逾期')+'</b>':''),
+          verdict==='ontime' ? [['准时数量', x.ontime]]
+            : (verdict==='late' ? [['逾期数量', x.late]] : [['收料总量', x.recv_qty], ['准交数量', x.ontime]]));
+      }
+      tbl.querySelectorAll('td.drill').forEach(function(td){
+        td.style.cursor='pointer';
+        td.onclick=function(ev){
+          ev.stopPropagation();
+          var tr=td.closest('tr'); if(!tr) return;
+          var x=list[+tr.getAttribute('data-i')]; if(!x) return;
+          drillBy(x, td.getAttribute('data-v'));
+        };
+      });
       tbl.querySelectorAll('tr[data-i]').forEach(function(tr){
         tr.onclick=function(){
           var x=list[+tr.getAttribute('data-i')]; if(!x) return;
-          var sub=(p.order_details||[]).filter(function(o){
-            return state.otdDim==='buyer' ? o.creator===x.name : o.supplier===x.name;
-          });
-          var cols=[
-            {label:'收料通知单号',key:'recv_doc'},
-            {label:'源单单号',key:'doc'},
-            {label:'SKU',key:'material'},
-            {label:'供应商',key:'supplier'},
-            {label:'交货日期',key:'delivery'},
-            {label:'收料日期',key:'receipt_date'},
-            {label:'周期',key:'days_txt'},
-            {label:'交货数量',key:'qty'},
-            {label:'判定',key:'verdict'}
-          ];
-          openDrawer(x.name+' · 收料明细', sub, cols,
-            '收料 <b>'+sub.length+'</b> 行 ｜ 收料量 <b>'+fmt(x.recv_qty)+'</b> ｜ 准交率 <b>'+x.rate+'%</b> ｜ 逾期 <b>'+x.late_rows+'</b> 行',
-            '<b>'+(state.otdDim==='buyer'?'采购员':'供应商')+'</b> › <b style="color:var(--text)">'+x.name+'</b>',
-            [['收料总量', x.recv_qty], ['准交数量', x.ontime]]);
+          drillBy(x, '');
         };
       });
       attachExport(tbl, label+'准交率明细');
@@ -2492,6 +2526,10 @@
       note+='<div class="panel" style="grid-column:1/-1"><h3>口径与数据说明</h3>'
         +'<div class="ph-sub">'
         +'<b>准交率 = Σ(收料日期 ≤ 采购订单交货日期 的收料量) ÷ Σ收料总量</b>，分母为收料数量（非订单数量）。'
+        +'<br/>订单口径：同一采购订单的多张收料单按「源单单号」合并统计，逐条判定后合计；'
+        + (OTD.vmi_filter_enabled
+            ? '<b>仅统计「标准采购订单」</b>，VMI 采购订单不计入。'
+            : '<span style="color:var(--red)">⚠️ 全量采购订单方案未包含「单据类型」列，VMI 订单暂未剔除</span>（在金蝶该方案中加一列「单据类型」后自动生效）。')
         +'<br/>统计范围：采购订单创建人仅保留 <b>'+OTD.creator_whitelist.join('、')+'</b>；'
         +'供应商限产能表内 <b>'+(OTD.supplier_pool||40)+' 家箱包成品厂</b>，包材/辅料不计入。'
         +'<br/>数量口径：优先「合格入库关联数量」，为空且行状态=正常时取「实收数量」。'

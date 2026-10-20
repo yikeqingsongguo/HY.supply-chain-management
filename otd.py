@@ -133,6 +133,8 @@ def build_otd(src_dir, periods=None):
                     cap_sups.add(v)
 
     # ---------- 采购订单：(单号,物料) -> 交货日期 / 创建人 / 供应商 ----------
+    # 「单据类型」列可选：全量方案带该列时，准交率只统计「标准采购订单」，排除 VMI。
+    has_doc_type = "单据类型" in pidx
     po = {}
     po_docs = set()
     po_by_doc = defaultdict(list)
@@ -147,6 +149,7 @@ def build_otd(src_dir, periods=None):
         key = (doc, mc)
         rec = {
             "_rank": rank,
+            "doc_type": _s(pg(r, "单据类型")),
             "delivery": _date(pg(r, "交货日期")),
             "creator": _norm_creator(pg(r, "创建人")),
             "creator_raw": _s(pg(r, "创建人")),
@@ -226,6 +229,10 @@ def build_otd(src_dir, periods=None):
                 continue
             if v["creator"] not in ALLOWED_SET:
                 excluded["非指定采购员"] += r["qty"]
+                continue
+            # 只统计标准采购订单；VMI 采购订单是另一种结算方式，不计入准交率
+            if has_doc_type and v.get("doc_type") and v["doc_type"] != "标准采购订单":
+                excluded["非标准采购订单（VMI 等）"] += r["qty"]
                 continue
             if cap_sups and v["supplier"] not in cap_sups:
                 excluded["包材/辅料（非产能表供应商）"] += r["qty"]
@@ -375,7 +382,8 @@ def build_otd(src_dir, periods=None):
         "source_po_full": os.path.basename(po_path),
         "metric": "receipt_ontime_ratio",
         "metric_label": "收料准时率（收料日期≤交货日期）",
-        "metric_formula": "Σ收料日期≤交货日期的收料量 ÷ Σ收料总量",
+        "metric_formula": "Σ收料日期≤交货日期的收料量 ÷ Σ收料总量（仅标准采购订单，剔除 VMI）",
+        "vmi_filter_enabled": has_doc_type,
         "creator_whitelist": ALLOWED_CREATORS,
         "excluded_creators": EXCLUDED_CREATORS,
         "supplier_pool": len(cap_sups),
