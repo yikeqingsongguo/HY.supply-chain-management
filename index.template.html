@@ -2328,6 +2328,29 @@
           data:[{xAxis:85,label:{formatter:'85%',color:'#635F69',fontSize:10}}]}
       }]
     }, true);
+    // 点击柱体 → 下钻该供应商/采购员的逐条收料明细（曾在改两列布局时丢失绑定）
+    ch.off('click');
+    ch.on('click', function(pp){
+      if(pp.componentType!=='series') return;
+      var x=top[top.length-1-pp.dataIndex]; if(!x) return;
+      var isBuyer=(state.otdDim==='buyer');
+      var sub=(p.order_details||[]).filter(function(d){
+        return isBuyer ? (d.creator===x.name) : (d.supplier===x.name);
+      });
+      openDrawer(x.name+' · 收料明细', sub, [
+        {label:'收料通知单号',key:'recv_doc'},
+        {label:'源单单号',key:'doc'},
+        {label:'SKU',key:'material'},
+        {label:'供应商',key:'supplier'},
+        {label:'交货日期',key:'delivery'},
+        {label:'收料日期',key:'receipt_date'},
+        {label:'周期',key:'days_txt'},
+        {label:'交货数量',key:'qty'},
+        {label:'判定',key:'verdict'}
+      ], label+' <b>'+x.name+'</b> ｜ 收料 <b>'+sub.length+'</b> 行 ｜ 准交率 <b>'+x.rate+'%</b> ｜ 准时 '+fmt(x.ontime)+' / 收料 '+fmt(x.recv_qty),
+      '<b>准交率排名</b> › <b style="color:var(--text)">'+x.name+'</b>',
+      [['收料量', x.recv_qty], ['准时量', x.ontime], ['逾期量', x.late]]);
+    });
     var rs=document.getElementById('otd_rank_sub');
     if(rs){ rs.textContent=p.label+' · 按'+((state.otdSort==='recv_qty')?'收料量':'准交率')+'降序 · TOP 15 · 点击柱体可下钻'; }
 
@@ -2389,6 +2412,7 @@
         var x=tr[pp.dataIndex]; if(!x) return;
         var sub=(p.order_details||[]).filter(function(d){ return d.receipt_date===x.date; });
         openDrawer(x.date+' · 当日收料明细', sub, [
+          {label:'收料通知单号',key:'recv_doc'},
           {label:'源单单号',key:'doc'},
           {label:'SKU',key:'material'},
           {label:'供应商',key:'supplier'},
@@ -2438,6 +2462,7 @@
             return state.otdDim==='buyer' ? o.creator===x.name : o.supplier===x.name;
           });
           var cols=[
+            {label:'收料通知单号',key:'recv_doc'},
             {label:'源单单号',key:'doc'},
             {label:'SKU',key:'material'},
             {label:'供应商',key:'supplier'},

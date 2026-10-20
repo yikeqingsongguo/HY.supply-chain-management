@@ -157,12 +157,27 @@ def run_subprocess(cmd, cwd=None, env=None, timeout=300):
     return result
 
 
-def find_latest_export(incoming_dir):
-    """找 data/incoming/ 下最新的 .xlsx（按修改时间）。"""
+def snapshot_exports(incoming_dir):
+    """记录导出目录当前文件集合，供 find_latest_export 只认本次新文件。"""
+    return {p.name for p in Path(incoming_dir).glob("*.xlsx")}
+
+
+def find_latest_export(incoming_dir, since=None):
+    """找 data/incoming/ 下最新的 .xlsx（按修改时间）。
+
+    since 传入导出前的文件集合时，只在新产生的文件里挑，避免上一张单据
+    导出失败时误把旧文件当成新数据复制进 src/（串表风险）。
+    """
     incoming = Path(incoming_dir)
     files = list(incoming.glob("*.xlsx"))
     if not files:
         raise FileNotFoundError(f"{incoming} 下未找到导出的 xlsx 文件")
+    if since is not None:
+        fresh = [p for p in files if p.name not in since]
+        if fresh:
+            files = fresh
+        else:
+            log("⚠️ 本次导出未生成新文件，回退使用目录内最新文件，请检查上一步是否成功")
     latest = max(files, key=lambda p: p.stat().st_mtime)
     log(f"最新导出文件: {latest} (大小 {latest.stat().st_size} 字节)")
     return latest
@@ -210,7 +225,8 @@ def main():
     error_msg = None
     try:
         # 1) 导出
-        log("=== 步骤 1/7: 金蝶导出采购订单 ===")
+        log("=== 步骤 1/9: 金蝶导出采购订单 ===")
+        snap1 = snapshot_exports(incoming_dir)
         run_subprocess(
             [python_exe, str(collector_dir / "kingdee_collector.py"), "--export-only"],
             cwd=str(collector_dir),
@@ -219,8 +235,8 @@ def main():
         )
 
         # 2) 复制到看板 src（在途口径，现有页面使用）
-        log("=== 步骤 2/7: 复制在途采购订单 ===")
-        latest = find_latest_export(incoming_dir)
+        log("=== 步骤 2/9: 复制在途采购订单 ===")
+        latest = find_latest_export(incoming_dir, snap1)
         copy_err = copy_with_retry(latest, target_file)
         if copy_err is not None:
             log(f"❌ 复制失败：{target_file} 被其他程序占用。"
@@ -229,7 +245,8 @@ def main():
         log(f"已覆盖: {target_file}")
 
         # 2b) 导出全量采购订单（含已关闭），供准交率使用
-        log("=== 步骤 3/7: 金蝶导出全量采购订单（含已关闭） ===")
+        log("=== 步骤 3/9: 金蝶导出全量采购订单（含已关闭） ===")
+        snap2 = snapshot_exports(incoming_dir)
         env_full = env.copy()
         env_full["KINGDEE_PO_SCHEME"] = "默认方案（个人）"
         run_subprocess(
@@ -238,8 +255,8 @@ def main():
             env=env_full,
             timeout=900
         )
-        log("=== 步骤 4/7: 复制全量采购订单 ===")
-        latest_full = find_latest_export(incoming_dir)
+        log("=== 步骤 4/9: 复制全量采购订单 ===")
+        latest_full = find_latest_export(incoming_dir, snap2)
         full_target = dashboard_dir / "src" / "otd_po_full.xlsx"
         copy_err = copy_with_retry(latest_full, full_target)
         if copy_err is not None:
@@ -248,12 +265,11 @@ def main():
         log(f"已覆盖: {full_target}")
 
         # 2c) 收料通知单（准交率数据源）
-        # ⚠️ 默认关闭：金蝶收料单方案都带自定义过滤，「111111」列最全但过滤是历史月份。
-        #    需先在金蝶把该方案过滤改为「收料日期 ≥ 本月1日」（或新建同列方案），
-        #    再在 kingdee_config.json 设 sync.enable_recv_sync=true 启用。
-        #    否则会用旧月份数据覆盖 src/otd_recv.xlsx，导致准交率失真。
+        # 方案「111111」列最全（含源单单号/合格入库关联数量/实收数量），
+        # 过滤已在金蝶侧固定为「收料日期 = 本月」，因此可直接用于当月准交率。
         if cfg.get("sync", {}).get("enable_recv_sync", False):
-            log("=== 步骤 5/7: 金蝶导出收料通知单 ===")
+            log("=== 步骤 5/9: 金蝶导出收料通知单 ===")
+            snap3 = snapshot_exports(incoming_dir)
             env_recv = env.copy()
             env_recv["KINGDEE_FORM"] = "收料通知单列表"
             env_recv["KINGDEE_PO_SCHEME"] = cfg.get("sync", {}).get("recv_scheme", "111111")
@@ -263,8 +279,8 @@ def main():
                 env=env_recv,
                 timeout=900
             )
-            log("=== 步骤 6/7: 复制收料通知单 ===")
-            latest_recv = find_latest_export(incoming_dir)
+            log("=== 步骤 6/9: 复制收料通知单 ===")
+            latest_recv = find_latest_export(incoming_dir, snap3)
             recv_target = dashboard_dir / "src" / "otd_recv.xlsx"
             copy_err = copy_with_retry(latest_recv, recv_target)
             if copy_err is not None:
@@ -272,10 +288,34 @@ def main():
                 raise copy_err
             log(f"已覆盖: {recv_target}")
         else:
-            log("=== 步骤 5-6/7: 收料单同步未启用（enable_recv_sync=false），跳过 ===")
+            log("=== 步骤 5-6/9: 收料单同步未启用（enable_recv_sync=false），跳过 ===")
+
+        # 2d) 采购申请单（管理台「待下单汇总」与申请单匹配数据源）
+        if cfg.get("sync", {}).get("enable_apply_sync", True):
+            log("=== 步骤 7/9: 金蝶导出采购申请单 ===")
+            snap4 = snapshot_exports(incoming_dir)
+            env_apply = env.copy()
+            env_apply["KINGDEE_FORM"] = "采购申请单列表"
+            env_apply["KINGDEE_PO_SCHEME"] = cfg.get("sync", {}).get("apply_scheme", "周计划申请(共享)")
+            run_subprocess(
+                [python_exe, str(collector_dir / "kingdee_collector.py"), "--export-only"],
+                cwd=str(collector_dir),
+                env=env_apply,
+                timeout=900
+            )
+            log("=== 步骤 8/9: 复制采购申请单 ===")
+            latest_apply = find_latest_export(incoming_dir, snap4)
+            apply_target = dashboard_dir / "src" / "otd_apply.xlsx"
+            copy_err = copy_with_retry(latest_apply, apply_target)
+            if copy_err is not None:
+                log(f"❌ 复制失败：{apply_target} 被其他程序占用。")
+                raise copy_err
+            log(f"已覆盖: {apply_target}")
+        else:
+            log("=== 步骤 7-8/9: 申请单同步未启用（enable_apply_sync=false），跳过 ===")
 
         # 3) git 提交并推送
-        log("=== 步骤 7/7: git push ===")
+        log("=== 步骤 9/9: git push ===")
         msg = git_cfg.get("commit_message", "daily: Kingdee 在途数据同步")
         # 只提交看板数据源 src/，避免误提交 .lnk/.workbuddy/ 等无关文件
         run_subprocess([git_exe, "add", "-A", "--", "src"], cwd=str(dashboard_dir))

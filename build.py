@@ -43,5 +43,13 @@ def main():
     print("构建完成 ->", out_path)
     print("index.html 大小: %.2f MB" % (os.path.getsize(out_path) / 1024 / 1024))
 
+    # 管理台数据（console/weekly.json + apply.csv）：每次构建同步刷新，
+    # 保证 Actions 只跑 build.py 也能拿到最新的待下单汇总与申请单数据。
+    try:
+        import build_console_data
+        build_console_data.build()
+    except Exception as e:
+        print("⚠️ 管理台数据生成失败:", e)
+
 if __name__ == "__main__":
     main()

@@ -177,6 +177,7 @@ def build_otd(src_dir, periods=None):
             continue
         receipts.append({
             "doc": _s(rg(r, "源单单号")),
+            "recv_doc": _s(rg(r, "单据编号")),
             "material": _s(rg(r, "物料编码")),
             "supplier_recv": _s(rg(r, "供应商")),
             "buyer_recv": _norm_creator(rg(r, "采购员")),
@@ -191,10 +192,10 @@ def build_otd(src_dir, periods=None):
     # ---------- 统计周期（按收料日期所在月） ----------
     today = dt.date.today()
     months = sorted({r["date"].strftime("%Y-%m") for r in receipts})
-    if periods is None:
-        cur = today.strftime("%Y-%m")
-        periods = [m for m in months if m <= cur]
+    # 仅统计当月（口径：收料通知单方案已固定为「收料日期=本月」）
     current_period = today.strftime("%Y-%m")
+    if periods is None:
+        periods = [current_period]
 
     period_data = []
     for period in periods:
@@ -263,6 +264,7 @@ def build_otd(src_dir, periods=None):
 
             details.append({
                 "doc": r["doc"],
+                "recv_doc": r["recv_doc"],
                 "material": r["material"],
                 "supplier": v["supplier"],
                 "creator": v["creator"],
