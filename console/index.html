@@ -757,8 +757,8 @@ table.wk-items td.wk-ck input{width:15px;height:15px;cursor:pointer}
   background:#F5F0FF;border:1px solid #DDD6FE;font-size:12.5px;color:#5B21B6}
 .wk-assignbar.on{display:flex}
 .wk-assignbar b{font-size:13px}
-.wk-assign-mask{position:fixed;inset:0;background:rgba(30,20,50,.32);z-index:10000;display:flex;align-items:center;justify-content:center}
-.wk-assign{background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(50,30,90,.28);width:380px;padding:20px 22px}
+.wk-assign-mask{position:fixed;inset:0;background:rgba(30,20,50,.14);z-index:10000}
+.wk-assign{position:absolute;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(50,30,90,.28);width:380px;padding:20px 22px}
 .wk-assign h4{margin:0 0 4px;font-size:15px;color:#332F3A}
 .wk-assign .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
 .wk-assign label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
@@ -1277,6 +1277,10 @@ table.wk td b{white-space:nowrap}
   <div class="card">
     <div class="card-hd"><h3>统计汇总</h3><span class="hint">按供应商与待下单总数</span></div>
     <div class="card-bd" id="wkSummary"></div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h3>采购员汇总</h3><span class="hint">按采购员统计待下单数量总和（受申请日期与核心/普通筛选影响）</span></div>
+    <div class="card-bd" id="wkBuyerSummary"></div>
   </div>
 </div>
 
@@ -14249,7 +14253,8 @@ function renderTodo() {
   var items = [];
   $('todoTime').textContent = '更新于 ' + nowStr();
 
-  var un = state.matchResult ? state.matchResult.unmatchedKeys.length : 0;
+  var un = (typeof allUnmatchKeys === 'function') ? allUnmatchKeys().length
+    : (state.matchResult ? state.matchResult.unmatchedKeys.length : 0);
   var dc = mapDirtyCount();
   var cr = state.checkResult ? state.checkResult.summary : null;
 
@@ -14283,7 +14288,8 @@ function renderTodo() {
 
 /* match tab 末尾迁移提示 */
 function renderMatchUnmatchSummary() {
-  var n = state.matchResult ? state.matchResult.unmatchedKeys.length : 0;
+  var n = (typeof allUnmatchKeys === 'function') ? allUnmatchKeys().length
+    : (state.matchResult ? state.matchResult.unmatchedKeys.length : 0);
   var c1 = $('matchUnmatchCount'); if (c1) c1.textContent = n;
 }
 
@@ -15549,19 +15555,42 @@ function saveUnmatchRowByKey(key) {
   refreshAll();
 }
 
+/* 待下单里「待填写」的 SKU 也要能补录：
+ * 匹配表用款级兜底可能把 SKU 归到某个供应商，而待下单要求精确/唯一款号，
+ * 两边口径不同会让人误以为「未匹配 0 却有待填写」。
+ * 这里把 weekly.json 的 pending_skus 并进补录列表，保证缺映射的 SKU 一定可见。
+ */
+function wkPendingKeys() {
+  var arr = (typeof window !== 'undefined' && window.__wkPendingSkus) || [];
+  return arr.map(function (x) { return String((x && x.sku) || ''); }).filter(Boolean);
+}
+function allUnmatchKeys() {
+  var base = (state.matchResult && state.matchResult.unmatchedKeys) || [];
+  var seen = {}, out = [];
+  base.concat(wkPendingKeys()).forEach(function (k) {
+    if (!k) return;
+    if (String(k).toUpperCase().indexOf('VYTK') >= 0) return;   // 全局排除项，无需补录
+    var nk = (window.Core && Core.normSKU) ? Core.normSKU(k) : String(k).toUpperCase();
+    if (!nk || seen[nk]) return;
+    seen[nk] = 1; out.push(k);
+  });
+  return out;
+}
+
 function renderUnmatchPanel() {
   var host = $('unmatchPanel'); if (!host) return;
   host.innerHTML = '';
   var c = $('unmatchCount');
   renderMatchUnmatchSummary();
-  if (c) c.textContent = (state.matchResult && state.matchResult.unmatchedKeys.length) || 0;
-  if (!state.matchResult || !state.matchResult.unmatchedKeys.length) {
+  var _allKeys = allUnmatchKeys();
+  if (c) c.textContent = _allKeys.length;
+  if (!_allKeys.length) {
     host.appendChild(el('div', 'empty', ''));
     var h = host.querySelector('.empty');
     if (h) h.innerHTML = '<div class="empty-t">没有未匹配的 SKU — 映射表很完整。</div><div class="empty-s">回到 ② 申请单匹配 查看命中统计，或到 ⑤ 漏下单核查 跑一遍。</div>';
     return;
   }
-  var keys = state.matchResult.unmatchedKeys.slice();
+  var keys = _allKeys.slice();
   var q = (state.unmatchSearch || '').trim().toLowerCase();
   if (q) keys = keys.filter(function (k) { return k.indexOf(q) >= 0; });
 
@@ -16141,7 +16170,7 @@ function renderMatchStats() {
     host.appendChild(el('div', 'todo-empty', '上传申请单后这里会显示匹配统计'));
     return;
   }
-  var r = state.matchResult, n = r.rows.length, un = r.unmatchedKeys.length;
+  var r = state.matchResult, n = r.rows.length, un = allUnmatchKeys().length;
   var sup = {}, buy = {}, qty = 0;
   r.rows.forEach(function (x) { if (x.supplier) sup[x.supplier] = 1; if (x.buyer) buy[x.buyer] = 1; qty += x.qty; });
   // 匹配方式分布：精确 / 前缀 / 款级
@@ -18316,7 +18345,7 @@ window.__test = {
       if(op){
         op.onclick = function(ev){
           ev.stopPropagation();
-          batchAssign([k]);
+          batchAssign([k], op);
         };
       }
     });
@@ -18331,7 +18360,7 @@ window.__test = {
   }
 
   // ---------- 供应商选择弹窗 ----------
-  function pickSupplier(title, subTxt, cb){
+  function pickSupplier(title, subTxt, anchor, cb){
     var mask = document.createElement('div');
     mask.className = 'wk-assign-mask';
     var opts = (WK.suppliers||[]).filter(function(x){ return !x.pending; })
@@ -18344,6 +18373,31 @@ window.__test = {
       + '<div class="acts"><button class="btn sm" id="wkPickCancel">取消</button>'
       + '<button class="btn sm primary" id="wkPickOk">确定</button></div></div>';
     document.body.appendChild(mask);
+    // 面板贴着被点击的行：优先下方，放不下就翻到上方
+    var panel = mask.querySelector('.wk-assign');
+    var r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
+    if (r) {
+      var pw = 380, ph = panel.offsetHeight || 320;
+      var left = Math.max(12, Math.min(r.left, window.innerWidth - pw - 16));
+      var top = r.bottom + 8;
+      var spaceBelow = window.innerHeight - top - 12;
+      if (spaceBelow < 240) {
+        // 下方太挤 → 翻到上方，但底部贴着按钮，不要飘到屏幕顶
+        var spaceAbove = r.top - 20;
+        var h2 = Math.min(ph, Math.max(200, spaceAbove));
+        panel.style.maxHeight = h2 + 'px';
+        panel.style.overflow = 'auto';
+        top = Math.max(12, r.top - h2 - 8);
+      } else {
+        panel.style.maxHeight = Math.min(ph, spaceBelow) + 'px';
+        panel.style.overflow = 'auto';
+      }
+      panel.style.left = left + 'px';
+      panel.style.top = top + 'px';
+    } else {
+      panel.style.left = Math.round((window.innerWidth - 380) / 2) + 'px';
+      panel.style.top = Math.round((window.innerHeight - 320) / 2) + 'px';
+    }
     var sel = mask.querySelector('#wkPickSel'), inp = mask.querySelector('#wkPickNew'), full = mask.querySelector('#wkPickFull');
     mask.querySelector('#wkPickCancel').onclick = function(){ mask.remove(); };
     mask.querySelector('#wkPickOk').onclick = function(){
@@ -18375,7 +18429,7 @@ window.__test = {
     return res;
   }
 
-  function batchAssign(rawKeys){
+  function batchAssign(rawKeys, anchor){
     if(!rawKeys.length) return;
     var keys=expandBySpu(rawKeys);
     var skus = {}, qty = 0, rows = 0;
@@ -18388,7 +18442,7 @@ window.__test = {
     });
     var skuList = Object.keys(skus);
     if(!skuList.length) return;
-    pickSupplier('指定供应商', '将把 '+rows+' 行 / '+skuList.length+' 个 SKU（合计 '+nf(qty)+' 件）归到所选供应商',
+    pickSupplier('指定供应商', '将把 '+rows+' 行 / '+skuList.length+' 个 SKU（合计 '+nf(qty)+' 件）归到所选供应商', anchor,
       function(short, name){
         skuList.forEach(function(sk){ LOCAL_MAP[sk] = {short:short, name:name}; });
         saveLocal(); rebuild(); WK_SEL = {}; updateSelBar(); wkRender();
@@ -18455,16 +18509,39 @@ window.__test = {
     var coreTotal = all.filter(function(x){ return x.core; }).reduce(function(s,x){ return s + x.plan; }, 0);
     var pending = WK.pending || {rows:0, qty:0};
 
+    var buyerSet = {};
+    list.forEach(function(x){ (x.items||[]).forEach(function(it){ if(it.buyer) buyerSet[it.buyer]=1; }); });
+    var buyerCount = Object.keys(buyerSet).length;
+
     var st = document.getElementById('wkStats');
     if(st){
       st.innerHTML =
         '<div class="stat"><div class="s-l">全部供应商待下单</div><div class="s-v"><b>'+nf(total)+'</b> 件</div></div>'
         +'<div class="stat"><div class="s-l">供应商</div><div class="s-v"><b>'+(WK.supplier_count||0)+'</b> 家 <span style="font-size:12px;color:var(--muted)">核心 '+(WK.core_count||0)+'</span></div></div>'
+        +'<div class="stat"><div class="s-l">采购员待下单</div><div class="s-v"><b>'+nf(scopeTotal)+'</b> 件 <span style="font-size:12px;color:var(--muted)">'+buyerCount+' 人</span></div></div>'
         +'<div class="stat"><div class="s-l">待填写（未映射）</div><div class="s-v" style="color:#B91C1C"><b>'+nf(pending.qty)+'</b> 件 <span style="font-size:12px;color:var(--muted)">'+pending.rows+' 行</span></div></div>'
         +'<div class="stat"><div class="s-l">当前筛选</div><div class="s-v"><b>'+nf(scopeTotal)+'</b> 件 <span style="font-size:12px;color:var(--muted)">'+list.length+' 家</span></div></div>';
     }
     wkTable(document.getElementById('wkA'), list.filter(function(x){ return x.plan >= thr; }), max, total);
     wkTable(document.getElementById('wkB'), list.filter(function(x){ return x.plan < thr; }), max, total);
+
+    // 采购员维度：待下单数量总和
+    var buyerAgg = {};
+    list.forEach(function(x){
+      (x.items||[]).forEach(function(it){
+        var b = it.buyer || '（未填写）';
+        var a2 = buyerAgg[b] || (buyerAgg[b] = {qty:0, rows:0, sups:{}, skus:{}, docs:{}});
+        a2.qty += (it.qty||0); a2.rows++;
+        a2.sups[x.short]=1;
+        if(it.sku) a2.skus[it.sku]=1;
+        if(it.doc) a2.docs[it.doc]=1;
+      });
+    });
+    var buyers = Object.keys(buyerAgg).map(function(k){
+      var v=buyerAgg[k];
+      return {name:k, qty:Math.round(v.qty*10)/10, rows:v.rows,
+              sups:Object.keys(v.sups).length, skus:Object.keys(v.skus).length, docs:Object.keys(v.docs).length};
+    }).sort(function(a2,b2){ return b2.qty-a2.qty; });
 
     var sum = document.getElementById('wkSummary');
     if(sum){
@@ -18487,6 +18564,35 @@ window.__test = {
         + '<td style="text-align:right">—</td><td></td><td></td></tr>'
         + '</tbody></table>';
     }
+    var bs = document.getElementById('wkBuyerSummary');
+    if(bs){
+      if(!buyers.length){ bs.innerHTML = '<div class="hint">当前筛选下无数据</div>'; }
+      else {
+        var bTotal = buyers.reduce(function(t,x){ return t + x.qty; }, 0);
+        var acc2 = 0;
+        bs.innerHTML = '<table class="wk"><thead><tr><th>采购员</th>'
+          + '<th style="text-align:right;width:120px">待下单总量</th>'
+          + '<th style="text-align:right;width:70px">占比</th>'
+          + '<th style="text-align:right;width:70px">行数</th>'
+          + '<th style="text-align:right;width:70px">SKU</th>'
+          + '<th style="text-align:right;width:70px">供应商</th>'
+          + '<th style="text-align:right;width:70px">单据</th></tr></thead><tbody>'
+          + buyers.map(function(x){
+              acc2 += x.qty;
+              return '<tr><td><b>'+x.name+'</b></td>'
+                + '<td style="text-align:right">'+nf(x.qty)+'</td>'
+                + '<td style="text-align:right">'+(bTotal>0?(x.qty/bTotal*100).toFixed(1):'0.0')+'%</td>'
+                + '<td style="text-align:right;color:var(--muted)">'+x.rows+'</td>'
+                + '<td style="text-align:right;color:var(--muted)">'+x.skus+'</td>'
+                + '<td style="text-align:right;color:var(--muted)">'+x.sups+'</td>'
+                + '<td style="text-align:right;color:var(--muted)">'+x.docs+'</td></tr>';
+            }).join('')
+          + '<tr class="wk-total"><td>合计 <span class="muted">'+buyers.length+' 人</span></td>'
+          + '<td style="text-align:right">'+nf(bTotal)+'</td><td style="text-align:right">100.0%</td>'
+          + '<td colspan="4"></td></tr>'
+          + '</tbody></table>';
+      }
+    }
     updateSelBar();
   }
 
@@ -18505,6 +18611,8 @@ window.__test = {
     fetch('weekly.json',{cache:'no-store'}).then(function(r){ return r.json(); }).then(function(d){
       WK = d;
       WK_RAW = JSON.parse(JSON.stringify(d.suppliers||[]));
+      // 供「未匹配补录」页读取：待下单里缺映射的 SKU 必须能补录
+      window.__wkPendingSkus = d.pending_skus || [];
       loadLocal();
       rebuild();
       wkRender();

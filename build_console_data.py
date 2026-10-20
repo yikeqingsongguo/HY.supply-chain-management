@@ -136,6 +136,33 @@ def load_cap_short():
     return out
 
 
+def build_kind_index(map_idx):
+    """款号(编码内数字前 4 位) -> 供应商，末行优先（与管理台 buildMapIndex 口径一致）"""
+    kind = {}
+    for code, info in map_idx.items():
+        m = re.search(r"\d{4}", code)
+        if m and info.get("name"):
+            kind[m.group(0)] = info
+    return kind
+
+
+def resolve_supplier(code_raw, map_idx, kind_idx):
+    """返回 (info, via)：exact / pfx / kind / ''（与管理台 lookupSKU 同序）"""
+    code = raw_code(code_raw)
+    if not code:
+        return None, ""
+    hit = map_idx.get(code)
+    if hit:
+        return hit, "exact"
+    for pfx in ("SP",):
+        if code.startswith(pfx) and code[len(pfx):] in map_idx:
+            return map_idx[code[len(pfx):]], "pfx"
+    m = re.search(r"\d{4}", code)
+    if m and m.group(0) in kind_idx:
+        return kind_idx[m.group(0)], "kind"
+    return None, ""
+
+
 def build():
     os.makedirs(CONSOLE, exist_ok=True)
     core = set()
@@ -153,8 +180,11 @@ def build():
         return
 
     map_idx = load_map_index()
+    kind_idx = build_kind_index(map_idx)
     po_idx = load_po_supplier_index()
     cap_short = load_cap_short()
+    via_count = {}
+    pending_skus = {}
 
     wb = openpyxl.load_workbook(apply_path, data_only=True)
     ws = wb[wb.sheetnames[0]]
@@ -193,8 +223,8 @@ def build():
             skipped_vytk += 1
             continue
         code = raw_code(code_raw)
-        info = map_idx.get(code)
-        src = "map"
+        info, via = resolve_supplier(code_raw, map_idx, kind_idx)
+        src = via or ""
         if not info:
             info = po_idx.get(code)
             src = "po" if info else ""
@@ -202,13 +232,15 @@ def build():
             full = info.get("name") or ""
             short = SHORT_OVERRIDE.get(full) or info.get("short") or cap_short.get(full) or full
             buyer = BUYER_OVERRIDE.get(full) or info.get("buyer") or str(g(r, "采购员") or "").strip()
-            if src == "map":
+            if src in ("exact", "pfx", "kind"):
                 hit_map += 1
+                via_count[src] = via_count.get(src, 0) + 1
             else:
                 hit_po += 1
         else:
             full, short, buyer = "", PENDING, str(g(r, "采购员") or "").strip()
             miss += 1
+            pending_skus[code_raw] = pending_skus.get(code_raw, 0) + remain
 
         key = short or full or PENDING
         grp = groups.setdefault(key, {
@@ -281,7 +313,9 @@ def build():
             "rows": len([it for x in suppliers if x["pending"] for it in x["items"]]),
             "qty": round(sum(x["plan"] for x in suppliers if x["pending"]), 1),
         },
-        "apply_match": {"by_map": hit_map, "by_po": hit_po, "pending": miss,
+        "pending_skus": [{"sku": k, "qty": round(v, 1)} for k, v in
+                         sorted(pending_skus.items(), key=lambda x: -x[1])],
+        "apply_match": {"by_map": hit_map, "by_po": hit_po, "pending": miss, "via": via_count,
                         "skipped_zero": skipped_zero, "skipped_bad": skipped_bad,
                         "skipped_vytk": skipped_vytk},
         "suppliers": suppliers,
