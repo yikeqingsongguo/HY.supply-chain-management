@@ -53,11 +53,11 @@ body{
 h1,h2,h3,h4{margin:0;font-weight:700}
 button{font-family:inherit;font-size:14px;cursor:pointer}
 input,select,textarea{font-family:inherit;font-size:16px;color:var(--text)}
-.wrap{max-width:1320px;margin:0 auto;padding:0 16px}
+.wrap{max-width:1560px;margin:0 auto;padding:0 16px}
 
 /* ---------- 报头（顶部） ---------- */
 .topbar{background:var(--card);border-bottom:1px solid var(--line);box-shadow:0 4px 0 -1px var(--card),0 4px 0 0 var(--line);position:sticky;top:0;z-index:50}
-.topbar-in{display:flex;align-items:center;gap:12px;padding:14px 16px 10px;max-width:1320px;margin:0 auto;flex-wrap:wrap}
+.topbar-in{display:flex;align-items:center;gap:12px;padding:14px 16px 10px;max-width:1560px;margin:0 auto;flex-wrap:wrap}
 .brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .brand svg{flex:none;align-self:center}
 .brand-name{font-family:var(--serif);font-size:25px;font-weight:900;letter-spacing:.5px;line-height:1.05}
@@ -192,6 +192,10 @@ th.sku-big, td.sku-big{font-family:var(--mono);font-size:15.5px;font-weight:600;
 th.sku-big, td.col-date, th.col-date{white-space:nowrap}
 td.col-date{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px}
 th.sku-big{color:#F9F9F7;background:#111;font-weight:600;font-size:12px}
+/* 匹配表：22 位申请单号 + 长物料编码会把表格撑出容器，导致末列被裁 —— 收窄并允许省略 */
+#matchTable td.mono.no-cell{max-width:158px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#matchTable td.sku-big{font-size:13.5px}
+#matchTable th.sku-big{min-width:168px !important}
 .kv{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px}
 .kv th{background:#F0F0F0;color:var(--text);text-align:left;width:38%;font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.05em;border:1px solid var(--line);padding:6px 11px;vertical-align:top}
 .kv td{background:var(--card);border:1px solid var(--line);padding:6px 11px;font-size:13px;font-family:var(--mono);color:var(--text);vertical-align:top;word-break:break-all}
@@ -871,7 +875,7 @@ table.wk td b{white-space:nowrap}
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <span>本次待处理</span>
       <span class="spacer" style="flex:1"></span>
-      <span style="font-size:11.5px;color:var(--muted);font-weight:400" id="todoTime"></span>
+      <span style="font-size:11.5px;color:rgba(255,255,255,.88);font-weight:400" id="todoTime"></span>
     </div>
     <div class="todo-bd" id="todoBody"></div>
   </div>
@@ -1050,14 +1054,14 @@ table.wk td b{white-space:nowrap}
           <thead><tr>
             <th data-key="no"><div class="th-inner"><span class="th-l">申请单号</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th data-key="date" class="col-date" style="min-width:104px"><div class="th-inner"><span class="th-l">申请日期</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
-            <th class="sku-big" data-key="sku" style="min-width:210px"><div class="th-inner"><span class="th-l">物料编码</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
+            <th class="sku-big" data-key="sku" style="min-width:168px"><div class="th-inner"><span class="th-l">物料编码</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th class="num" data-key="qty"><div class="th-inner"><span class="th-l">数量</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th class="num" data-key="approvedQty"><div class="th-inner"><span class="th-l">批准数量</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th class="num" data-key="remainQty"><div class="th-inner"><span class="th-l">剩余数量</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th data-key="status"><div class="th-inner"><span class="th-l">状态</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th data-key="buyer"><div class="th-inner"><span class="th-l">采购员</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
-            <th data-key="supplier"><div class="th-inner"><span class="th-l">供应商</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
-            <th data-key="lingxingCreator"><div class="th-inner"><span class="th-l">领星创建人</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
+            <th data-key="supplier" style="min-width:96px"><div class="th-inner"><span class="th-l">供应商</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
+            <th data-key="lingxingCreator" style="min-width:104px"><div class="th-inner"><span class="th-l">领星创建人</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th class="ctr" data-key="_noop"><div class="th-inner"><span class="th-l">操作</span></div></th>
           </tr></thead>
           <tbody id="matchBody"></tbody>
@@ -1239,7 +1243,12 @@ table.wk td b{white-space:nowrap}
         </span>
         <span style="margin-left:10px">阶梯分界：</span>
         <input class="inp" type="number" id="wkThr" value="5000" step="500" min="0">
-        <span>≥ 该值进入表 A，&lt; 该值进入表 B</span>
+        <span>≥ 表 A，&lt; 表 B</span>
+        <span style="margin-left:12px;white-space:nowrap">申请日期：</span>
+        <input class="inp" type="date" id="wkDateFrom" style="width:142px" title="起始日期">
+        <span>—</span>
+        <input class="inp" type="date" id="wkDateTo" style="width:142px" title="结束日期">
+        <button class="btn sm" id="wkDateClear" title="清除日期筛选">清除</button>
         <span class="spacer" style="flex:1"></span>
         <button class="btn sm" id="btnWkMapExport" title="导出为 map.json 兼容格式，可合并进映射表">导出映射</button>
         <button class="btn sm" id="btnWkMapReset" title="清除本机临时指定的供应商">清除临时映射</button>
@@ -1248,7 +1257,10 @@ table.wk td b{white-space:nowrap}
         <b>已选 <span id="wkSelCount">0</span> 行</b>
         <span style="color:var(--muted)">指定供应商：</span>
         <select class="inp" id="wkAssignSel" style="max-width:220px"></select>
-        <button class="btn sm" id="wkAssignApply">应用到选中行</button>
+        <label style="display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer">
+          <input type="checkbox" id="wkAssignBySpu" checked style="width:14px;height:14px">同 SPU 一起指定
+        </label>
+        <button class="btn sm" id="wkAssignApply">应用</button>
         <button class="btn sm" id="wkAssignClear">取消选择</button>
         <span class="hint" style="color:var(--muted)">指定后立即重算分组，改动存本机；确认无误后点「导出映射」合并进 map.json</span>
       </div>
@@ -16181,7 +16193,7 @@ function renderMatchTable() {
   page.forEach(function (r) {
     var tr = el('tr');
     if (!r.matched) tr.className = 'unm';
-    tr.appendChild(el('td', 'mono', r.no || '—'));
+    tr.appendChild(el('td', 'mono no-cell', r.no || '—'));
     tr.appendChild(el('td', 'col-date', r.date || '—'));
     var tdSku = el('td', 'sku-big mono');
     tdSku.textContent = r.sku || '—';
@@ -16191,7 +16203,7 @@ function renderMatchTable() {
     tr.appendChild(el('td', 'num', r.remainQty === null || r.remainQty === undefined ? '—' : fmtNum(r.remainQty)));
     tr.appendChild(el('td', null, r.status || '—'));
     tr.appendChild(el('td', null, r.buyer || '—'));
-    tr.appendChild(el('td', null, r.supplier || '—'));
+    tr.appendChild(el('td', null, r.shortName || r.supplier || '—'));
     tr.appendChild(el('td', null, r.lingxingCreator || '—'));
     var tdA = el('td', 'ctr');
     var bd = el('button', 'btn sm', '详情');
@@ -18061,6 +18073,7 @@ window.__test = {
   var WK_FIELD = {};          // { 简称: { 列key: Set } }
   var WK_PANEL = null;
   var WK_SEL = {};            // { "doc|sku": true }
+  var WK_DATE = { from:'', to:'' };   // 申请日期区间（按申请单创建日期）
   var LOCAL_MAP = {};         // { sku: {short, name} }
   var LS_KEY = 'wk_sup_map_v1';
   var COLS = [
@@ -18110,8 +18123,17 @@ window.__test = {
     var base = {};
     WK_RAW.forEach(function(s){ base[s.short] = {name:s.name, core:!!s.core, pending:!!s.pending}; });
     var groups = {};
+    function inRange(d){
+      if(!WK_DATE.from && !WK_DATE.to) return true;
+      var v = String(d||'');
+      if(!v) return false;
+      if(WK_DATE.from && v < WK_DATE.from) return false;
+      if(WK_DATE.to && v > WK_DATE.to) return false;
+      return true;
+    }
     WK_RAW.forEach(function(s){
       (s.items||[]).forEach(function(it){
+        if(!inRange(it.date)) return;
         var ov = LOCAL_MAP[it.sku];
         var short = ov ? ov.short : s.short;
         var meta = base[short] || {name:(ov&&ov.name)||short, core:false, pending:short==='待填写'};
@@ -18128,7 +18150,7 @@ window.__test = {
         g.items.push(it);
       });
     });
-    var arr = Object.keys(groups).map(function(k){
+    var arr = Object.keys(groups).filter(function(k){ return groups[k].plan>0; }).map(function(k){
       var g=groups[k];
       return {name:g.name, short:g.short, core:g.core, pending:g.pending,
         plan:Math.round(g.plan*10)/10,
@@ -18336,8 +18358,26 @@ window.__test = {
     mask.onclick = function(e){ if(e.target === mask) mask.remove(); };
   }
 
-  function batchAssign(keys){
-    if(!keys.length) return;
+  // 勾选「同 SPU 一起指定」时，把选中行扩展到该 SPU 下所有行
+  function expandBySpu(keys){
+    var cb=document.getElementById('wkAssignBySpu');
+    if(!(cb ? cb.checked : true)) return keys;
+    var spus={};
+    WK.suppliers.forEach(function(s){
+      s.items.forEach(function(it){ if(keys.indexOf(rowKey(it))>=0 && it.spu) spus[it.spu]=1; });
+    });
+    var out=keys.slice();
+    WK.suppliers.forEach(function(s){
+      s.items.forEach(function(it){ if(spus[it.spu]) out.push(rowKey(it)); });
+    });
+    var seen={}, res=[];
+    out.forEach(function(k){ if(!seen[k]){ seen[k]=1; res.push(k); } });
+    return res;
+  }
+
+  function batchAssign(rawKeys){
+    if(!rawKeys.length) return;
+    var keys=expandBySpu(rawKeys);
     var skus = {}, qty = 0, rows = 0;
     WK.suppliers.forEach(function(s){
       s.items.forEach(function(it){
@@ -18472,6 +18512,12 @@ window.__test = {
 
       var inp = document.getElementById('wkThr');
       if(inp){ inp.oninput = wkRender; }
+      var df=document.getElementById('wkDateFrom'), dt2=document.getElementById('wkDateTo');
+      function applyDate(){ WK_DATE.from=df?df.value:''; WK_DATE.to=dt2?dt2.value:''; rebuild(); WK_SEL={}; wkRender(); fillAssignSelect(); }
+      if(df) df.onchange=applyDate;
+      if(dt2) dt2.onchange=applyDate;
+      var dc=document.getElementById('wkDateClear');
+      if(dc){ dc.onclick=function(){ if(df) df.value=''; if(dt2) dt2.value=''; applyDate(); }; }
       var bar = document.getElementById('wkScopeBar');
       if(bar){
         bar.querySelectorAll('span').forEach(function(s){
@@ -18487,7 +18533,7 @@ window.__test = {
       var applyBtn = document.getElementById('wkAssignApply');
       if(applyBtn){
         applyBtn.onclick = function(){
-          var keys = Object.keys(WK_SEL);
+          var keys = expandBySpu(Object.keys(WK_SEL));
           if(!keys.length) return;
           var sel = document.getElementById('wkAssignSel');
           if(!sel.value){ alert('请先选择一个供应商'); return; }

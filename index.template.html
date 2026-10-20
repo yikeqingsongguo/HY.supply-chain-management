@@ -381,6 +381,20 @@
   #ov_new{max-height:430px;overflow:auto;-webkit-overflow-scrolling:touch;}
   #ov_new table.t tbody td{height:40px;}
   #ov_new table.t thead th{position:sticky;top:0;z-index:2;background:#fff;}
+  /* 供应商月度订单：固定高度纵向滚动 + 表头吸顶 */
+  #ov_month_table{max-height:330px;overflow:auto;-webkit-overflow-scrolling:touch;}
+  #ov_month_table table.t thead th{position:sticky;top:0;z-index:2;background:#fff;}
+  #ov_month_table table.t tbody td{height:36px;}
+  .th-filter{display:inline-block;margin-left:4px;padding:0 4px;border:1px solid var(--line);border-radius:4px;
+    background:#fff;color:var(--dim);font-size:10px;line-height:14px;cursor:pointer}
+  .th-filter:hover{border-color:#C4B5FD;color:#6D28D9}
+  .th-filter.on{background:#7C3AED;color:#fff;border-color:#7C3AED}
+  .col-filter-pop{position:absolute;z-index:999;background:#fff;border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 12px 30px rgba(60,40,110,.18);padding:8px;min-width:180px;max-height:280px;overflow:auto;font-size:12.5px}
+  .col-filter-pop label{display:flex;align-items:center;gap:6px;padding:4px 5px;border-radius:6px;cursor:pointer;white-space:nowrap}
+  .col-filter-pop label:hover{background:#FAF8FF}
+  .col-filter-pop .fp-acts{display:flex;gap:8px;padding:6px 4px 2px;border-top:1px solid var(--line);margin-top:4px}
+  .col-filter-pop .fp-acts a{cursor:pointer;color:#6D28D9}
   /* 负荷率详情（联动）表格高度与「产能负荷率分布」图（300px）一致，超出内部滚动 */
   #cap_detail_table{max-height:300px;overflow:auto;}
   .page-title > span:last-child{word-break:break-word;}
@@ -521,14 +535,18 @@
       <div class="ph-sub">按月度采购总量降序排列，点击下钻供应商明细</div>
       <div id="ov_month_table"></div>
     </div>
-    <div class="panel">
+    <div class="panel" id="ov_daily_panel" style="grid-column:1/-1">
       <h3>每日需交趋势</h3>
       <div class="ph-sub">全部供应商按交货日期汇总的每日需交数量；点击数据点下钻当日订单明细</div>
-      <div class="chart" id="ov_daily" style="height:330px"></div>
+      <div class="chart" id="ov_daily" style="height:230px"></div>
     </div>
-    <div class="panel" id="ov_new_panel">
+    <div class="panel" id="ov_new_panel" style="grid-column:1/-1">
       <h3>待交新品</h3>
-      <div class="ph-sub">时效标签 = 新品 / 爆款新品 的在途订单，按 SPU 汇总本月与下月交货量与货期；点击行下钻 SKU</div>
+      <div class="ph-sub">时效标签 = 新品 / 爆款新品 的在途订单，按 SPU 汇总；切换月份查看对应货期；点击行下钻 SKU</div>
+      <div class="seg" id="ov_new_seg" style="margin-bottom:8px">
+        <span class="on" data-m="m">本月</span>
+        <span data-m="n">下月</span>
+      </div>
       <div id="ov_new"></div>
     </div>
   </div>
@@ -627,7 +645,7 @@
     <span class="lab" style="margin-left:10px">管理台数据与交互与原网页一致；原图表视图保留在途剩余+周计划堆叠对比</span>
   </div>
   <div id="wk_console_box">
-    <iframe id="wk_console" src="console/index.html" title="采购申请单与订单分配管理台" style="width:100%;height:1500px;border:0;border-radius:24px;background:#fff;display:block"></iframe>
+    <iframe id="wk_console" src="console/index.html" title="采购申请单与订单分配管理台" style="width:100%;height:1500px;border:0;border-radius:24px;background:#fff;display:block;overflow:hidden"></iframe>
   </div>
   <div id="wk_charts_box" style="display:none">
   <div class="ctl-inline">
@@ -722,6 +740,12 @@
     <div class="seg" id="otd_dim_seg">
       <span class="on" data-d="supplier">供应商</span>
       <span data-d="buyer">采购员</span>
+    </div>
+    <span class="lab" style="margin-left:12px">供应商范围：</span>
+    <div class="seg" id="otd_scope_seg">
+      <span class="on" data-c="all">全部</span>
+      <span data-c="core">核心供应商</span>
+      <span data-c="normal">普通供应商</span>
     </div>
   </div>
   <div class="cards" id="otd_kpi"></div>
@@ -870,7 +894,7 @@
     ovScope:'core', crossHeatSeg:'top20',
     monthScope:'all', weekScope:'all', odScope:'all', capScope:'all', odSort:'qty',
     month:'this',                                               // month = 全局「本月/下月」开关（此前各面板各自为政）
-    otdPeriod:(OTD&&OTD.default_period)||null, otdDim:'supplier', otdSort:'rate',
+    otdPeriod:(OTD&&OTD.default_period)||null, otdDim:'supplier', otdSort:'recv_qty', otdScope:'all', ovNewMonth:'m', monthSupFilter:null,
     wkView:'console' };
 
   function applyFilters(rows){
@@ -1486,7 +1510,38 @@
       qty:sumBy(ov,'remain'), poTotal:sumBy(ov,'po_qty'),
       maxOd:maxOd, avgOd:Math.round(avgOd*10)/10 };
   }
-  // 供应商月度订单数据表（本月/下月/合计，按合计降序；支持 全部/核心/普通 筛选）
+  // 表头 ▾ 列筛选浮层（看板通用，单选/多选均可）
+  function bindColFilterPop(btn, values, selected, onApply){
+    var old=document.querySelector('.col-filter-pop'); if(old) old.remove();
+    var pop=document.createElement('div'); pop.className='col-filter-pop';
+    pop.innerHTML = values.map(function(v){
+        return '<label><input type="checkbox" value="'+v+'"'+(selected[v]?' checked':'')+'>'+v+'</label>';
+      }).join('')
+      + '<div class="fp-acts"><a data-a="all">全选</a><a data-a="none">清空</a></div>';
+    document.body.appendChild(pop);
+    var r=btn.getBoundingClientRect();
+    pop.style.left=Math.min(r.left+window.scrollX, window.innerWidth-210)+'px';
+    pop.style.top=(r.bottom+window.scrollY+4)+'px';
+    pop.addEventListener('click',function(e){ e.stopPropagation(); });
+    function apply(){
+      var sel={};
+      pop.querySelectorAll('input:checked').forEach(function(cb){ sel[cb.value]=1; });
+      onApply(sel);
+    }
+    pop.querySelectorAll('a[data-a]').forEach(function(a){
+      a.onclick=function(){
+        var on=a.getAttribute('data-a')==='all';
+        pop.querySelectorAll('input').forEach(function(cb){ cb.checked=on; });
+        apply();
+      };
+    });
+    pop.querySelectorAll('input').forEach(function(cb){ cb.onchange=apply; });
+    setTimeout(function(){
+      document.addEventListener('click', function close(){ pop.remove(); document.removeEventListener('click',close); });
+    },0);
+  }
+
+  // 供应商月度订单数据表（本月/下月/合计，按合计降序；支持 全部/核心/普通 筛选 + 供应商列筛选）
   function renderMonthTable(rows, elId){
     var el=document.getElementById(elId); if(!el) return;
     var scope=state.monthScope||'all';
@@ -1499,9 +1554,15 @@
       var cur=sumBy(s2.filter(function(o){return o.month===thisM;}),'remain');
       var nxt=sumBy(s2.filter(function(o){return o.month===nextM;}),'remain');
       return {s:s,cur:cur,nxt:nxt,tot:cur+nxt};
-    }).filter(function(d){return d.tot>0;}).sort(function(a,b){return b.tot-a.tot;});
+    }).filter(function(d){return d.tot>0;});
+    var fsup=state.monthSupFilter||{};
+    var hasF=Object.keys(fsup).length>0;
+    if(hasF) data=data.filter(function(d){ return !!fsup[d.s]; });
+    data=data.sort(function(a,b){return b.tot-a.tot;});
     if(!data.length){ el.innerHTML=seg+'<div class="empty">无月度订单数据</div>'; bindScopeSeg('ov_month_seg','monthScope',function(){renderOverview();}); return; }
-    var html='<table class="t"><thead><tr><th>供应商</th><th>本月('+thisM+')</th><th>下月('+nextM+')</th><th>合计</th></tr></thead><tbody>';
+    var html='<table class="t"><thead><tr><th>供应商'
+      +'<button class="th-filter'+(hasF?' on':'')+'" id="ov_month_supfil" type="button" title="筛选供应商">▾</button>'
+      +'</th><th>本月('+thisM+')</th><th>下月('+nextM+')</th><th>合计</th></tr></thead><tbody>';
     data.forEach(function(d){
       html+='<tr><td class="link" data-s="'+d.s+'" data-m="">'+'<span class="tag '+(CORE.has(d.s)?'core':'norm')+'">'+d.s+'</span></td>'
         +'<td class="link" data-s="'+d.s+'" data-m="'+thisM+'">'+fmt(d.cur)+'</td>'
@@ -1510,6 +1571,13 @@
     });
     html+='</tbody><tfoot><tr><td>合计</td><td>'+fmt(sumBy(data,'cur'))+'</td><td>'+fmt(sumBy(data,'nxt'))+'</td><td>'+fmt(sumBy(data,'tot'))+'</td></tr></tfoot></table>';
     el.innerHTML=seg+html;
+    var fb=el.querySelector('#ov_month_supfil');
+    if(fb){ fb.onclick=function(ev){
+      ev.stopPropagation();
+      bindColFilterPop(fb, sups.slice().sort(), fsup, function(sel){
+        state.monthSupFilter=sel; renderOverview();
+      });
+    }; }
     attachExport(el, '供应商月度订单数据');
     // 点击具体月份数字 → 只看该供应商该月数据；点供应商名/合计 → 全部月份
     el.querySelectorAll('td[data-s]').forEach(function(td){
@@ -1627,12 +1695,30 @@
   }
 
   // ---------- 待交新品（时效标签：新品 / 爆款新品） ----------
+  // 待交新品：本月/下月切换（事件委托，只绑一次）
+  (function(){
+    var seg=document.getElementById('ov_new_seg');
+    if(!seg || seg.__bound) return;
+    seg.__bound=true;
+    seg.addEventListener('click', function(e){
+      var s=e.target.closest('[data-m]'); if(!s) return;
+      state.ovNewMonth=s.getAttribute('data-m');
+      renderNewProducts();
+    });
+  })();
+
   function renderNewProducts(){
     var box=document.getElementById('ov_new'); if(!box) return;
     var TAGS={'新品':1,'爆款新品':1};
     var t=new Date(), y=t.getFullYear(), m0=t.getMonth()+1;
     function ym(yy,mm){ return yy+'-'+(mm<10?'0':'')+mm; }
     var cur=ym(y,m0), nxt=ym(m0===12?y+1:y, m0===12?1:m0+1);
+    // 月份视图：m=本月 / n=下月（用户要求用按钮区分货期，避免 12 列挤在一张表）
+    var wk = state.ovNewMonth==='n' ? 'n' : 'm';
+    var segBox=document.getElementById('ov_new_seg');
+    if(segBox){ segBox.querySelectorAll('span').forEach(function(x){
+      x.classList.toggle('on', x.getAttribute('data-m')===wk); }); }
+
     var agg={};
     ORDERS.forEach(function(o){
       if(!TAGS[o.timing]) return;
@@ -1647,38 +1733,42 @@
       else { a.nQ+=num(o.po_qty); a.nR+=num(o.remain); if(!a.nD||o.delivery>a.nD) a.nD=o.delivery; }
       a.sups[o.supplier]=1; a.shorts[o.supplier_short||o.supplier]=1; a.codes[o.material_code]=1; a.rows.push(o);
     });
+    // 只保留当前视图月份有数据的 SPU
     var list=Object.keys(agg).map(function(k){return agg[k];})
-      .sort(function(a,b){ return (b.mR+b.nR)-(a.mR+a.nR); });
+      .filter(function(a){ return wk==='m' ? a.mR>0 : a.nR>0; })
+      .sort(function(a,b){ return wk==='m' ? (b.mR-a.mR) : (b.nR-a.nR); });
+    var monthTxt = wk==='m' ? '本月' : '下月';
     if(!list.length){
-      box.innerHTML='<div class="empty">本月与下月暂无「新品 / 爆款新品」的在途订单</div>';
+      box.innerHTML='<div class="empty">'+monthTxt+'暂无「新品 / 爆款新品」的在途订单</div>';
       return;
     }
-    var tmR=0,tnR=0;
-    list.forEach(function(a){ tmR+=a.mR; tnR+=a.nR; });
+    var totR=0;
+    list.forEach(function(a){ totR += (wk==='m'?a.mR:a.nR); });
     var h='<table class="t"><thead><tr>';
     h+='<th>SPU</th><th>标签</th><th>名称</th><th>供应商简称</th>';
-    h+='<th>本月交货量</th><th>本月待交</th><th>本月货期</th>';
-    h+='<th>下月交货量</th><th>下月待交</th><th>下月货期</th>';
-    h+='<th>供应商</th><th>SKU</th></tr></thead><tbody>';
+    h+='<th>'+monthTxt+'交货量</th><th>'+monthTxt+'待交</th><th>'+monthTxt+'货期</th>';
+    h+='<th>SKU</th></tr></thead><tbody>';
     list.forEach(function(a,i){
       var tagCls=a.tag==='爆款新品'?'warn':'norm';
+      var q=wk==='m'?a.mQ:a.nQ, r=wk==='m'?a.mR:a.nR, d=wk==='m'?a.mD:a.nD;
       h+='<tr data-i="'+i+'">'
         +'<td><span class="spu-chip">'+a.spu+'</span></td>'
         +'<td><span class="tag '+tagCls+'">'+a.tag+'</span></td>'
         +'<td>'+a.name+'</td>'
         +'<td>'+Object.keys(a.shorts).join('、')+'</td>'
-        +'<td>'+fmt(a.mQ)+'</td><td>'+fmt(a.mR)+'</td><td>'+(a.mD?a.mD.slice(5):'—')+'</td>'
-        +'<td>'+fmt(a.nQ)+'</td><td>'+fmt(a.nR)+'</td><td>'+(a.nD?a.nD.slice(5):'—')+'</td>'
-        +'<td>'+Object.keys(a.sups).length+'</td><td>'+Object.keys(a.codes).length+'</td></tr>';
+        +'<td>'+fmt(q)+'</td><td>'+fmt(r)+'</td><td>'+(d?d.slice(5):'—')+'</td>'
+        +'<td>'+Object.keys(a.codes).length+'</td></tr>';
     });
     h+='</tbody></table>';
     box.innerHTML=h
-      +'<div class="ph-sub" style="margin-top:8px">合计：本月待交 <b>'+fmt(tmR)+'</b> ｜ 下月待交 <b>'+fmt(tnR)+'</b> ｜ 共 '+list.length+' 个 SPU（仅统计时效标签为新品/爆款新品的在途订单）</div>';
+      +'<div class="ph-sub" style="margin-top:8px">合计：'+monthTxt+'待交 <b>'+fmt(totR)+'</b> ｜ 共 '+list.length+' 个 SPU（仅统计时效标签为新品/爆款新品的在途订单）</div>';
     box.querySelectorAll('tr[data-i]').forEach(function(tr){
       tr.onclick=function(){
         var a=list[+tr.getAttribute('data-i')]; if(!a) return;
-        var sub=a.rows.slice().sort(function(x,y2){ return String(x.delivery).localeCompare(String(y2.delivery)); });
-        openDrawer('SPU '+a.spu+' · 待交新品明细', sub, [
+        var month=wk==='m'?cur:nxt;
+        var sub=a.rows.filter(function(o){ return String(o.delivery||'').slice(0,7)===month; })
+          .sort(function(x,y2){ return String(x.delivery).localeCompare(String(y2.delivery)); });
+        openDrawer('SPU '+a.spu+' · '+monthTxt+'待交新品', sub, [
           {label:'SKU',key:'material_code'},
           {label:'物料名称',key:'material_name'},
           {label:'供应商',key:'supplier'},
@@ -1686,9 +1776,9 @@
           {label:'交货日期',key:'delivery'},
           {label:'订单数量',key:'po_qty'},
           {label:'待交数量',key:'remain'}
-        ], 'SPU <b>'+a.spu+'</b> ｜ 本月待交 <b>'+fmt(a.mR)+'</b> ｜ 下月待交 <b>'+fmt(a.nR)+'</b> ｜ '+sub.length+' 行',
-        '<b>待交新品</b> › <b style="color:var(--text)">SPU '+a.spu+'</b>',
-        [['本月待交', a.mR], ['下月待交', a.nR]]);
+        ], 'SPU <b>'+a.spu+'</b> ｜ '+monthTxt+'待交 <b>'+fmt(wk==='m'?a.mR:a.nR)+'</b> ｜ '+sub.length+' 行',
+        '<b>待交新品</b> › <b style="color:var(--text)">SPU '+a.spu+'</b> › '+monthTxt,
+        [[monthTxt+'待交', wk==='m'?a.mR:a.nR]]);
       };
     });
     attachExport(box, '待交新品');
@@ -2297,17 +2387,38 @@
     var dimSeg=document.getElementById('otd_dim_seg');
     if(dimSeg){ dimSeg.querySelectorAll('span').forEach(function(s){ s.classList.toggle('on', s.getAttribute('data-d')===state.otdDim); }); }
 
+    // 核心 / 普通供应商范围（只作用于供应商维度）
+    var scope=state.otdScope||'all';
+    var scopeSeg=document.getElementById('otd_scope_seg');
+    if(scopeSeg){ scopeSeg.querySelectorAll('span').forEach(function(s){ s.classList.toggle('on', s.getAttribute('data-c')===scope); }); }
+
+    var label=state.otdDim==='buyer'?'采购员':'供应商';
+    var dim=state.otdDim==='buyer'?'buyers':'suppliers';
+    var allList=(p[dim]||[]).slice();
+    var list=allList;
+    if(state.otdDim==='supplier' && scope!=='all'){
+      list=allList.filter(function(x){
+        var isCore=CORE.has(x.short||x.name);
+        return scope==='core' ? isCore : !isCore;
+      });
+    }
+    list=list.sort(function(a,b){ return num(b[state.otdSort])-num(a[state.otdSort]); });
+
+    // scope 非全量时，KPI 由筛选后的供应商重新聚合
     var o=p.overall||{}, c=p.coverage||{};
+    if(state.otdDim==='supplier' && scope!=='all'){
+      var _q=0,_ot=0,_lt=0,_rows=0,_lrows=0;
+      list.forEach(function(x){ _q+=num(x.recv_qty); _ot+=num(x.ontime); _lt+=num(x.late); _rows+=num(x.rows); _lrows+=num(x.late_rows); });
+      o={recv_qty:_q, ontime:_ot, late:_lt, rate:(_q>0?Math.round(_ot/_q*10000)/100:0), rows:_rows, late_rows:_lrows,
+         excluded_qty:o.excluded_qty, excluded_rate:o.excluded_rate};
+    }
+    var scopeTxt = scope==='core'?'核心供应商':(scope==='normal'?'普通供应商':'全部供应商');
     renderCards('otd_kpi',[
-      {lab:'整体准交率',val:otdPct(o.rate),hint:p.label+' · 收料口径',color:'var(--blue)'},
+      {lab:'整体准交率',val:otdPct(o.rate),hint:p.label+' · '+scopeTxt+' · 收料口径',color:'var(--blue)'},
       {lab:'准交数量',val:fmt(o.ontime),hint:'收料日期 ≤ 交货日期',color:'var(--green)'},
       {lab:'收料总数量',val:fmt(o.recv_qty),hint:'分母 · 已计入范围',color:'var(--purple)'},
       {lab:'逾期数量',val:fmt(o.late),hint:(o.late_rows||0)+' 行逾期收料',color:'var(--red)'}
     ]);
-
-    var label=state.otdDim==='buyer'?'采购员':'供应商';
-    var dim=state.otdDim==='buyer'?'buyers':'suppliers';
-    var list=(p[dim]||[]).slice().sort(function(a,b){ return num(b[state.otdSort])-num(a[state.otdSort]); });
     var top=list.slice(0,15);
 
     var ch=getChart('otd_rank');
@@ -2614,6 +2725,28 @@
     var s=e.target.closest('[data-d]'); if(!s) return;
     state.otdDim=s.getAttribute('data-d'); renderOTD();
   });
+  var otdScopeSeg=document.getElementById('otd_scope_seg');
+  if(otdScopeSeg) otdScopeSeg.addEventListener('click',function(e){
+    var s=e.target.closest('[data-c]'); if(!s) return;
+    state.otdScope=s.getAttribute('data-c'); renderOTD();
+  });
+  // 周数据计划：让 iframe 高度跟随内容，避免「iframe 内部滚动 + 页面滚动」两条竖条
+  (function(){
+    var fr=document.getElementById('wk_console');
+    if(!fr || fr.__sync) return;
+    fr.__sync=true;
+    function fit(){
+      try{
+        var d=fr.contentDocument;
+        if(!d || !d.body) return;
+        var h=Math.max(d.body.scrollHeight, d.documentElement.scrollHeight);
+        if(h>300) fr.style.height=(h+8)+'px';
+      }catch(e){}
+    }
+    fr.addEventListener('load', function(){ fit(); setTimeout(fit,600); setTimeout(fit,1600); });
+    setInterval(fit, 2000);
+  })();
+
   function syncWkView(){
     var c=document.getElementById('wk_console_box'), h=document.getElementById('wk_charts_box');
     var isConsole=(state.wkView!=='charts');

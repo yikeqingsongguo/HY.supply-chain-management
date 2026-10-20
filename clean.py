@@ -51,6 +51,14 @@ CORE_SUPPLIERS = ["忆恩", "佳俊", "同光", "拿可", "宝莎", "贝瑞卡",
 
 # 手动简称覆盖：以下供应商不在产能表中，join 拿不到简称（否则短名会落成全称）
 SHORT_OVERRIDE = {
+    # 2026-10-20 用户指定
+    "广州战獒箱包有限公司": "战獒",
+    "广州市战獒箱包有限公司": "战獒",
+    "广州市知度皮具有限公司": "知度",
+    "广州知度皮具有限公司": "知度",
+    "广州市格莱尔皮具有限公司": "格莱尔",
+    "广州格莱尔皮具有限公司": "格莱尔",
+    # 不在产能表内的供应商
     "广州市顺进皮具有限公司": "顺进",
     "广州顺进皮具有限公司": "顺进",
     "广州市苏弗儿皮具有限公司": "苏弗儿",
@@ -58,6 +66,21 @@ SHORT_OVERRIDE = {
     "广州明冠实业有限公司": "明冠",
     "广州市明冠实业有限公司": "明冠",
 }
+
+
+# 采购员覆盖：产能表里的负责人与申请单口径不一致时以此为准（2026-10-20 用户指定）
+BUYER_OVERRIDE = {
+    "广州市格莱尔皮具有限公司": "何君豪",
+    "广州格莱尔皮具有限公司": "何君豪",
+}
+
+# 全局排除：物料编码含以下片段的订单/收料/申请单一律不统计（2026-10-20 用户指定）
+EXCLUDE_SKU_KEYWORDS = ["VYTK"]
+
+
+def is_excluded_sku(code):
+    up = str(code or "").upper()
+    return any(k in up for k in EXCLUDE_SKU_KEYWORDS)
 
 
 def short_of(full, cap):
@@ -298,6 +321,8 @@ def clean():
 
     orders = []
     dropped_po = 0
+    dropped_sku = 0
+    excl_qty = {"po": 0.0, "received": 0.0, "remain": 0.0}   # 被 VYTK 等规则排除的数量，自检时补回
     closed_rows = 0
     erp_total = {}   # 源表底部「合计」行，用于自检：我们的汇总必须等于它
 
@@ -325,7 +350,7 @@ def clean():
         full = str(g(r, "供应商") or "").strip()
         cap = cap_map.get(full, {})
         short = short_of(full, cap)
-        buyer = cap.get("buyer", "") if cap else ""
+        buyer = BUYER_OVERRIDE.get(full) or (cap.get("buyer", "") if cap else "")
         month_cap = cap.get("month_cap", 0) if cap else 0
 
         mc = g(r, "物料编码")
@@ -337,6 +362,14 @@ def clean():
         remain = to_num(g(r, "剩余收料数量"))
         received = po_qty - remain if po_qty >= remain else to_num(g(r, "累计收料数量"))
         received = max(received, 0)
+
+        # ②b 全局排除 SKU（申请单/订单/收料统一口径，默认排除 VYTK）
+        if is_excluded_sku(mc):
+            excl_qty["po"] += po_qty
+            excl_qty["received"] += received
+            excl_qty["remain"] += remain
+            dropped_sku += 1
+            continue
 
         # 状态 / 逾期 / 剩余 天数
         today = dt.date.today()
@@ -389,6 +422,7 @@ def clean():
     sum_rem = sum(o["remain"] for o in orders)
     checks = []
     for _k, _label, _got in (("po", "采购数量", sum_po), ("received", "累计收料数量", sum_rec), ("remain", "剩余收料数量", sum_rem)):
+        _got = _got + excl_qty.get(_k, 0.0)   # 排除行也要计入「与 ERP 合计对账」，否则自检误报
         _exp = erp_total.get(_k)
         if _exp is None:
             checks.append((_label, _got, None, None))
@@ -403,6 +437,8 @@ def clean():
         "source_weekly": os.path.basename(weekly_path) if weekly_path else None,
         "source_rows": len(rows),
         "dropped_po": dropped_po,
+        "dropped_sku": dropped_sku,
+        "excluded_sku_keywords": EXCLUDE_SKU_KEYWORDS,
         "closed_rows": closed_rows,
         "order_count": len(orders),
         "capacity_count": len(cap_map),

@@ -122,15 +122,19 @@ def build_otd(src_dir, periods=None):
 
     # ---------- 产能表：箱包成品供应商白名单（排除包材/辅料） ----------
     cap_sups = set()
+    cap_short = {}   # 全称 -> 简称（前端核心/普通筛选要用）
     if cap_path:
         ch, crows = _load(cap_path)
         cidx = {h: i for i, h in enumerate(ch)}
+        si = cidx.get("供应商简称")
         for r in crows:
             i = cidx.get("供应商")
             if i is not None and i < len(r):
                 v = _s(r[i])
                 if v:
                     cap_sups.add(v)
+                    if si is not None and si < len(r):
+                        cap_short[v] = _s(r[si]) or v
 
     # ---------- 采购订单：(单号,物料) -> 交货日期 / 创建人 / 供应商 ----------
     # 「单据类型」列可选：全量方案带该列时，准交率只统计「标准采购订单」，排除 VMI。
@@ -178,10 +182,13 @@ def build_otd(src_dir, periods=None):
             qty = 0.0
         if qty <= 0:
             continue
+        _mat = _s(rg(r, "物料编码"))
+        if "VYTK" in _mat.upper():   # 全局排除（2026-10-20 用户指定）
+            continue
         receipts.append({
             "doc": _s(rg(r, "源单单号")),
             "recv_doc": _s(rg(r, "单据编号")),
-            "material": _s(rg(r, "物料编码")),
+            "material": _mat,
             "supplier_recv": _s(rg(r, "供应商")),
             "buyer_recv": _norm_creator(rg(r, "采购员")),
             "date": dd,
@@ -254,6 +261,7 @@ def build_otd(src_dir, periods=None):
 
             key = v["supplier"] or "（未知）"
             b = sup[key]
+            b["short"] = cap_short.get(key, key)
             b["recv_qty"] += r["qty"]
             b["rows"] += 1
             if ontime:
@@ -290,6 +298,7 @@ def build_otd(src_dir, periods=None):
                 rate = (v["ontime"] / v["recv_qty"] * 100) if v["recv_qty"] > 0 else 0.0
                 out.append({
                     "name": name,
+                    "short": v.get("short") or name,
                     "recv_qty": round(v["recv_qty"]),
                     "ontime": round(v["ontime"]),
                     "late": round(v["recv_qty"] - v["ontime"]),

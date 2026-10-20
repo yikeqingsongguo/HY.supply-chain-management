@@ -20,6 +20,14 @@ import os
 import re
 
 try:
+    from clean import SHORT_OVERRIDE, BUYER_OVERRIDE, is_excluded_sku
+except Exception:  # 独立运行时兜底
+    SHORT_OVERRIDE, BUYER_OVERRIDE = {}, {}
+
+    def is_excluded_sku(code):
+        return "VYTK" in str(code or "").upper()
+
+try:
     import openpyxl
 except ImportError:
     openpyxl = None
@@ -169,6 +177,7 @@ def build():
     total_qty = 0.0
     skipped_zero = 0
     skipped_bad = 0
+    skipped_vytk = 0
 
     for r in rows[1:]:
         remain = num(g(r, "剩余数量"))
@@ -180,6 +189,9 @@ def build():
         if not code_raw:
             skipped_bad += 1
             continue
+        if is_excluded_sku(code_raw):
+            skipped_vytk += 1
+            continue
         code = raw_code(code_raw)
         info = map_idx.get(code)
         src = "map"
@@ -188,8 +200,8 @@ def build():
             src = "po" if info else ""
         if info:
             full = info.get("name") or ""
-            short = info.get("short") or cap_short.get(full) or full
-            buyer = info.get("buyer") or str(g(r, "采购员") or "").strip()
+            short = SHORT_OVERRIDE.get(full) or info.get("short") or cap_short.get(full) or full
+            buyer = BUYER_OVERRIDE.get(full) or info.get("buyer") or str(g(r, "采购员") or "").strip()
             if src == "map":
                 hit_map += 1
             else:
@@ -270,7 +282,8 @@ def build():
             "qty": round(sum(x["plan"] for x in suppliers if x["pending"]), 1),
         },
         "apply_match": {"by_map": hit_map, "by_po": hit_po, "pending": miss,
-                        "skipped_zero": skipped_zero, "skipped_bad": skipped_bad},
+                        "skipped_zero": skipped_zero, "skipped_bad": skipped_bad,
+                        "skipped_vytk": skipped_vytk},
         "suppliers": suppliers,
     }
     with open(os.path.join(CONSOLE, "weekly.json"), "w", encoding="utf-8") as f:
