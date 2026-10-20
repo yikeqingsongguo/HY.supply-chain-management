@@ -1321,7 +1321,9 @@ table.wk td b{white-space:nowrap}
   <!-- ============ TAB 4: 未匹配补录（联想输入） ============ -->
   <div id="tab-unmatch" class="hidden">
     <div class="card">
-      <div class="card-hd"><h3>④ 未匹配 SKU 联想补录</h3><span class="hint">输入供应商简称自动带出全称和采购员，保存后同步到匹配结果</span><button class="btn sm" id="umFoldBtn" style="margin-left:auto">收起说明</button></div>
+      <div class="card-hd"><h3>④ 未匹配 SKU 联想补录</h3>
+        <span class="hint">待补充 <b id="unmatchCountHead" style="color:var(--danger)">—</b> 个 SKU ｜ 输入简称自动带出全称和采购员，保存后立即生效</span>
+        <button class="btn sm" id="umFoldBtn" style="margin-left:auto">收起说明</button></div>
       <div class="card-bd">
         <div class="rule mb12" id="unmatchSummary">未匹配 SKU 数 <b id="unmatchCount">—</b></div>
         <div class="tbl-tools">
@@ -15553,6 +15555,14 @@ function saveUnmatchRowByKey(key) {
   saveLocalMap();
   runMatch(); runCheck();
   refreshAll();
+
+  /* 通知「待下单汇总」模块：该 SKU 已补录，立即从未映射列表移除并归到对应供应商，
+     否则 weekly.json 里的 pending 快照不刷新，用户会觉得「填了没反应」。 */
+  if (window.__wkOnMappingSaved) {
+    window.__wkOnMappingSaved(key, sn || '', sup || '');
+  } else {
+    toast('已保存：' + (sn || sup || key));
+  }
 }
 
 /* 待下单里「待填写」的 SKU 也要能补录：
@@ -15584,6 +15594,7 @@ function renderUnmatchPanel() {
   renderMatchUnmatchSummary();
   var _allKeys = allUnmatchKeys();
   if (c) c.textContent = _allKeys.length;
+  var _ch = $('unmatchCountHead'); if (_ch) _ch.textContent = _allKeys.length;
   if (!_allKeys.length) {
     host.appendChild(el('div', 'empty', ''));
     var h = host.querySelector('.empty');
@@ -15605,7 +15616,7 @@ function renderUnmatchPanel() {
   }
 
   var tip = el('div', 'note info');
-  tip.innerHTML = '下面 <b>' + keys.length + '</b> 个未匹配 SKU 已自动按申请单出现次数排序。支持类 Excel 操作：选中单元格后 <b>Ctrl+C/V</b> 复制粘贴、拖动右下角填充柄下拉填充、勾选多行后通过表头批量设置整列；输入框离开或按 Enter 自动保存。';
+  tip.innerHTML = '下面 <b>' + keys.length + '</b> 个未匹配 SKU 已自动按申请单出现次数排序。支持类 Excel 操作：选中单元格后 <b>Ctrl+C/V</b> 复制粘贴、拖动右下角填充柄下拉填充、勾选多行后通过表头批量设置整列；输入框离开或按 Enter 自动保存；保存后该行立即从本列表移除，并同步到待下单汇总。';
   host.appendChild(tip);
 
   /* 批量粘贴区：Excel 复制 4 列（SKU / 简称 / 全称 / 备注），自动按 SKU 匹配覆盖 */
@@ -18127,6 +18138,38 @@ window.__test = {
     try{ localStorage.setItem(LS_KEY, JSON.stringify(LOCAL_MAP)); }catch(e){}
   }
 
+  // 已补录的 SKU（weekly.json 的 pending_skus 是服务端快照，不会因为本机补录而变化，
+  // 所以要本地记住「已补录」，否则补录后行还在，看起来像没保存）
+  var LS_DONE = 'wk_pending_done_v1';
+  function loadDone(){
+    try{ return JSON.parse(localStorage.getItem(LS_DONE) || '{}') || {}; }catch(e){ return {}; }
+  }
+  function saveDone(o){
+    try{ localStorage.setItem(LS_DONE, JSON.stringify(o)); }catch(e){}
+  }
+
+  // 供「未匹配补录」页调用：保存成功后立刻生效
+  window.__wkOnMappingSaved = function(normKey, short, name){
+    var k = String(normKey || '').toUpperCase();
+    if(!k) return;
+    var done = loadDone(); done[k] = Date.now(); saveDone(done);
+
+    var rawSku = '';
+    window.__wkPendingSkus = (window.__wkPendingSkus || []).filter(function(x){
+      var sk = String((x && x.sku) || '');
+      if(sk.toUpperCase() === k){ rawSku = sk; return false; }
+      return true;
+    });
+
+    if(short){
+      var key = rawSku || normKey;
+      LOCAL_MAP[key] = {short: short, name: name || short};
+      saveLocal();
+      if(WK){ rebuild(); wkRender(); fillAssignSelect(); }
+    }
+    try{ toast('已补录：' + (short || k) + '，待下单已同步'); }catch(e){}
+  };
+
   function loadApply(){
     var m = document.getElementById('applyAutoMeta');
     fetch('apply.csv',{cache:'no-store'}).then(function(r){
@@ -18612,7 +18655,16 @@ window.__test = {
       WK = d;
       WK_RAW = JSON.parse(JSON.stringify(d.suppliers||[]));
       // 供「未匹配补录」页读取：待下单里缺映射的 SKU 必须能补录
-      window.__wkPendingSkus = d.pending_skus || [];
+      // 过滤掉本机已补录的（服务端快照要等下次重建才更新）
+      var _done = loadDone(), _fresh = d.pending_skus || [], _keep = {};
+      _fresh.forEach(function(x){
+        var k = String((x && x.sku) || '').toUpperCase();
+        if(_done[k]) _keep[k] = _done[k];
+      });
+      saveDone(_keep);
+      window.__wkPendingSkus = _fresh.filter(function(x){
+        return !_keep[String((x && x.sku) || '').toUpperCase()];
+      });
       loadLocal();
       rebuild();
       wkRender();
