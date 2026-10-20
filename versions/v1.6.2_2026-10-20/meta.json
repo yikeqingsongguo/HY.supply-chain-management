@@ -1,0 +1,14 @@
+{
+  "version": "1.6.2",
+  "date": "2026-10-20",
+  "type": "patch",
+  "title": "补录保存即时生效与待补数量常显",
+  "description": "补录保存成功后通过 window.__wkOnMappingSaved 标记已补录（localStorage）、从待补列表移除、写入 LOCAL_MAP 让待下单立即归组，并 toast 反馈；加载 weekly.json 时过滤已补录 SKU，刷新后保持；卡片标题栏常显「待补充 N 个 SKU」，折叠说明后仍可见。",
+  "reason": "用户反馈补录填写无效：pending_skus 是服务端快照，本机补录不会让它变化，取并集后成功的 SKU 仍被拽回列表。",
+  "impact": "console 1,242,766 字节；实测 9→8 行、待填写 2,040/6→1,450/4；线上 200。",
+  "data_updated_at": "2026-10-20 17:00",
+  "parent_version": "v1.6.1",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-10-20 17:23:52"
+}
