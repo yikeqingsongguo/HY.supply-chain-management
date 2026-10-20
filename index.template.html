@@ -377,6 +377,10 @@
   .grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   @media(max-width:1100px){ .grid{grid-template-columns:1fr;} }
   .panel,#ov_month_table,#sup_line_table,#cap_detail_table,#od_table,#ov_daily,#wk_sup_table,#sup_timing_table{overflow-x:auto;}
+  /* 待交新品：固定行高 + 纵向滚动，表头吸顶 */
+  #ov_new{max-height:430px;overflow:auto;-webkit-overflow-scrolling:touch;}
+  #ov_new table.t tbody td{height:40px;}
+  #ov_new table.t thead th{position:sticky;top:0;z-index:2;background:#fff;}
   /* 负荷率详情（联动）表格高度与「产能负荷率分布」图（300px）一致，超出内部滚动 */
   #cap_detail_table{max-height:300px;overflow:auto;}
   .page-title > span:last-child{word-break:break-word;}
@@ -521,6 +525,11 @@
       <h3>每日需交趋势</h3>
       <div class="ph-sub">全部供应商按交货日期汇总的每日需交数量；点击数据点下钻当日订单明细</div>
       <div class="chart" id="ov_daily" style="height:330px"></div>
+    </div>
+    <div class="panel" id="ov_new_panel">
+      <h3>待交新品</h3>
+      <div class="ph-sub">时效标签 = 新品 / 爆款新品 的在途订单，按 SPU 汇总本月与下月交货量与货期；点击行下钻 SKU</div>
+      <div id="ov_new"></div>
     </div>
   </div>
 </section>
@@ -705,7 +714,7 @@
 <section class="page" id="page_otd">
 <style>#page_otd .pt-month{display:none}</style>
   <div class="page-title"><span class="pico" style="--pico:#10B981"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8.4" stroke="#10B981" stroke-width="2.6"/><path d="M7.8 12.2l2.7 2.7 5.7-6" stroke="#10B981" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>准交率分析</span></div>
-  <div class="page-sub" id="otd_sub">按订单到货期统计：准交率 = Σ到货期内数量 ÷ Σ订单数量（数量加权，逐单封顶 100%）；仅保留 10 位采购订单创建人</div>
+  <div class="page-sub" id="otd_sub">按收料单统计：准交率 = Σ(收料日期 ≤ 交货日期 的收料量) ÷ Σ收料总量；仅保留指定采购员、排除包材辅料</div>
   <div class="ctl-inline">
     <span class="lab">统计月份：</span>
     <div class="seg" id="otd_period_seg"></div>
@@ -719,14 +728,25 @@
   <div class="grid">
     <div class="panel">
       <h3>准交率排名</h3>
-      <div class="ph-sub" id="otd_rank_sub">按订单数量降序；条形长度为准交率，右侧为准交 / 订单数量</div>
+      <div class="ph-sub" id="otd_rank_sub">按收料量降序；条形长度为准交率，点击柱体下钻逐条收料明细</div>
       <div class="chart" id="otd_rank" style="height:430px"></div>
     </div>
     <div class="panel">
+      <h3>准交率趋势</h3>
+      <div class="ph-sub" id="otd_trend_sub">按收料日期逐日聚合；点击数据点下钻当日收料明细</div>
+      <div class="chart" id="otd_trend" style="height:430px"></div>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="panel">
       <h3>准交 / 逾期构成</h3>
-      <div class="ph-sub" id="otd_donut_sub">按数量口径</div>
-      <div class="chart" id="otd_donut" style="height:300px"></div>
-      <div id="otd_cover" class="ph-sub"></div>
+      <div class="ph-sub" id="otd_donut_sub">准时收料 / 逾期收料（按收料量）</div>
+      <div class="chart" id="otd_donut" style="height:260px"></div>
+    </div>
+    <div class="panel">
+      <h3>覆盖与排除</h3>
+      <div class="ph-sub">数据质量校验</div>
+      <div id="otd_cover" class="ph-sub" style="margin-top:8px;line-height:1.9"></div>
     </div>
   </div>
   <div class="panel" style="grid-column:1/-1">
@@ -850,7 +870,7 @@
     ovScope:'core', crossHeatSeg:'top20',
     monthScope:'all', weekScope:'all', odScope:'all', capScope:'all', odSort:'qty',
     month:'this',                                               // month = 全局「本月/下月」开关（此前各面板各自为政）
-    otdPeriod:(OTD&&OTD.default_period)||null, otdDim:'supplier', otdSort:'po_qty',
+    otdPeriod:(OTD&&OTD.default_period)||null, otdDim:'supplier', otdSort:'recv_qty',
     wkView:'console' };
 
   function applyFilters(rows){
@@ -1603,6 +1623,75 @@
       // 先按采购订单号汇总（一行一张订单），点行再下钻 SKU 明细
       openOrderSummary(d.rows, '每日需交 '+d.day+' · 订单汇总',
         '<b>每日需交趋势</b> › <b style="color:var(--text)">'+d.day+'</b>'); });
+    renderNewProducts();
+  }
+
+  // ---------- 待交新品（时效标签：新品 / 爆款新品） ----------
+  function renderNewProducts(){
+    var box=document.getElementById('ov_new'); if(!box) return;
+    var TAGS={'新品':1,'爆款新品':1};
+    var t=new Date(), y=t.getFullYear(), m0=t.getMonth()+1;
+    function ym(yy,mm){ return yy+'-'+(mm<10?'0':'')+mm; }
+    var cur=ym(y,m0), nxt=ym(m0===12?y+1:y, m0===12?1:m0+1);
+    var agg={};
+    ORDERS.forEach(function(o){
+      if(!TAGS[o.timing]) return;
+      if(!(num(o.remain)>0)) return;
+      var dm=String(o.delivery||'').slice(0,7);
+      if(dm!==cur && dm!==nxt) return;
+      var k=o.spu||'（空）';
+      var a=agg[k];
+      if(!a){ a=agg[k]={spu:k,tag:o.timing,mQ:0,mR:0,mD:'',nQ:0,nR:0,nD:'',name:o.material_name||'',sups:{},shorts:{},codes:{},rows:[]}; }
+      if(o.timing==='爆款新品') a.tag='爆款新品';
+      if(dm===cur){ a.mQ+=num(o.po_qty); a.mR+=num(o.remain); if(!a.mD||o.delivery>a.mD) a.mD=o.delivery; }
+      else { a.nQ+=num(o.po_qty); a.nR+=num(o.remain); if(!a.nD||o.delivery>a.nD) a.nD=o.delivery; }
+      a.sups[o.supplier]=1; a.shorts[o.supplier_short||o.supplier]=1; a.codes[o.material_code]=1; a.rows.push(o);
+    });
+    var list=Object.keys(agg).map(function(k){return agg[k];})
+      .sort(function(a,b){ return (b.mR+b.nR)-(a.mR+a.nR); });
+    if(!list.length){
+      box.innerHTML='<div class="empty">本月与下月暂无「新品 / 爆款新品」的在途订单</div>';
+      return;
+    }
+    var tmR=0,tnR=0;
+    list.forEach(function(a){ tmR+=a.mR; tnR+=a.nR; });
+    var h='<table class="t"><thead><tr>';
+    h+='<th>SPU</th><th>标签</th><th>名称</th><th>供应商简称</th>';
+    h+='<th>本月交货量</th><th>本月待交</th><th>本月货期</th>';
+    h+='<th>下月交货量</th><th>下月待交</th><th>下月货期</th>';
+    h+='<th>供应商</th><th>SKU</th></tr></thead><tbody>';
+    list.forEach(function(a,i){
+      var tagCls=a.tag==='爆款新品'?'warn':'norm';
+      h+='<tr data-i="'+i+'">'
+        +'<td><span class="spu-chip">'+a.spu+'</span></td>'
+        +'<td><span class="tag '+tagCls+'">'+a.tag+'</span></td>'
+        +'<td>'+a.name+'</td>'
+        +'<td>'+Object.keys(a.shorts).join('、')+'</td>'
+        +'<td>'+fmt(a.mQ)+'</td><td>'+fmt(a.mR)+'</td><td>'+(a.mD?a.mD.slice(5):'—')+'</td>'
+        +'<td>'+fmt(a.nQ)+'</td><td>'+fmt(a.nR)+'</td><td>'+(a.nD?a.nD.slice(5):'—')+'</td>'
+        +'<td>'+Object.keys(a.sups).length+'</td><td>'+Object.keys(a.codes).length+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    box.innerHTML=h
+      +'<div class="ph-sub" style="margin-top:8px">合计：本月待交 <b>'+fmt(tmR)+'</b> ｜ 下月待交 <b>'+fmt(tnR)+'</b> ｜ 共 '+list.length+' 个 SPU（仅统计时效标签为新品/爆款新品的在途订单）</div>';
+    box.querySelectorAll('tr[data-i]').forEach(function(tr){
+      tr.onclick=function(){
+        var a=list[+tr.getAttribute('data-i')]; if(!a) return;
+        var sub=a.rows.slice().sort(function(x,y2){ return String(x.delivery).localeCompare(String(y2.delivery)); });
+        openDrawer('SPU '+a.spu+' · 待交新品明细', sub, [
+          {label:'SKU',key:'material_code'},
+          {label:'物料名称',key:'material_name'},
+          {label:'供应商',key:'supplier'},
+          {label:'时效标签',key:'timing'},
+          {label:'交货日期',key:'delivery'},
+          {label:'订单数量',key:'po_qty'},
+          {label:'待交数量',key:'remain'}
+        ], 'SPU <b>'+a.spu+'</b> ｜ 本月待交 <b>'+fmt(a.mR)+'</b> ｜ 下月待交 <b>'+fmt(a.nR)+'</b> ｜ '+sub.length+' 行',
+        '<b>待交新品</b> › <b style="color:var(--text)">SPU '+a.spu+'</b>',
+        [['本月待交', a.mR], ['下月待交', a.nR]]);
+      };
+    });
+    attachExport(box, '待交新品');
   }
 
   // ================= 页2 供应商分析 =================
@@ -2169,7 +2258,7 @@
   }
 
   // ================= 页7 准交率分析 =================
-  function otdRateColor(r){ return r>=60 ? '#10B981' : (r>=30 ? '#F59E0B' : '#EF4444'); }
+  function otdRateColor(r){ return r>=85 ? '#10B981' : (r>=60 ? '#F59E0B' : '#EF4444'); }
   function otdPct(n){ return (Math.round(num(n)*10)/10).toFixed(1)+'%'; }
   function otdPeriodObj(){
     if(!OTD || !OTD.periods || !OTD.periods.length) return null;
@@ -2194,19 +2283,17 @@
 
     var seg=document.getElementById('otd_period_seg');
     if(seg){ seg.innerHTML=OTD.periods.map(function(x){
-      return '<span class="'+(x.period===p.period?'on':'')+'" data-p="'+x.period+'">'+x.label+(x.valid===false?' · 参考':'')+'</span>';
+      return '<span class="'+(x.period===p.period?'on':'')+'" data-p="'+x.period+'">'+x.label+'</span>';
     }).join(''); }
     var dimSeg=document.getElementById('otd_dim_seg');
     if(dimSeg){ dimSeg.querySelectorAll('span').forEach(function(s){ s.classList.toggle('on', s.getAttribute('data-d')===state.otdDim); }); }
 
-    var o=p.overall, c=p.coverage;
-    var unfilled=Math.max(num(o.po_qty)-num(o.ontime),0);
-    var missQty=(p.excluded_known||[]).reduce(function(s,m){ return s+num(m.qty); },0);
+    var o=p.overall||{}, c=p.coverage||{};
     renderCards('otd_kpi',[
-      {lab:'整体准交率',val:otdPct(o.rate),hint:p.label+' · 数量加权',color:'var(--blue)'},
-      {lab:'准交数量',val:fmt(o.ontime),hint:'到货期内累计收料（逐单封顶）',color:'var(--green)'},
-      {lab:'订单数量',val:fmt(o.po_qty),hint:p.label+' 已到期订单',color:'var(--purple)'},
-      {lab:'整单交齐率',val:otdPct(o.full_rate),hint:(o.full_orders||0)+' / '+(o.order_lines||0)+' 单交齐',color:'var(--red)'}
+      {lab:'整体准交率',val:otdPct(o.rate),hint:p.label+' · 收料口径',color:'var(--blue)'},
+      {lab:'准交数量',val:fmt(o.ontime),hint:'收料日期 ≤ 交货日期',color:'var(--green)'},
+      {lab:'收料总数量',val:fmt(o.recv_qty),hint:'分母 · 已计入范围',color:'var(--purple)'},
+      {lab:'逾期数量',val:fmt(o.late),hint:(o.late_rows||0)+' 行逾期收料',color:'var(--red)'}
     ]);
 
     var label=state.otdDim==='buyer'?'采购员':'供应商';
@@ -2221,9 +2308,10 @@
         formatter:function(ps){
           var i=ps[0].dataIndex, x=top[top.length-1-i];
           if(!x) return '';
-          return '<b>'+x.name+'</b><br/>准交率：'+x.rate+'%（数量加权）'
-            +'<br/>准交 '+fmt(x.ontime)+' / 订单 '+fmt(x.po_qty)
-            +'<br/>订单 '+x.orders+' 单 · 整单交齐 '+x.full_orders+' 单';
+          return '<b>'+x.name+'</b><br/>准交率：'+x.rate+'%'
+            +'<br/>收料 '+fmt(x.recv_qty)+' 件'
+            +'<br/>准交 '+fmt(x.ontime)+' · 逾期 '+fmt(x.late)
+            +'<br/>收料 '+x.rows+' 行（逾期 '+x.late_rows+' 行）';
         }},
       grid:{left:118,right:76,top:10,bottom:18},
       xAxis:{type:'value',max:100,axisLine:{lineStyle:{color:'#635F69'}},
@@ -2233,15 +2321,15 @@
         axisLabel:{color:'#332F3A',width:108,overflow:'truncate'}},
       series:[{
         type:'bar',barWidth:'58%',
-        data:top.map(function(x){ return {value:x.rate_capped,itemStyle:{color:otdRateColor(x.rate),borderRadius:[0,10,10,0]}}; }).reverse(),
+        data:top.map(function(x){ return {value:Math.min(x.rate,100),itemStyle:{color:otdRateColor(x.rate),borderRadius:[0,10,10,0]}}; }).reverse(),
         label:{show:true,position:'right',color:'#332F3A',fontSize:11,
           formatter:function(pp){ var x=top[top.length-1-pp.dataIndex]; return x?x.rate+'%':''; }},
         markLine:{silent:true,symbol:'none',lineStyle:{color:'rgba(124,58,237,0.28)',type:'dashed'},
-          data:[{xAxis:60,label:{formatter:'60%',color:'#635F69',fontSize:10}}]}
+          data:[{xAxis:85,label:{formatter:'85%',color:'#635F69',fontSize:10}}]}
       }]
     }, true);
     var rs=document.getElementById('otd_rank_sub');
-    if(rs){ rs.textContent=p.label+' · 数量加权 · 按'+((state.otdSort==='po_qty')?'订单数量':'准交率')+'降序 · TOP 15'; }
+    if(rs){ rs.textContent=p.label+' · 按'+((state.otdSort==='recv_qty')?'收料量':'准交率')+'降序 · TOP 15 · 点击柱体可下钻'; }
 
     var ch2=getChart('otd_donut');
     ch2.setOption({
@@ -2249,37 +2337,94 @@
         textStyle:{color:'#332F3A'},formatter:'{b}：{c}（{d}%）'},
       legend:{bottom:0,textStyle:{color:'#332F3A'}},
       series:[{type:'pie',radius:['50%','74%'],center:['50%','43%'],avoidLabelOverlap:true,
-        itemStyle:{borderRadius:10,borderColor:'rgba(255,255,255,0.85)',borderWidth:2,
-          shadowBlur:18,shadowColor:'rgba(124,58,237,0.22)'},
+        itemStyle:{borderRadius:10,borderColor:'rgba(255,255,255,0.85)',borderWidth:2},
         label:{show:true,formatter:'{b}\n{d}%',color:'#332F3A',fontSize:11},
-        data:[{name:'准交',value:num(o.ontime),itemStyle:{color:'#10B981'}},
-              {name:'未交',value:unfilled,itemStyle:{color:'#EF4444'}}]}]
+        data:[{name:'准时收料',value:num(o.ontime),itemStyle:{color:'#10B981'}},
+              {name:'逾期收料',value:num(o.late),itemStyle:{color:'#EF4444'}}]}]
     }, true);
     var ds=document.getElementById('otd_donut_sub');
-    if(ds){ ds.textContent=p.label+' · 准交 '+fmt(o.ontime)+' / 未交 '+fmt(unfilled)+' · 数量加权 '+o.rate+'%'; }
+    if(ds){ ds.textContent=p.label+' · 准时 '+fmt(o.ontime)+' / 逾期 '+fmt(o.late)+' · 准交率 '+o.rate+'%'; }
 
-    var cover='<b>覆盖校验</b>：单号覆盖率 '+c.unique_rate+'%（'+c.unique_matched+'/'+c.unique_total+'）｜ 行覆盖率 '+c.row_rate+'%（'+c.rows_matched+'/'+c.rows_total+'）';
-    cover+=' ｜ 有收料订单 '+(c.orders_with_receipt||0)+'/'+(o.order_lines||0);
-    if((p.excluded_known||[]).length){ cover+=' ｜ 已知例外 '+p.excluded_known.length+' 个固资单（'+fmt(missQty)+' 件，未计入）'; }
-    if((p.unknown_missing||[]).length){ cover+=' ｜ <span style="color:var(--red)">未知缺失 '+p.unknown_missing.length+' 个（准交率暂停发布）</span>'; }
+    // ---------- 右列：准交率趋势（按收料日期逐日） ----------
+    var tr=(p.trend||[]).slice();
+    var ct=getChart('otd_trend');
+    if(!tr.length){
+      ct.setOption({title:{text:'（本月暂无逐日收料数据）',left:'center',top:'middle',
+        textStyle:{color:'#635F69',fontSize:12}},xAxis:{show:false},yAxis:{show:false},series:[]}, true);
+    }else{
+      ct.setOption({
+        tooltip:{trigger:'axis',backgroundColor:'#FFFFFF',borderColor:'rgba(124,58,237,0.22)',
+          textStyle:{color:'#332F3A'},
+          formatter:function(ps){
+            var x=tr[ps[0].dataIndex]; if(!x) return '';
+            return '<b>'+x.date+'</b><br/>准交率：'+x.rate+'%'
+              +'<br/>准时 '+fmt(x.ontime)+' / 收料 '+fmt(x.recv)
+              +'<br/>'+x.rows+' 行收料';
+          }},
+        grid:{left:60,right:64,top:26,bottom:54},
+        xAxis:{type:'category',data:tr.map(function(x){return x.date.slice(5);}),
+          axisLabel:{rotate:38,fontSize:10,color:'#332F3A'},
+          axisLine:{lineStyle:{color:'#635F69'}}},
+        yAxis:[
+          {type:'value',name:'准交率',max:100,min:0,nameTextStyle:{color:'#635F69'},
+            axisLabel:{formatter:'{value}%',color:'#332F3A'},
+            splitLine:{lineStyle:{color:'rgba(124,58,237,0.12)'}}},
+          {type:'value',name:'收料量',nameTextStyle:{color:'#635F69'},
+            axisLabel:{color:'#332F3A'},splitLine:{show:false}}
+        ],
+        series:[
+          {name:'准交率',type:'line',smooth:true,symbol:'circle',symbolSize:6,
+            data:tr.map(function(x){return x.rate;}),
+            lineStyle:{width:3,color:'#7C3AED',shadowBlur:10,shadowColor:'rgba(124,58,237,0.28)'},
+            itemStyle:{color:'#7C3AED',borderColor:'#fff',borderWidth:2},
+            areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,
+              colorStops:[{offset:0,color:'rgba(124,58,237,0.30)'},{offset:1,color:'rgba(124,58,237,0.02)'}]}}},
+          {name:'收料量',type:'bar',yAxisIndex:1,barWidth:'42%',
+            data:tr.map(function(x){return x.recv;}),
+            itemStyle:{color:'rgba(124,58,237,0.16)',borderRadius:[3,3,0,0]}}
+        ]
+      }, true);
+      ct.off('click');
+      ct.on('click', function(pp){
+        var x=tr[pp.dataIndex]; if(!x) return;
+        var sub=(p.order_details||[]).filter(function(d){ return d.receipt_date===x.date; });
+        openDrawer(x.date+' · 当日收料明细', sub, [
+          {label:'源单单号',key:'doc'},
+          {label:'SKU',key:'material'},
+          {label:'供应商',key:'supplier'},
+          {label:'交货日期',key:'delivery'},
+          {label:'收料日期',key:'receipt_date'},
+          {label:'周期',key:'days_txt'},
+          {label:'交货数量',key:'qty'},
+          {label:'判定',key:'verdict'}
+        ], '当日收料 <b>'+sub.length+'</b> 行 ｜ 准交率 <b>'+x.rate+'%</b> ｜ 准时 '+fmt(x.ontime)+' / 收料 '+fmt(x.recv),
+        '<b>准交率趋势</b> › <b style="color:var(--text)">'+x.date+'</b>',
+        [['收料量', x.recv], ['准时量', x.ontime]]);
+      });
+    }
+    var ts2=document.getElementById('otd_trend_sub');
+    if(ts2){ ts2.textContent=p.label+' · 共 '+tr.length+' 天有收料 · 点击数据点下钻当日明细'; }
+
+    var cover='<b>覆盖校验</b>：源单号覆盖率 '+c.unique_rate+'%（'+(c.unique_matched||0)+'/'+(c.unique_total||0)+'）｜ 收料行覆盖率 '+c.row_rate+'%（'+(c.rows_matched||0)+'/'+(c.rows_total||0)+'）';
+    if(o.excluded_qty){ cover+=' ｜ 本期排除 '+fmt(o.excluded_qty)+' 件（占 '+o.excluded_rate+'%）'; }
+    if((p.unknown_missing||[]).length){ cover+=' ｜ <span style="color:var(--red)">未知缺失 '+(p.unknown_missing||[]).length+' 个源单</span>'; }
     var cv=document.getElementById('otd_cover'); if(cv) cv.innerHTML=cover;
 
     var ttl=document.getElementById('otd_tbl_title'); if(ttl) ttl.textContent=label+'准交率明细';
     var tsub=document.getElementById('otd_tbl_sub');
-    if(tsub){ tsub.textContent=p.label+' · 数量加权 · 按订单数量降序 · 点击表头排序 · 点击行查看逐单明细'; }
+    if(tsub){ tsub.textContent=p.label+' · 收料口径 · 点击表头排序 · 点击行查看逐条收料明细'; }
 
     if(tbl){
       var h='<table class="t"><thead><tr>';
-      h+='<th class="sortable'+(state.otdSort==='po_qty'?' on':'')+'" data-s="po_qty">'+label+' / 订单数量<span class="mk">↕</span></th>';
+      h+='<th class="sortable'+(state.otdSort==='recv_qty'?' on':'')+'" data-s="recv_qty">'+label+' / 收料总量<span class="mk">↕</span></th>';
       h+='<th class="sortable'+(state.otdSort==='ontime'?' on':'')+'" data-s="ontime">准交数量<span class="mk">↕</span></th>';
-      h+='<th>未交数量</th>';
+      h+='<th class="sortable'+(state.otdSort==='late'?' on':'')+'" data-s="late">逾期数量<span class="mk">↕</span></th>';
       h+='<th class="sortable'+(state.otdSort==='rate'?' on':'')+'" data-s="rate">准交率<span class="mk">↕</span></th>';
-      h+='<th>订单行数</th><th>整单交齐</th></tr></thead><tbody>';
+      h+='<th>收料行数</th></tr></thead><tbody>';
       list.forEach(function(x,i){
-        h+='<tr data-i="'+i+'"><td><span class="tag norm">'+x.name+'</span> <span style="color:var(--dim);font-size:12px">'+fmt(x.po_qty)+'</span></td>'
+        h+='<tr data-i="'+i+'"><td><span class="tag norm">'+x.name+'</span> <span style="color:var(--dim);font-size:12px">'+fmt(x.recv_qty)+'</span></td>'
           +'<td>'+fmt(x.ontime)+'</td><td>'+fmt(x.late)+'</td>'
-          +'<td>'+progBar(x.rate_capped)+'</td><td>'+x.orders+'</td>'
-          +'<td>'+x.full_orders+' / '+x.orders+'</td></tr>';
+          +'<td>'+progBar(Math.min(x.rate,100))+'</td><td>'+x.rows+'</td></tr>';
       });
       h+='</tbody></table>';
       tbl.innerHTML=h;
@@ -2293,17 +2438,19 @@
             return state.otdDim==='buyer' ? o.creator===x.name : o.supplier===x.name;
           });
           var cols=[
-            {label:'订单号',key:'doc'},
-            {label:'物料编码',key:'material'},
+            {label:'源单单号',key:'doc'},
+            {label:'SKU',key:'material'},
+            {label:'供应商',key:'supplier'},
             {label:'交货日期',key:'delivery'},
-            {label:'订单数量',key:'po_qty'},
-            {label:'到货期内数量',key:'ontime'},
-            {label:'整单交齐',key:'full_txt'}
+            {label:'收料日期',key:'receipt_date'},
+            {label:'周期',key:'days_txt'},
+            {label:'交货数量',key:'qty'},
+            {label:'判定',key:'verdict'}
           ];
-          openDrawer(x.name+' · 准交订单明细', sub, cols,
-            '订单 <b>'+sub.length+'</b> 单 ｜ 准交率 <b>'+x.rate+'%</b> ｜ 整单交齐 <b>'+x.full_orders+'/'+x.orders+'</b>',
+          openDrawer(x.name+' · 收料明细', sub, cols,
+            '收料 <b>'+sub.length+'</b> 行 ｜ 收料量 <b>'+fmt(x.recv_qty)+'</b> ｜ 准交率 <b>'+x.rate+'%</b> ｜ 逾期 <b>'+x.late_rows+'</b> 行',
             '<b>'+(state.otdDim==='buyer'?'采购员':'供应商')+'</b> › <b style="color:var(--text)">'+x.name+'</b>',
-            [['订单数量', x.po_qty], ['准交数量', x.ontime]]);
+            [['收料总量', x.recv_qty], ['准交数量', x.ontime]]);
         };
       });
       attachExport(tbl, label+'准交率明细');
@@ -2313,20 +2460,18 @@
     if(p.blocked){
       note='<div class="panel" style="grid-column:1/-1;border-left:5px solid var(--red)"><h3>源单缺失，准交率暂停发布</h3>'
         +'<div class="ph-sub">以下源单号在采购订单全量导出中未匹配：'
-        +p.unknown_missing.map(function(m){ return m.doc+'（'+m.rows+' 行）'; }).join('、')
+        +(p.unknown_missing||[]).map(function(m){ return m.doc; }).join('、')
         +'。请先补齐采购订单数据，避免准交率失真。</div></div>';
     }else{
-      if(p.valid===false){
-        note+='<div class="panel" style="grid-column:1/-1;border-left:5px solid var(--amber)"><h3>该月数据不完整，仅供参考</h3>'
-          +'<div class="ph-sub">'+p.validity_note+'</div></div>';
-      }
-      var ex=(p.excluded_known||[]).map(function(m){ return m.doc+'（'+m.reason+'，'+m.rows+' 行/'+fmt(m.qty)+' 件）'; }).join('、');
+      var exr=(p.excluded_reasons||[]).map(function(x){ return x.reason+' '+fmt(x.qty)+' 件'; }).join('；');
       note+='<div class="panel" style="grid-column:1/-1"><h3>口径与数据说明</h3>'
-        +'<div class="ph-sub">统计总体：交货日期 <b>'+p.delivery_start+' ~ '+p.delivery_end+'</b>（已到期）。'
-        +'准交率 = <b>Σ到货期内数量 ÷ Σ订单数量</b>（数量加权），逐单封顶 100%；'
-        +'到货期内数量 = 收料日期 ≤ 采购单交货日期的累计收料（优先合格入库关联数量，空且行状态正常时取实收数量）。'
-        +'<br/>人员：仅保留 '+OTD.creator_whitelist.join('、')+'；已排除 '+OTD.excluded_creators.join('、')+'。'
-        +(ex?('<br/>已知例外（未计入覆盖）：'+ex):'')
+        +'<div class="ph-sub">'
+        +'<b>准交率 = Σ(收料日期 ≤ 采购订单交货日期 的收料量) ÷ Σ收料总量</b>，分母为收料数量（非订单数量）。'
+        +'<br/>统计范围：采购订单创建人仅保留 <b>'+OTD.creator_whitelist.join('、')+'</b>；'
+        +'供应商限产能表内 <b>'+(OTD.supplier_pool||40)+' 家箱包成品厂</b>，包材/辅料不计入。'
+        +'<br/>数量口径：优先「合格入库关联数量」，为空且行状态=正常时取「实收数量」。'
+        +'<br/>周期 = 收料日期 − 交货日期（负数为提前）。'
+        +(exr?('<br/>本期排除：'+exr+'。'):'')
         +'</div></div>';
     }
     var nt=document.getElementById('otd_note'); if(nt) nt.innerHTML=note;

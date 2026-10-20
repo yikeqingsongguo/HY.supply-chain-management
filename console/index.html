@@ -704,6 +704,28 @@ body{
 .sidebar{background:rgba(255,255,255,.88); backdrop-filter:blur(12px);}
 .header{background:rgba(255,255,255,.88); backdrop-filter:blur(12px);}
 </style>
+<style id="dash-auto">
+#dropApply{display:none!important}
+.apply-auto{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:10px}
+.apply-auto .dot{width:8px;height:8px;border-radius:50%;background:#16A34A;flex:none}
+.apply-auto .aa-t{font-weight:600;font-size:13px}
+.apply-auto .aa-s{font-size:12px;color:var(--muted);margin-top:1px}
+#tab-supplier > *:not(#wkPlanPanel){display:none!important}
+.wk-toolbar{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.wk-toolbar input{width:110px}
+table.wk{width:100%;border-collapse:collapse;font-size:12.5px}
+table.wk th{text-align:left;color:var(--muted);font-weight:500;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.wk td{padding:7px 8px;border-bottom:1px solid #F2F2F2;vertical-align:middle}
+table.wk tbody tr.wk-row{cursor:pointer}
+table.wk tbody tr.wk-row:hover{background:#FAF8FF}
+.wk-bar{height:12px;background:#F1EFE8;border-radius:3px;overflow:hidden;min-width:60px}
+.wk-bar i{display:block;height:100%;background:#7C3AED}
+.wk-num{width:68px;text-align:right;font-variant-numeric:tabular-nums}
+tr.wk-sub td{background:#FAFAFA;padding:0}
+tr.wk-sub table.wk{font-size:12px}
+tr.wk-sub table.wk th{background:#FAFAFA;position:sticky;top:0}
+.wk-arrow{width:20px;color:var(--muted)}
+</style>
 </head>
 <body>
 
@@ -723,7 +745,7 @@ body{
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M3 12l3 3"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg><span class="sb-label">申请单匹配</span>
     </button>
     <button class="sb-item" data-tab="supplier">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="sb-label">供应商透视</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="sb-label">待下单汇总</span>
     </button>
     <button class="sb-item" data-tab="unmatch">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><span class="sb-label">未匹配补录</span>
@@ -789,7 +811,7 @@ body{
         <div class="quick-grid">
           <button class="quick-btn" data-tab="map"><span class="qb-t">SKU 映射表</span><span class="qb-d">维护映射关系</span></button>
           <button class="quick-btn" data-tab="match"><span class="qb-t">申请单匹配</span><span class="qb-d">自动分配责任人</span></button>
-          <button class="quick-btn" data-tab="supplier"><span class="qb-t">供应商透视</span><span class="qb-d">下单数据汇总</span></button>
+          <button class="quick-btn" data-tab="supplier"><span class="qb-t">待下单汇总</span><span class="qb-d">按供应商汇总待下单</span></button>
           <button class="quick-btn" data-tab="unmatch"><span class="qb-t">未匹配补录</span><span class="qb-d">联想供应商</span></button>
           <button class="quick-btn" data-tab="check"><span class="qb-t">漏下单核查</span><span class="qb-d">缺口比对</span></button>
         </div>
@@ -822,7 +844,7 @@ body{
     </div>
     <div class="step" data-tab="supplier">
       <div class="step-n">3</div>
-      <div><div class="step-t">供应商下单透视</div><div class="step-d">按供应商汇总下单数据</div></div>
+      <div><div class="step-t">待下单汇总</div><div class="step-d">按供应商汇总下单数据</div></div>
       <svg class="step-ok hidden" data-ok="supplier" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div class="step" data-tab="unmatch">
@@ -944,7 +966,15 @@ body{
           <div class="drop-t">点击选择，或把申请单文件拖到这里</div>
           <div class="drop-s">支持 .xlsx / .csv，读取第一个工作表</div>
         </div>
-        <div id="applyFileInfo" class="mt12"></div>
+        <div class="apply-auto" id="applyAutoBar">
+  <span class="dot"></span>
+  <div style="flex:1">
+    <div class="aa-t">申请单已自动同步</div>
+    <div class="aa-s" id="applyAutoMeta">正在载入…</div>
+  </div>
+  <button class="btn sm" onclick="document.getElementById('fileInput').click()">重新上传</button>
+</div>
+<div id="applyFileInfo" class="mt12"></div>
         <div class="btn-row mt12">
           <button class="btn" id="btnDemoApply">载入示例申请单</button>
           <button class="btn dgr hidden" id="btnClearApply">清除申请单</button>
@@ -1148,10 +1178,36 @@ body{
     </div>
   </div>
 
-  <!-- ============ TAB 3: 供应商下单透视 ============ -->
+  <!-- ============ TAB 3: 待下单汇总 ============ -->
   <div id="tab-supplier" class="hidden">
+<div id="wkPlanPanel">
+  <div class="card">
+    <div class="card-hd"><h3>③ 待下单汇总</h3><span class="hint">周计划数量，按供应商汇总；点击行查看 SKU 明细</span></div>
+    <div class="card-bd">
+      <div class="stats" id="wkStats"></div>
+      <div class="wk-toolbar">
+        <span>阶梯分界：</span>
+        <input class="inp" type="number" id="wkThr" value="5000" step="500" min="0">
+        <span>≥ 该值进入表 A，&lt; 该值进入表 B</span>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h3>表 A · 待下单 ≥ <span id="wkThrA">5,000</span></h3><span class="hint">点击行展开该供应商 SKU 明细</span></div>
+    <div class="card-bd" id="wkA"></div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h3>表 B · 待下单 &lt; <span id="wkThrB">5,000</span></h3><span class="hint">点击行展开该供应商 SKU 明细</span></div>
+    <div class="card-bd" id="wkB"></div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h3>统计汇总</h3><span class="hint">按供应商与待下单总数</span></div>
+    <div class="card-bd" id="wkSummary"></div>
+  </div>
+</div>
+
     <div class="card">
-      <div class="card-hd"><h3>③ 供应商下单数据透视</h3><span class="hint">点开任一供应商可下钻各 SKU 明细</span></div>
+      <div class="card-hd"><h3>③ 待下单汇总</h3><span class="hint">点开任一供应商可下钻各 SKU 明细</span></div>
       <div class="card-bd">
       <div class="stats" id="supplierStats"></div>
     </div>
@@ -2354,7 +2410,7 @@ var state = {
   matchColsFilt: {},            // 每列 th 下拉多选：{ fieldKey: ['v1','v2'] }
   matchNotes: {},                // 申请单运营备注：{ '单号|SKU': '...' }，内存 + localStorage
   supplierNotes: {},             // 供应商运营备注：{ 供应商名: '...' }
-  supplierOpen: {},              // 供应商透视展开状态
+  supplierOpen: {},              // 待下单汇总展开状态
   supplierItemFilt: {},          // 供应商卡片明细表每列筛选：{ 供应商名: { fieldKey: ['v1'] } }
   mapColFilt: {},                // 映射表每列 th 下拉多选：{ fieldKey: ['v1','v2'] }
   supSelSkus: {},                // 透视明细表勾选的 SKU 集合：{ SKU: 1 }（供批量改主供应商）
@@ -14157,7 +14213,7 @@ function renderMatchUnmatchSummary() {
   var c1 = $('matchUnmatchCount'); if (c1) c1.textContent = n;
 }
 
-/* === TAB 3 供应商下单透视 === */
+/* === TAB 3 待下单汇总 === */
 /* 按供应商聚合：申请总量 / 已下单量 / 剩余量 /SKU数 / 涉及单号 / 明细 */
 function buildSupplierGroups() {
   if (!state.matchResult) return [];
@@ -17186,7 +17242,7 @@ function bindEvents() {
     closeAllThPops();
   });
 
-  // 供应商透视 Tab
+  // 待下单汇总 Tab
   var supTimer = null;
   $('supplierSearch').oninput = function () {
     clearTimeout(supTimer);
@@ -17928,5 +17984,123 @@ window.__test = {
   <div class="bn-item" data-tab="unmatch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>补录</div>
   <div class="bn-item" data-tab="check"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>核查</div>
 </nav>
+<script id="dash-auto-js">
+(function(){
+  var WK = null;
+  function nf(n){ return (Math.round((n||0)*10)/10).toLocaleString('zh-CN'); }
+  function loadApply(){
+    var m = document.getElementById('applyAutoMeta');
+    fetch('apply.csv',{cache:'no-store'}).then(function(r){
+      if(!r.ok) throw new Error('missing');
+      return r.blob();
+    }).then(function(b){
+      var f = new File([b],'周计划申请.csv',{type:'text/csv'});
+      var dt = new DataTransfer(); dt.items.add(f);
+      var drop = document.getElementById('dropApply');
+      drop.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:dt}));
+      if(m) m.textContent='已自动载入 · 每日 09:15 / 14:30 / 17:45 随同步刷新';
+      setTimeout(function(){
+        var s = document.getElementById('matchStats');
+        if(m && s && s.innerText.trim()){ m.textContent='已自动载入 · 解析完成 · 每日 09:15 / 14:30 / 17:45 随同步刷新'; }
+      },2600);
+    }).catch(function(){ if(m) m.textContent='自动载入失败，请点右侧「重新上传」'; });
+  }
+
+  function wkItemsHtml(sup){
+    var items = (sup.items||[]).slice().sort(function(a,b){ return (b.qty||0)-(a.qty||0); });
+    return '<table class="wk"><thead><tr><th>SKU</th><th>SPU</th><th>物料名称</th><th>规格</th><th>采购员</th><th style="text-align:right;width:90px">待下单</th></tr></thead><tbody>'
+      + items.map(function(it){
+          var spec = (it.spec||''); if(spec.length>46) spec = spec.slice(0,46)+'…';
+          return '<tr><td>'+it.sku+'</td><td>'+it.spu+'</td><td>'+(it.name||'')+'</td>'
+            + '<td style="color:var(--muted)">'+spec+'</td><td>'+(it.buyer||'')+'</td>'
+            + '<td style="text-align:right">'+nf(it.qty)+'</td></tr>';
+        }).join('') + '</tbody></table>';
+  }
+
+  function wkToggle(tr){
+    var next = tr.nextElementSibling;
+    var arrow = tr.querySelector('.wk-arrow');
+    if(next && next.classList.contains('wk-sub')){ next.remove(); if(arrow) arrow.textContent='▸'; return; }
+    var short = tr.getAttribute('data-short');
+    var sup = (WK.suppliers||[]).filter(function(x){ return x.short===short; })[0];
+    if(!sup) return;
+    var sub = document.createElement('tr');
+    sub.className = 'wk-sub';
+    var td = document.createElement('td');
+    td.colSpan = 5;
+    td.innerHTML = wkItemsHtml(sup);
+    sub.appendChild(td);
+    tr.parentNode.insertBefore(sub, tr.nextSibling);
+    if(arrow) arrow.textContent='▾';
+  }
+
+  function wkTable(el, arr, max, total){
+    if(!el) return;
+    if(!arr.length){ el.innerHTML = '<div class="hint">本组无供应商</div>'; return; }
+    el.innerHTML = '<table class="wk"><thead><tr><th style="width:96px">供应商</th><th>待下单数量</th>'
+      + '<th style="width:66px;text-align:right">占比</th><th style="width:52px;text-align:right">SKU</th><th style="width:24px"></th></tr></thead><tbody>'
+      + arr.map(function(x){
+          return '<tr class="wk-row" data-short="'+x.short+'">'
+            + '<td><b>'+x.short+'</b></td>'
+            + '<td><div style="display:flex;align-items:center;gap:8px"><div class="wk-bar" style="flex:1"><i style="width:'
+            + (max>0? (x.plan/max*100).toFixed(1):0) + '%"></i></div><span class="wk-num">'+nf(x.plan)+'</span></div></td>'
+            + '<td style="text-align:right">'+(total>0?(x.plan/total*100).toFixed(1):'0.0')+'%</td>'
+            + '<td style="text-align:right">'+x.skus+'</td>'
+            + '<td class="wk-arrow">▸</td></tr>';
+        }).join('') + '</tbody></table>';
+    el.querySelectorAll('tr.wk-row').forEach(function(tr){ tr.onclick = function(){ wkToggle(tr); }; });
+  }
+
+  function wkRender(){
+    if(!WK) return;
+    var inp = document.getElementById('wkThr');
+    var thr = inp ? (parseFloat(inp.value) || 0) : 5000;
+    var a = document.getElementById('wkThrA'), b = document.getElementById('wkThrB');
+    if(a) a.textContent = nf(thr);
+    if(b) b.textContent = nf(thr);
+
+    var list = WK.suppliers || [];
+    var total = WK.total_plan || 0;
+    var max = Math.max.apply(null, list.map(function(x){ return x.plan; }).concat([1]));
+    var st = document.getElementById('wkStats');
+    if(st){
+      st.innerHTML =
+        '<div class="stat"><div class="s-l">待下单总量</div><div class="s-v"><b>'+nf(total)+'</b></div></div>'+
+        '<div class="stat"><div class="s-l">供应商</div><div class="s-v"><b>'+(WK.supplier_count||list.length)+'</b> 家</div></div>'+
+        '<div class="stat"><div class="s-l">周计划行数</div><div class="s-v"><b>'+(WK.rows||0)+'</b> 行</div></div>'+
+        '<div class="stat"><div class="s-l">户均待下单</div><div class="s-v"><b>'+nf(list.length? total/list.length : 0)+'</b></div></div>';
+    }
+    wkTable(document.getElementById('wkA'), list.filter(function(x){ return x.plan >= thr; }), max, total);
+    wkTable(document.getElementById('wkB'), list.filter(function(x){ return x.plan < thr; }), max, total);
+
+    var sum = document.getElementById('wkSummary');
+    if(sum){
+      var acc = 0;
+      sum.innerHTML = '<table class="wk"><thead><tr><th>供应商</th><th style="text-align:right;width:110px">待下单总数</th>'
+        + '<th style="text-align:right;width:70px">占比</th><th style="text-align:right;width:80px">累计占比</th><th>采购员</th></tr></thead><tbody>'
+        + list.map(function(x){
+            acc += x.plan;
+            return '<tr><td><b>'+x.short+'</b> <span style="color:var(--muted)">'+x.name+'</span></td>'
+              + '<td style="text-align:right">'+nf(x.plan)+'</td>'
+              + '<td style="text-align:right">'+(total>0?(x.plan/total*100).toFixed(1):'0.0')+'%</td>'
+              + '<td style="text-align:right;color:var(--muted)">'+(total>0?(acc/total*100).toFixed(1):'0.0')+'%</td>'
+              + '<td style="color:var(--muted)">'+(x.buyers||[]).join('、')+'</td></tr>';
+          }).join('') + '</tbody></table>';
+    }
+  }
+
+  function loadWk(){
+    fetch('weekly.json',{cache:'no-store'}).then(function(r){ return r.json(); }).then(function(d){
+      WK = d; wkRender();
+      var inp = document.getElementById('wkThr');
+      if(inp){ inp.oninput = wkRender; }
+    }).catch(function(){});
+  }
+
+  function boot(){ loadApply(); loadWk(); }
+  if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); }
+  else { setTimeout(boot, 300); }
+})();
+</script>
 </body>
 </html>
