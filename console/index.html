@@ -342,9 +342,10 @@ tr.grp-row.unm td{background:#FBE9E9 !important;border-top:1px solid var(--dange
   outline:2px solid #378ADD !important;
   outline-offset:-2px;
 }
-.unmatch-row-selected td{
-  background:#F1EFE8;
-}
+.unmatch-row-selected td{ background:transparent; }
+.unmatch-row-selected td:first-child{ box-shadow: inset 3px 0 0 #0F6E56; }
+.unmatch-spu-cell{ font-family:var(--mono,monospace); font-weight:500; }
+.unmatch-spu-cell.grp{ background:#E1F5EE; color:#085041; text-align:center; border-radius:4px; }
 .unmatch-fill-handle{
   position:absolute;
   width:8px;height:8px;
@@ -13544,9 +13545,27 @@ function initMapping() {
       return;
     }
     state.mapping = cloudRowsToMap(rows);
-    state.dirty = false;
+    /* 云端全量覆盖前，先把「本机已补录但还没推到云端」的行（rid 为空且云端没有该 SKU）
+       捞回来，否则下次打开页面补录的行会被云端快照冲掉——
+       用户看起来就是「填了没回归映射表、重复填也不生效」。 */
+    var cloudSkus = {};
+    state.mapping.forEach(function (m) { if (m.sku) cloudSkus[Core.normSKU(m.sku)] = 1; });
+    var rescued = 0;
+    (local || []).forEach(function (lm) {
+      var lk = Core.normSKU(lm.sku);
+      if (!lk || cloudSkus[lk]) return;
+      if (lm.rid) return;                      // 已有云端 rid 的行以云端为准
+      state.mapping.unshift({
+        rid: '', sku: Core.normText(lm.sku), supplier: Core.normText(lm.supplier), buyer: Core.normText(lm.buyer),
+        shortName: Core.normText(lm.shortName), note: Core.normText(lm.note), updated: lm.updated || nowStr(),
+        price: Core.normText(lm.price || ''), priceSupplier: Core.normText(lm.priceSupplier || ''), alts: Array.isArray(lm.alts) ? lm.alts : [],
+        _new: true, _dirty: false, _deleted: false, _sel: false
+      });
+      cloudSkus[lk] = 1; rescued++;
+    });
+    state.dirty = rescued > 0;
     saveLocalMap();
-    setSync('cloud', '已同步 ' + state.mapping.length + ' 条');
+    setSync('cloud', '已同步 ' + state.mapping.length + ' 条' + (rescued ? '（找回本机未保存补录 ' + rescued + ' 条，记得保存）' : ''));
   }).catch(function (err) {
     state.cloudOK = false;
     if (!state.mapping.length) {
@@ -13559,8 +13578,8 @@ function initMapping() {
   });
 }
 
-/* 保存：把脏记录提交云端 */
-function saveMapping() {
+/* 保存：把脏记录提交云端（silent=true 供补录自动保存用：不弹进度框、文案区分） */
+function saveMapping(silent) {
   purgeEmptyMapRows();   // 同步前自动剔除没有任何数据的空行
   var d = db();
   var pending = state.mapping.filter(function (m) {
@@ -13577,11 +13596,13 @@ function saveMapping() {
     return Promise.resolve();
   }
   if (!pending.length && !state.mapping.some(function (m) { return m._deleted; })) {
-    toast('没有需要保存的改动');
+    if (!silent) toast('没有需要保存的改动');
     return Promise.resolve();
   }
+  if (saveMapping._busy) { if (!silent) toast('上一次保存还在进行中，请稍候', 'ok'); return Promise.resolve(); }
+  saveMapping._busy = true;
   setSync('busy', '保存中…');
-  var bd = dialog({
+  var bd = silent ? null : dialog({
     title: '正在保存到云端',
     html: '<div id="saveMsg">准备中…</div><div class="prog"><i id="saveBar"></i></div>',
     buttons: []
@@ -13626,20 +13647,28 @@ function saveMapping() {
   var workers = [];
   for (var i = 0; i < CONC; i++) workers.push(worker());
   return Promise.all(workers).then(function () {
+    saveMapping._busy = false;
     // 移除云端删除成功的记录（删除失败的保留 _deleted 标记，可重试）
     state.mapping = state.mapping.filter(function (m) { return !m._gone; });
     var stillNew = state.mapping.some(function (m) { return m._new; });
     state.dirty = failed > 0 || stillNew;
     saveLocalMap();
-    var mask = document.querySelector('.mask'); if (mask && mask.parentNode) mask.parentNode.removeChild(mask);
+    if (!silent) {
+      var mask = document.querySelector('.mask'); if (mask && mask.parentNode) mask.parentNode.removeChild(mask);
+    }
     if (failed) {
       setSync('err', '保存有 ' + failed + ' 条失败');
       toast('保存完成，但 ' + failed + ' 条失败，请重试', 'err');
     } else {
       setSync('cloud', '已同步 ' + state.mapping.length + ' 条');
-      toast('已保存到云端', 'ok');
+      toast(silent ? '补录已自动保存到云端映射表' : '已保存到云端', 'ok');
     }
     refreshAll();
+  }).catch(function (e) {
+    saveMapping._busy = false;
+    if (!silent) { var mask = document.querySelector('.mask'); if (mask && mask.parentNode) mask.parentNode.removeChild(mask); }
+    setSync('err', '保存失败');
+    toast('保存失败：' + ((e && e.message) || e), 'err');
   });
 }
 
@@ -15387,7 +15416,9 @@ function fillUnmatchRange(from, to) {
       if (inp && inp.value !== value) { inp.value = value; changedKeys[k] = 1; }
     }
   }
+  UNMATCH_BATCH = true;
   Object.keys(changedKeys).forEach(function (k) { saveUnmatchRowByKey(k); });
+  UNMATCH_BATCH = false;
   selectUnmatchRange(from, to);
 }
 
@@ -15439,7 +15470,9 @@ function pasteUnmatchSelection(text) {
       if (inp && inp.value !== v) { inp.value = v; changedKeys[k] = 1; }
     });
   });
+  UNMATCH_BATCH = true;
   Object.keys(changedKeys).forEach(function (k) { saveUnmatchRowByKey(k); });
+  UNMATCH_BATCH = false;
   toast('已粘贴 ' + Object.keys(changedKeys).length + ' 行', 'ok');
 }
 
@@ -15495,7 +15528,9 @@ function batchSetUnmatchColumn(f, value) {
     }
     if (changed) changedKeys[k] = 1;
   });
+  UNMATCH_BATCH = true;
   Object.keys(changedKeys).forEach(function (k) { saveUnmatchRowByKey(k); });
+  UNMATCH_BATCH = false;
   var n = Object.keys(changedKeys).length;
   if (tri) {
     toast('已填充「' + value + '」并同步全称「' + tri.sup + '」/ 采购员「' + tri.buy + '」到 ' + n + ' 行', 'ok');
@@ -15504,15 +15539,74 @@ function batchSetUnmatchColumn(f, value) {
   }
 }
 
-/* 保存未匹配补录单行（按 key） */
+/* 批量流程（表头填充/粘贴/填充柄）置 true：逐行保存时跳过 SPU 联动与冲突弹窗 */
+var UNMATCH_BATCH = false;
+var UNMATCH_AUTO_SAVE_TIMER = null;
+
+/* 补录落库（按归一化 SKU 比对：命中即更新原行，绝不重复插行） */
+function persistUnmatchRow(rawKey, vals) {
+  var nk = Core.normSKU(rawKey);
+  var exist = null;
+  for (var i = 0; i < state.mapping.length; i++) {
+    var m = state.mapping[i];
+    if (m._deleted) continue;
+    if (Core.normSKU(m.sku) === nk) { exist = m; break; }
+  }
+  if (exist) {
+    if (vals.sup) exist.supplier = vals.sup;
+    if (vals.buy) exist.buyer = vals.buy;
+    if (vals.sn) exist.shortName = vals.sn;
+    if (vals.note) exist.note = vals.note;
+    exist._dirty = true; exist.updated = nowStr();
+    return { row: exist, created: false };
+  }
+  var row = addMappingRow(Core.normText(rawKey) || nk, vals.sup, vals.buy, vals.note || '匹配时补录', vals.sn);
+  return { row: row, created: true };
+}
+
+/* 补录后自动推送云端映射表（防抖 2.5s；失败不打断，下次保存/手动保存可重试） */
+function scheduleUnmatchAutoSave() {
+  if (UNMATCH_AUTO_SAVE_TIMER) clearTimeout(UNMATCH_AUTO_SAVE_TIMER);
+  UNMATCH_AUTO_SAVE_TIMER = setTimeout(function () {
+    UNMATCH_AUTO_SAVE_TIMER = null;
+    if (typeof db !== 'function' || !db()) return;
+    if (typeof saveMapping === 'function') saveMapping(true);
+  }, 2500);
+}
+
+/* SPU 冲突确认弹窗：list = [{sku, old}]，onOk(true=覆盖冲突 / false=跳过冲突行) */
+function confirmUnmatchSpuConflict(list, onOk) {
+  var rowsHtml = list.slice(0, 12).map(function (x) {
+    return '<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;font-size:12px;">'
+      + '<span class="mono" style="font-family:monospace">' + esc(x.sku) + '</span>'
+      + '<span style="color:var(--muted)">现属 ' + esc(x.old || '（未命名供应商）') + '</span></div>';
+  }).join('') + (list.length > 12 ? '<div style="font-size:12px;color:var(--muted);margin-top:4px">…等 ' + list.length + ' 行</div>' : '');
+  dialog({
+    title: '同款号 SKU 已绑定其他供应商',
+    html: '<div style="font-size:12px;margin-bottom:8px">以下 <b>' + list.length + '</b> 个同款号 SKU 在映射表中已有不同供应商。按口径「同款号 = 同一供应商」，是否一并覆盖？</div>'
+        + '<div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:6px 10px">' + rowsHtml + '</div>',
+    buttons: [
+      { label: '跳过冲突行', cls: 'btn', onClick: function () { onOk(false); } },
+      { label: '全部覆盖', cls: 'btn pri', onClick: function () { onOk(true); } }
+    ]
+  });
+}
+
+/* 保存未匹配补录单行（按 key）。
+ * 开启「同 SPU 自动带出」时：同款号的其他待补录 SKU 会整组填入相同简称/全称/采购员
+ * 并一次性落库（冲突行弹窗确认），然后统一刷新 + 自动推送云端。 */
 function saveUnmatchRowByKey(key) {
   if (!key) return;
   var tb = unmatchPanelBody();
   if (!tb) return;
-  var tr = Array.prototype.find.call(tb.querySelectorAll('tr'), function (r) {
+  /* 同一 SKU 若因陈旧快照出现多行，优先取「有内容」的那行，避免读到空行而误判为空保存 */
+  var candidates = Array.prototype.filter.call(tb.querySelectorAll('tr'), function (r) {
     var inp = r.querySelector('input[data-f="supplier"]');
     return inp && inp.dataset.k === key;
   });
+  var tr = candidates.find(function (r) {
+    return Array.prototype.some.call(r.querySelectorAll('input[data-f]'), function (i) { return i.value && i.value.trim(); });
+  }) || candidates[0];
   if (!tr) return;
   var sup = (tr.querySelector('input[data-f="supplier"]') || {}).value || '';
   var buy = (tr.querySelector('input[data-f="buyer"]') || {}).value || '';
@@ -15536,33 +15630,100 @@ function saveUnmatchRowByKey(key) {
     if (tri2 && tri2.sn) sn = tri2.sn;
   }
 
-  var exist = null;
-  for (var i = 0; i < state.mapping.length; i++) {
-    var m = state.mapping[i];
-    if (m._deleted) continue;
-    if (Core.normSKU(m.sku) === key) { exist = m; break; }
+  /* ---- 同 SPU 联动：收集同款号（编码内数字前四位）的待补录 SKU ---- */
+  var bySpu = false, siblings = [];
+  var spuCb = $('unmatchBySpu');
+  var nk = Core.normSKU(key);
+  var kd = Core.kindOf(nk);
+  if (!UNMATCH_BATCH && kd && (!spuCb || spuCb.checked) && (sn || sup)) {
+    var seen = {};
+    Array.prototype.forEach.call(tb.querySelectorAll('input[data-f="short"]'), function (inp) {
+      var k2 = inp.dataset.k; if (!k2 || seen[k2]) return; seen[k2] = 1;
+      if (Core.normSKU(k2) === nk) return;
+      if (String(k2).toUpperCase().indexOf('VYTK') >= 0) return;
+      if (Core.kindOf(Core.normSKU(k2)) !== kd) return;
+      siblings.push(k2);
+    });
+    bySpu = siblings.length > 0;
   }
-  if (exist) {
-    if (sup) exist.supplier = sup;
-    if (buy) exist.buyer = buy;
-    if (sn) exist.shortName = sn;
-    if (note) exist.note = note;
-    exist._dirty = true; exist.updated = nowStr();
-  } else {
-    addMappingRow(key, sup, buy, note || '匹配时补录', sn);
-  }
-  state.dirty = true;
-  saveLocalMap();
-  runMatch(); runCheck();
-  refreshAll();
 
-  /* 通知「待下单汇总」模块：该 SKU 已补录，立即从未映射列表移除并归到对应供应商，
-     否则 weekly.json 里的 pending 快照不刷新，用户会觉得「填了没反应」。 */
-  if (window.__wkOnMappingSaved) {
-    window.__wkOnMappingSaved(key, sn || '', sup || '');
-  } else {
-    toast('已保存：' + (sn || sup || key));
+  function persistGroup(includeConflicts) {
+    var created = 0, updatedN = 0, conflictSkipped = 0;
+    var plan = [{ k: key, sup: sup, buy: buy, sn: sn, note: note }];
+    siblings.forEach(function (k2) {
+      var tr2 = Array.prototype.find.call(tb.querySelectorAll('tr'), function (r) {
+        var inp = r.querySelector('input[data-f="supplier"]');
+        return inp && inp.dataset.k === k2;
+      });
+      if (!tr2) return;
+      var v = {
+        sup: sup,
+        buy: buy,
+        sn: ((tr2.querySelector('input[data-f="short"]') || {}).value || '').trim() || sn,
+        note: ''
+      };
+      plan.push({ k: k2, sup: v.sup, buy: v.buy, sn: v.sn, note: note, tr: tr2 });
+    });
+    plan.forEach(function (p) {
+      /* 冲突行：映射表已绑其他供应商且本次不允许覆盖 → 跳过 */
+      var nk2 = Core.normSKU(p.k);
+      var exist2 = null;
+      for (var j = 0; j < state.mapping.length; j++) {
+        var mm = state.mapping[j];
+        if (!mm._deleted && Core.normSKU(mm.sku) === nk2) { exist2 = mm; break; }
+      }
+      if (p.k !== key && !includeConflicts && exist2 && exist2.supplier && sup && exist2.supplier !== sup) {
+        conflictSkipped++;
+        return;
+      }
+      var r = persistUnmatchRow(p.k, { sup: p.sup, buy: p.buy, sn: p.sn, note: p.note });
+      if (r.created) created++; else updatedN++;
+      /* 回写面板输入框，让用户看到整组已带出 */
+      if (p.tr) {
+        var iS = p.tr.querySelector('input[data-f="short"]');
+        var iSu = p.tr.querySelector('input[data-f="supplier"]');
+        var iB = p.tr.querySelector('input[data-f="buyer"]');
+        if (iS && !iS.value.trim()) iS.value = p.sn;
+        if (iSu && !iSu.value.trim()) iSu.value = p.sup;
+        if (iB && !iB.value.trim()) iB.value = p.buy;
+      }
+    });
+    state.dirty = true;
+    saveLocalMap();
+    /* 先通知待下单模块移除已补录 SKU（改 __wkPendingSkus），再刷新面板，
+       否则刚保存的行会残留在补录列表里，看起来像「填了没保存」。 */
+    plan.forEach(function (p) {
+      if (window.__wkOnMappingSaved) window.__wkOnMappingSaved(Core.normSKU(p.k), p.sn || '', p.sup || '');
+    });
+    runMatch(); runCheck();
+    refreshAll();
+    scheduleUnmatchAutoSave();
+    if (bySpu) {
+      var extra = plan.length - 1 - conflictSkipped;
+      var tail = conflictSkipped ? '，跳过冲突 ' + conflictSkipped + ' 行' : '';
+      toast('已保存「' + (sn || sup || key) + '」，同款号自动带出 ' + extra + ' 个 SKU' + tail, 'ok');
+    } else if (!window.__wkOnMappingSaved) {
+      toast('已保存：' + (sn || sup || key), 'ok');
+    }
   }
+
+  if (!bySpu) { persistGroup(true); return; }
+
+  /* 冲突检测：同款号里映射表已绑「不同供应商」的行 */
+  var conflicts = [];
+  siblings.forEach(function (k2) {
+    var nk2 = Core.normSKU(k2);
+    for (var j = 0; j < state.mapping.length; j++) {
+      var mm = state.mapping[j];
+      if (mm._deleted) continue;
+      if (Core.normSKU(mm.sku) === nk2) {
+        if (mm.supplier && sup && mm.supplier !== sup) conflicts.push({ sku: k2, old: mm.supplier });
+        break;
+      }
+    }
+  });
+  if (conflicts.length) confirmUnmatchSpuConflict(conflicts, persistGroup);
+  else persistGroup(true);
 }
 
 /* 待下单里「待填写」的 SKU 也要能补录：
@@ -15616,7 +15777,10 @@ function renderUnmatchPanel() {
   }
 
   var tip = el('div', 'note info');
-  tip.innerHTML = '下面 <b>' + keys.length + '</b> 个未匹配 SKU 已自动按申请单出现次数排序。支持类 Excel 操作：选中单元格后 <b>Ctrl+C/V</b> 复制粘贴、拖动右下角填充柄下拉填充、勾选多行后通过表头批量设置整列；输入框离开或按 Enter 自动保存；保存后该行立即从本列表移除，并同步到待下单汇总。';
+  tip.innerHTML = '下面 <b>' + keys.length + '</b> 个未匹配 SKU 已自动按申请单出现次数排序。'
+    + '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 10px;font-weight:500;cursor:pointer;white-space:nowrap">'
+    + '<input type="checkbox" id="unmatchBySpu" checked> 同款号自动带出</label>'
+    + '在一行填简称保存后，同款号（编码内数字前四位）的其他 SKU 会自动填入相同供应商并整组保存；同款号里已绑其他供应商的行会先弹窗确认。支持类 Excel 操作：选中单元格后 <b>Ctrl+C/V</b> 复制粘贴、拖动右下角填充柄下拉填充、勾选多行后通过表头批量设置整列。';
   host.appendChild(tip);
 
   /* 批量粘贴区：Excel 复制 4 列（SKU / 简称 / 全称 / 备注），自动按 SKU 匹配覆盖 */
@@ -15628,6 +15792,7 @@ function renderUnmatchPanel() {
   t.id = 'unmatchTable';
   t.innerHTML = '<thead><tr>'
     + '<th class="ctr" style="width:32px"><input type="checkbox" id="unmatchCheckAll"></th>'
+    + '<th style="width:64px">款号</th>'
     + '<th style="min-width:160px">SKU</th>'
     + '<th style="min-width:130px">供应商简称 <span class="hint">（联想）</span><br><input class="unmatch-header-inp" data-hf="short" placeholder="批量填充…"></th>'
     + '<th style="min-width:200px">供应商全称<br><input class="unmatch-header-inp" data-hf="supplier" placeholder="批量填充…"></th>'
@@ -15635,12 +15800,20 @@ function renderUnmatchPanel() {
     + '<th style="min-width:160px">运营备注<br><input class="unmatch-header-inp" data-hf="note" placeholder="批量填充…"></th>'
     + '</tr></thead>';
   var tb = document.createElement('tbody');
+  /* 款号分组计数：同款号 > 1 个才高亮，方便一眼看出哪些是同一款 */
+  var spuCount = {};
+  keys.forEach(function (k) { var kd = Core.kindOf(Core.normSKU(k)); if (kd) spuCount[kd] = (spuCount[kd] || 0) + 1; });
   keys.slice(0, 200).forEach(function (k, i) {
     var tr = el('tr');
     var tdC = el('td', 'ctr');
     var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; cb.className = 'unmatch-cb';
     cb.onchange = function () { applyUnmatchSelHighlight(); };
     tdC.appendChild(cb); tr.appendChild(tdC);
+    var kd = Core.kindOf(Core.normSKU(k));
+    var tdKd = el('td', 'ctr');
+    var kdSpan = el('span', 'unmatch-spu-cell' + (kd && spuCount[kd] > 1 ? ' grp' : ''), kd || '—');
+    tdKd.appendChild(kdSpan);
+    tr.appendChild(tdKd);
     var tdSku = el('td', 'sku-big mono');
     tdSku.textContent = k;
     if (isBrandSKU(k)) {
@@ -15671,7 +15844,7 @@ function renderUnmatchPanel() {
   });
   t.appendChild(tb); wrap.appendChild(t);
   host.appendChild(wrap);
-  if (state.matchResult.unmatchedKeys.length > 200) host.appendChild(el('div', 'todo-empty', '仅显示前 200 个，可在上方搜索框精确过滤后补录'));
+  if (state.matchResult && state.matchResult.unmatchedKeys.length > 200) host.appendChild(el('div', 'todo-empty', '仅显示前 200 个，可在上方搜索框精确过滤后补录'));
 
   // 表头批量填充
   Array.prototype.forEach.call(t.querySelectorAll('input[data-hf]'), function (hi) {
