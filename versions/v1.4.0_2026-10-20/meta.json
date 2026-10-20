@@ -1,0 +1,14 @@
+{
+  "version": "1.4.0",
+  "date": "2026-10-20",
+  "type": "minor",
+  "title": "三表单定时同步；准交率仅当月+柱体下钻；待下单明细改造",
+  "description": "①采集器接入三个表单每日同步：采购订单列表（在途/全量）、收料通知单列表（111111，过滤=本月）、采购申请单列表（周计划申请(共享)）；每次导出前记录文件快照，只认本次新文件，避免导出失败时串表；申请单落地 src/otd_apply.xlsx，收料单落地 src/otd_recv.xlsx。②准交率仅统计当月（periods 只输出当前月）；下钻明细新增「收料通知单号」；修复排名柱状图点击无响应（setOption 后丢了 ch.on('click') 绑定）。③管理台待下单汇总：明细表加列头筛选（下拉多选、勾选即生效、可连续多选）、规格列宽 295→190、新增申请单单据编号/领星创建人两列、KPI 增加全部供应商合计与核心/普通分项、表A/B 与统计汇总均加合计行、新增 全部/核心/普通 供应商筛选按钮；weekly.json 与 apply.csv 改由 build.py 调用 build_console_data.py 自动生成，Actions 只跑 build.py 也能刷新。",
+  "reason": "用户要求三张表都能定时同步、准交率只看当月、柱状图可下钻、明细表可筛选并补两列、增加全部供应商汇总与核心/普通筛选。",
+  "impact": "index.html 3.28MB（19图）；console/index.html 1.22MB；新增 build_console_data.py；sync_kingdee.py 步骤 7→9；kingdee_config.json 打开 enable_recv_sync/enable_apply_sync；src/otd_recv.xlsx 换为 3,462 行本月数据，src/otd_apply.xlsx 换为 216 行。",
+  "data_updated_at": "2026-10-20 12:42",
+  "parent_version": "v1.3.0",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-10-20 12:48:33"
+}
