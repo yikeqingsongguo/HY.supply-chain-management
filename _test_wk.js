@@ -1,7 +1,8 @@
-/* 待下单汇总 v1.6.4 冒烟测试（jsdom）：
- * 1) 采购员汇总行点击下钻明细（含「（未填写）」）
- * 2) 补录填写采购员 → 待下单采购员统计同步（未填写归位）
- * 3) 导出 Excel 按钮 → 生成 .xlsx（Blob 有效）
+/* 待下单汇总 v1.6.5 冒烟测试（jsdom）：
+ * 1) 采购员汇总行点击下钻 → 弹出「采购员详情」小窗（不再向下展开），可关闭
+ * 2) 供应商行点击下钻 → 弹出「供应商详情」小窗，导出明细生成 .xlsx（Blob 有效）
+ * 3) 补录填写采购员 → 待下单采购员统计同步（未填写归位）
+ * 4) 整体导出 Excel 按钮 → 双 sheet .xlsx
  */
 const fs = require('fs');
 const path = require('path');
@@ -16,6 +17,8 @@ const vc = new VirtualConsole();
 vc.on('jsdomError', e => {
   const msg = String(e && e.message || e);
   if (/DragEvent|DataTransfer|not implemented/i.test(msg)) return;
+  // jsdom 不实现 innerText，自动载入提示里的 s.innerText.trim() 会报错，忽略
+  if (/reading 'trim'/.test(msg)) return;
   errors.push('jsdomError: ' + msg);
 });
 vc.on('error', (...a) => errors.push('console.error: ' + a.join(' ')));
@@ -71,18 +74,56 @@ const A = (c, msg) => { if (!c) { console.log('FAIL:', msg); process.exitCode = 
   const unfilled = buyerRows.find(r => r.getAttribute('data-buyer') === '（未填写）');
   A(!!unfilled, '「（未填写）」行存在且可点击下钻');
 
-  // 下钻（未填写）
+  // 下钻（未填写）→ 弹出小窗
   unfilled.click();
   await sleep(200);
-  const sub = bs.querySelector('tr.wk-sub[data-buyer="（未填写）"]');
-  A(!!sub, '点击「（未填写）」展开明细子表');
-  const subRows = sub ? sub.querySelectorAll('tbody tr').length : 0;
-  A(subRows > 0, '子表含明细行（' + subRows + ' 行，含 SKU/规格/单号/数量/供应商列）');
-  A(/规格型号/.test(sub.innerHTML) && /申请单号/.test(sub.innerHTML) && /供应商/.test(sub.innerHTML), '子表列头含 规格型号/申请单号/供应商');
-  // 再点收起
-  unfilled.click();
+  let mask = w.document.querySelector('body > .mask');
+  let dlgTitle = mask ? (mask.querySelector('.dlg-hd') || {}).textContent : '';
+  A(!!mask && /采购员详情/.test(dlgTitle), '点击采购员行弹出「采购员详情」小窗（' + dlgTitle + '）');
+  A(!!mask && /（未填写）/.test(dlgTitle), '小窗标题含采购员名（未填写）');
+  const dlgTable = mask ? mask.querySelector('.dlg-bd table') : null;
+  A(!!dlgTable && dlgTable.querySelectorAll('tbody tr').length > 0, '小窗含明细表（' + (dlgTable ? dlgTable.querySelectorAll('tbody tr').length : 0) + ' 行）');
+  A(!!dlgTable && /申请单号/.test(dlgTable.innerHTML) && /规格型号/.test(dlgTable.innerHTML) && /供应商/.test(dlgTable.innerHTML), '小窗列头含 申请单号/规格型号/供应商');
+  // 小窗按钮：导出明细 + 关闭
+  let dlgBtns = mask ? Array.prototype.slice.call(mask.querySelectorAll('.dlg-ft button')).map(b => b.textContent) : [];
+  A(dlgBtns.indexOf('导出明细') >= 0 && dlgBtns.indexOf('关闭') >= 0, '小窗按钮含 导出明细/关闭');
+  // 关闭
+  const closeBtn = mask.querySelector('.dlg-ft button:last-child');
+  closeBtn.click();
   await sleep(100);
-  A(!bs.querySelector('tr.wk-sub[data-buyer="（未填写）"]'), '再次点击可收起明细');
+  A(!w.document.querySelector('body > .mask'), '点「关闭」可收起小窗');
+
+  // 供应商行下钻 → 弹出小窗 + 导出明细
+  const supRow = w.document.querySelector('#wkA tr.wk-row[data-short], #wkB tr.wk-row[data-short]');
+  A(!!supRow, '供应商行可点击下钻');
+  supRow.click();
+  await sleep(200);
+  mask = w.document.querySelector('body > .mask');
+  dlgTitle = mask ? (mask.querySelector('.dlg-hd') || {}).textContent : '';
+  A(!!mask && /供应商详情/.test(dlgTitle), '点击供应商行弹出「供应商详情」小窗（' + dlgTitle + '）');
+  // 导出明细
+  w.__lastBlob = null;
+  const expBtn = Array.prototype.slice.call(mask.querySelectorAll('.dlg-ft button')).find(b => b.textContent === '导出明细');
+  expBtn.click();
+  await sleep(400);
+  A(!!w.__lastBlob && w.__lastBlob.size > 2000, '小窗「导出明细」生成有效 .xlsx Blob（' + (w.__lastBlob ? w.__lastBlob.size : 0) + ' bytes）');
+  if (w.__lastBlob) {
+    const buf = Buffer.from(await w.__lastBlob.arrayBuffer());
+    A(buf.slice(0, 2).toString() === 'PK', '导出 Blob 为 zip 签名');
+    const s = buf.toString('latin1');
+    A(s.indexOf('xl/worksheets/sheet1.xml') >= 0 && s.indexOf('xl/worksheets/sheet2.xml') < 0, '明细导出为单 sheet（' + 'sheet1 only' + '）');
+    // 用 SheetJS 解析回来校验列头（申请单号在前，与示例一致）
+    const XL = require(path.join(HERE, 'vendor', 'xlsx.full.min.js'));
+    const wb = XL.read(buf, { type: 'buffer' });
+    const aoa = XL.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false });
+    A(aoa[0] && aoa[0][0] === '申请单号', '导出列头第一列为「申请单号」→ ' + ((aoa[0] || []).join(' / ')));
+    A(aoa[0] && aoa[0].length === 10, '导出 10 列（' + (aoa[0] || []).length + ' 列）');
+    A(aoa.length > 1, '导出含数据行（' + (aoa.length - 1) + ' 行）');
+  }
+  // 关闭
+  mask.querySelector('.dlg-ft button:last-child').click();
+  await sleep(100);
+  A(!w.document.querySelector('body > .mask'), '供应商小窗可关闭');
 
   // 补录采购员 → 统计同步
   const before = (bs.querySelector('tr[data-buyer="（未填写）"]') || {}).outerHTML || '';

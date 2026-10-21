@@ -15052,13 +15052,18 @@ function saveSupplierNote(name, val) {
 }
 
 function exportSupplierDetail(g) {
-  var data = [['物料编码', 'SPU', '规格型号', '申请单号', '申请日期', '数量', '采购', '供应商', '运营名称', '备注']];
-  g.items.forEach(function (r) {
-    data.push([r.sku || '', Core.kindOf(r.sku) || '', r.spec || '', r.no || '', r.date || '', r.qty, r.buyer || '', g.name, r.lingxingCreator || '', r.remark || '']);
-  });
-  data.push(['合计', '', '', '', '', g.applyQty, '', '', '', '']);
-  downloadBytes(Core.buildXLSX(data, '供应商明细'), '供应商明细_' + sanitizeFileName(g.name) + '_' + fileStamp() + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  toast('已导出 ' + g.name + ' 的明细', 'ok');
+  try {
+    /* 列序与「按供应商维度明细导出」示例一致：申请单号在前 */
+    var data = [['申请单号', '物料编码', 'SPU', '规格型号', '申请日期', '数量', '采购员', '供应商', '运营名称', '备注']];
+    (g.items || []).forEach(function (r) {
+      data.push([r.no || '', r.sku || '', Core.kindOf(r.sku) || '', r.spec || '', r.date || '',
+        (r.qty === null || r.qty === undefined) ? '' : r.qty, r.buyer || '', g.name, r.lingxingCreator || '', r.remark || '']);
+    });
+    downloadBytes(Core.buildXLSX(data, '供应商明细'), '供应商明细_' + sanitizeFileName(g.name) + '_' + fileStamp() + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast('已导出 ' + g.name + ' 共 ' + (g.items || []).length + ' 行明细', 'ok');
+  } catch (err) {
+    toast('导出失败：' + (err && err.message ? err.message : err), 'err');
+  }
 }
 
 function sanitizeFileName(s) {
@@ -16439,7 +16444,21 @@ function showGroupDetail(no, rows) {
   var bd = dialog({
     title: '申请单详情 · ' + no,
     text: '',
-    buttons: [{ label: '导出明细', cls: 'btn' }, { label: '关闭', cls: 'btn' }]
+    buttons: [
+      { label: '导出明细', cls: 'btn', onClick: function () {
+        try {
+          var data = [['申请单号', '物料编码', 'SPU', '规格型号', '申请日期', '数量', '采购员', '供应商', '运营名称', '备注']];
+          (rows || []).forEach(function (r) {
+            data.push([r.no || no, r.sku || '', Core.kindOf(r.sku) || '', r.spec || '', r.date || '',
+              (r.qty === null || r.qty === undefined) ? '' : r.qty, r.buyer || '', r.supplier || '', r.lingxingCreator || '', r.remark || '']);
+          });
+          downloadBytes(Core.buildXLSX(data, '申请单明细'), '申请单明细_' + sanitizeFileName(no) + '_' + fileStamp() + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          toast('已导出 ' + no + ' 共 ' + (rows || []).length + ' 行明细', 'ok');
+          return true; /* 保持弹窗打开 */
+        } catch (err) { toast('导出失败：' + (err && err.message ? err.message : err), 'err'); return true; }
+      } },
+      { label: '关闭', cls: 'btn' }
+    ]
   });
   bd.innerHTML = '';
   var t = document.createElement('table');
@@ -18294,6 +18313,7 @@ window.__test = {
   var WK_DATE = { from:'', to:'' };   // 申请日期区间（按申请单创建日期）
   var LOCAL_MAP = {};         // { sku: {short, name, buyer} }
   var WK_BUYER_AGG = {};      // 最新一次采购员汇总（供下钻明细）
+  var WK_DETAIL = null;       // 当前打开的详情小窗（供应商下钻刷新用）
   var LS_KEY = 'wk_sup_map_v1';
   var COLS = [
     {key:'sku',  label:'SKU',        w:138},
@@ -18475,11 +18495,10 @@ window.__test = {
       if(set.size === vals.length) delete WK_FIELD[sup.short][key];
       else WK_FIELD[sup.short][key] = set;
       if(close) closePanel();
-      var sub = document.querySelector('tr.wk-sub[data-short="'+sup.short+'"]');
-      if(sub){
-        var td = sub.querySelector('td');
-        if(td) td.innerHTML = wkItemsHtml(sup);
-        bindItems(sub, sup);
+      /* 下钻已改为小窗：若该供应商的详情窗开着，就地刷新明细表 */
+      if(WK_DETAIL && WK_DETAIL.short === sup.short && document.body.contains(WK_DETAIL.tw)){
+        WK_DETAIL.tw.innerHTML = wkItemsHtml(sup);
+        bindItems(WK_DETAIL.tw, sup);
       }
     }
     panel.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.onchange = function(){ apply(false); }; });
@@ -18676,67 +18695,92 @@ window.__test = {
       });
   }
 
+  /* 供应商行下钻：弹出「供应商详情」小窗（不再向下展开） */
   function wkToggle(tr){
-    closePanel();
-    var next = tr.nextElementSibling;
-    var arrow = tr.querySelector('.wk-arrow');
-    if(next && next.classList.contains('wk-sub')){ next.remove(); if(arrow) arrow.textContent='▸'; return; }
     var short = tr.getAttribute('data-short');
     var sup = (WK.suppliers||[]).filter(function(x){ return x.short===short; })[0];
     if(!sup) return;
-    var sub = document.createElement('tr');
-    sub.className = 'wk-sub';
-    sub.setAttribute('data-short', short);
-    var td = document.createElement('td');
-    td.colSpan = 5;
-    td.innerHTML = wkItemsHtml(sup);
-    sub.appendChild(td);
-    tr.parentNode.insertBefore(sub, tr.nextSibling);
-    bindItems(sub, sup);
-    if(arrow) arrow.textContent='▾';
+    var items = (sup.items||[]).slice().sort(function(a,b){ return (b.qty||0)-(a.qty||0); });
+    var supName = sup.name || sup.short;
+    var m = wkModal('供应商详情 · ' + supName, function(bd, bExp, mask){
+      var skuSet = {}, docSet = {}, buySet = {}, sum = 0;
+      items.forEach(function(it){
+        if(it.sku) skuSet[it.sku] = 1;
+        if(it.doc) docSet[it.doc] = 1;
+        if(it.buyer) buySet[it.buyer] = 1;
+        sum += (it.qty||0);
+      });
+      wkStatCards(bd, [
+        { v: Object.keys(skuSet).length, l: 'SKU' },
+        { v: nf(sum), l: '待下单量' },
+        { v: items.length, l: '行数' },
+        { v: Object.keys(docSet).length, l: '单据' }
+      ]);
+      var tw = document.createElement('div');
+      tw.className = 'tw';
+      tw.innerHTML = wkItemsHtml(sup);
+      bd.appendChild(tw);
+      bindItems(tw, sup);
+      WK_DETAIL = { short: sup.short, tw: tw, _mask: mask };
+      /* 导出明细：与窗口所见一致（受列筛选影响），列序与示例一致 */
+      bExp.onclick = function(){
+        var f = WK_FIELD[sup.short] || {};
+        var list = items.filter(function(it){
+          for(var k in f){
+            var set = f[k];
+            if(set && set.size && !set.has(String(it[k]==null?'':it[k]))) return false;
+          }
+          return true;
+        }).map(function(it){ return { it: it, supName: supName }; });
+        wkExportDetail(list, '供应商明细_' + wkSafe(supName));
+      };
+    });
   }
 
-  /* 采购员汇总行下钻：展开该采购员（含「（未填写）」）名下全部待下单明细 */
+  /* 采购员汇总行下钻：弹出「采购员详情」小窗（含「（未填写）」，不再向下展开） */
   function wkBuyerToggle(tr){
-    closePanel();
-    var next = tr.nextElementSibling;
-    var arrow = tr.querySelector('.wk-arrow');
-    if(next && next.classList.contains('wk-sub')){ next.remove(); if(arrow) arrow.textContent='▸'; return; }
     var b = tr.getAttribute('data-buyer');
     var agg = WK_BUYER_AGG[b];
     if(!agg) return;
-    var sub = document.createElement('tr');
-    sub.className = 'wk-sub';
-    sub.setAttribute('data-buyer', b);
-    var td = document.createElement('td');
-    td.colSpan = 8;
-    td.innerHTML = buyerItemsHtml(agg);
-    sub.appendChild(td);
-    tr.parentNode.insertBefore(sub, tr.nextSibling);
-    if(arrow) arrow.textContent='▾';
+    var items = (agg.items||[]).slice().sort(function(a,b){ return (b.it.qty||0)-(a.it.qty||0); });
+    wkModal('采购员详情 · ' + b, function(bd, bExp){
+      wkStatCards(bd, [
+        { v: Object.keys(agg.skus||{}).length, l: 'SKU' },
+        { v: nf(agg.qty), l: '待下单量' },
+        { v: Object.keys(agg.sups||{}).length, l: '供应商' },
+        { v: Object.keys(agg.docs||{}).length, l: '单据' }
+      ]);
+      var tw = document.createElement('div');
+      tw.className = 'tw';
+      tw.innerHTML = buyerItemsHtml(agg);
+      bd.appendChild(tw);
+      /* 导出明细：列序与示例一致，含供应商列 */
+      bExp.onclick = function(){
+        wkExportDetail(items, '采购员明细_' + wkSafe(b));
+      };
+    });
   }
 
   function buyerItemsHtml(agg){
     var items = (agg.items||[]).slice().sort(function(a,b){ return (b.it.qty||0)-(a.it.qty||0); });
-    var h = '<div style="max-height:320px;overflow:auto;padding:6px 8px">'
-      + '<table class="wk wk-items"><colgroup>'
-      + '<col style="width:140px"><col style="width:52px"><col style="width:150px"><col style="width:120px">'
-      + '<col style="width:90px"><col style="width:70px"><col><col style="width:80px">'
+    var h = '<table class="wk wk-items"><colgroup>'
+      + '<col style="width:152px"><col style="width:96px"><col style="width:150px"><col style="width:52px">'
+      + '<col><col style="width:76px"><col style="width:130px"><col style="width:84px">'
       + '</colgroup><thead><tr>'
-      + '<th>SKU</th><th>SPU</th><th>规格型号</th><th>申请单号</th><th>申请日期</th>'
+      + '<th>申请单号</th><th>申请日期</th><th>物料编码</th><th>SPU</th><th>规格型号</th>'
       + '<th style="text-align:right">数量</th><th>供应商</th><th>运营</th></tr></thead><tbody>';
     items.forEach(function(x){
       var it = x.it;
-      h += '<tr><td class="mono" style="font-family:Consolas,monospace">'+esc(it.sku||'')+'</td>'
+      h += '<tr><td class="mono" style="color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(it.doc||'')+'">'+esc(it.doc||'—')+'</td>'
+        + '<td style="color:var(--muted);white-space:nowrap">'+esc(it.date||'—')+'</td>'
+        + '<td class="mono" style="font-family:Consolas,monospace;font-weight:700">'+esc(it.sku||'')+'</td>'
         + '<td style="color:var(--muted)">'+esc(it.spu||'')+'</td>'
         + '<td class="spec-cell">'+esc(it.spec||'')+'</td>'
-        + '<td style="color:var(--muted)">'+esc(it.doc||'')+'</td>'
-        + '<td style="color:var(--muted)">'+esc(it.date||'')+'</td>'
         + '<td style="text-align:right">'+nf(it.qty||0)+'</td>'
         + '<td>'+esc(x.supName||'')+'</td>'
         + '<td style="color:var(--muted)">'+esc(it.ling||'')+'</td></tr>';
     });
-    h += '</tbody></table></div>';
+    h += '</tbody></table>';
     return h;
   }
 
@@ -18762,6 +18806,65 @@ window.__test = {
     var a = document.createElement('a'); a.href = url; a.download = filename;
     document.body.appendChild(a); a.click();
     setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+  }
+  function wkSafe(s){ return String(s==null?'':s).replace(/[\\\/:*?"<>|]/g,'_').slice(0,40); }
+
+  /* ---------- 详情小窗：下钻改为弹窗（样式对齐「供应商详情」大弹窗） ---------- */
+  function wkModal(title, build){
+    closePanel();
+    var mask = document.createElement('div');
+    mask.className = 'mask';
+    var dlg = document.createElement('div');
+    dlg.className = 'dlg lg';
+    var hd = document.createElement('div'); hd.className = 'dlg-hd'; hd.textContent = title;
+    var bd = document.createElement('div'); bd.className = 'dlg-bd';
+    var ft = document.createElement('div'); ft.className = 'dlg-ft';
+    function close(){
+      if(mask.parentNode) mask.parentNode.removeChild(mask);
+      if(WK_DETAIL && WK_DETAIL._mask === mask) WK_DETAIL = null;
+    }
+    var bExp = document.createElement('button'); bExp.className = 'btn'; bExp.textContent = '导出明细';
+    var bCls = document.createElement('button'); bCls.className = 'btn'; bCls.textContent = '关闭';
+    bCls.onclick = close;
+    ft.appendChild(bExp); ft.appendChild(bCls);
+    dlg.appendChild(hd); dlg.appendChild(bd); dlg.appendChild(ft);
+    mask.appendChild(dlg);
+    mask.onclick = function(e){ if(e.target === mask) close(); };
+    document.body.appendChild(mask);
+    if(build) build(bd, bExp, mask);
+    return { bd: bd, close: close, _mask: mask };
+  }
+  /* 指标卡（同供应商详情弹窗：大数字 + 等宽小标签，右侧细分隔线） */
+  function wkStatCards(bd, cards){
+    var stats = document.createElement('div');
+    stats.style.cssText = 'display:flex;gap:10px;margin:0 0 12px;flex-wrap:wrap;flex:none';
+    cards.forEach(function(d){
+      var c = document.createElement('div'); c.className = 'stat';
+      c.style.cssText = 'flex:1;min-width:96px;border-bottom:none';
+      var v = document.createElement('div'); v.className = 'stat-v'; v.textContent = d.v;
+      var l = document.createElement('div'); l.className = 'stat-l'; l.textContent = d.l;
+      c.appendChild(v); c.appendChild(l);
+      stats.appendChild(c);
+    });
+    bd.appendChild(stats);
+  }
+  /* 按供应商/采购员维度导出明细（列序与示例一致） */
+  function wkExportDetail(list, fileTag){
+    var rows = [['申请单号','物料编码','SPU','规格型号','申请日期','数量','采购员','供应商','运营名称','备注']];
+    (list||[]).forEach(function(x){
+      var it = x.it || x, supName = x.supName || '';
+      rows.push([it.doc||'', it.sku||'', it.spu||'', it.spec||'', it.date||'', Number(it.qty)||0,
+        it.buyer||'', supName, it.ling||'', '']);
+    });
+    if(rows.length <= 1){ wkToast('没有可导出的明细', 'err'); return; }
+    if(typeof XLSX === 'undefined'){ wkToast('Excel 组件未加载，请刷新页面重试', 'err'); return; }
+    var wb = { SheetNames: ['下单明细'], Sheets: {} };
+    wb.Sheets['下单明细'] = XLSX.utils.aoa_to_sheet(rows);
+    wb.Sheets['下单明细']['!cols'] = [{wch:16},{wch:18},{wch:7},{wch:28},{wch:11},{wch:9},{wch:9},{wch:32},{wch:10},{wch:16}];
+    var out = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    wkDownload(out, fileTag + '_' + wkStamp() + '.xlsx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    wkToast('已导出 ' + (rows.length - 1) + ' 行明细');
   }
   /* 数据准备：受当前申请日期 / 核心·普通 / 搜索筛选影响（与页面所见一致），阈值不影响导出 */
   function wkExportRows(){
