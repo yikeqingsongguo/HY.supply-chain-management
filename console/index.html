@@ -1280,7 +1280,11 @@ table.wk td b{white-space:nowrap}
     <div class="card-bd" id="wkSummary"></div>
   </div>
   <div class="card">
-    <div class="card-hd"><h3>采购员汇总</h3><span class="hint">按采购员统计待下单数量总和（受申请日期与核心/普通筛选影响）</span></div>
+    <div class="card-hd" style="display:flex;align-items:center;gap:10px">
+      <h3 style="margin:0">采购员汇总</h3>
+      <span class="hint">点击行可下钻明细（受申请日期与核心/普通筛选影响）</span>
+      <button class="btn" id="wkExportExcel" style="margin-left:auto;white-space:nowrap">导出 Excel</button>
+    </div>
     <div class="card-bd" id="wkBuyerSummary"></div>
   </div>
 </div>
@@ -15693,7 +15697,7 @@ function saveUnmatchRowByKey(key) {
     /* 先通知待下单模块移除已补录 SKU（改 __wkPendingSkus），再刷新面板，
        否则刚保存的行会残留在补录列表里，看起来像「填了没保存」。 */
     plan.forEach(function (p) {
-      if (window.__wkOnMappingSaved) window.__wkOnMappingSaved(Core.normSKU(p.k), p.sn || '', p.sup || '');
+      if (window.__wkOnMappingSaved) window.__wkOnMappingSaved(Core.normSKU(p.k), p.sn || '', p.sup || '', p.buy || '');
     });
     runMatch(); runCheck();
     refreshAll();
@@ -18278,6 +18282,7 @@ window.__test = {
   <div class="bn-item" data-tab="unmatch"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>补录</div>
   <div class="bn-item" data-tab="check"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>核查</div>
 </nav>
+<script src="../vendor/xlsx.full.min.js"></script>
 <script id="dash-auto-js">
 (function(){
   var WK = null;
@@ -18287,7 +18292,8 @@ window.__test = {
   var WK_PANEL = null;
   var WK_SEL = {};            // { "doc|sku": true }
   var WK_DATE = { from:'', to:'' };   // 申请日期区间（按申请单创建日期）
-  var LOCAL_MAP = {};         // { sku: {short, name} }
+  var LOCAL_MAP = {};         // { sku: {short, name, buyer} }
+  var WK_BUYER_AGG = {};      // 最新一次采购员汇总（供下钻明细）
   var LS_KEY = 'wk_sup_map_v1';
   var COLS = [
     {key:'sku',  label:'SKU',        w:138},
@@ -18322,7 +18328,7 @@ window.__test = {
   }
 
   // 供「未匹配补录」页调用：保存成功后立刻生效
-  window.__wkOnMappingSaved = function(normKey, short, name){
+  window.__wkOnMappingSaved = function(normKey, short, name, buyer){
     var k = String(normKey || '').toUpperCase();
     if(!k) return;
     var done = loadDone(); done[k] = Date.now(); saveDone(done);
@@ -18334,13 +18340,16 @@ window.__test = {
       return true;
     });
 
-    if(short){
+    if(short || buyer){
       var key = rawSku || normKey;
-      LOCAL_MAP[key] = {short: short, name: name || short};
+      var cur = LOCAL_MAP[key] || {};
+      if(short){ cur.short = short; cur.name = name || short; }
+      if(buyer){ cur.buyer = buyer; }
+      LOCAL_MAP[key] = cur;
       saveLocal();
-      if(WK){ rebuild(); wkRender(); fillAssignSelect(); }
+      rebuild(); wkRender(); fillAssignSelect();
     }
-    try{ toast('已补录：' + (short || k) + '，待下单已同步'); }catch(e){}
+    try{ toast('已补录：' + (short || buyer || k) + '，待下单已同步'); }catch(e){}
   };
 
   function loadApply(){
@@ -18381,6 +18390,8 @@ window.__test = {
         if(!inRange(it.date)) return;
         var ov = LOCAL_MAP[it.sku];
         var short = ov ? ov.short : s.short;
+        /* 补录填写的采购员优先于源数据（否则采购员汇总里永远挂「（未填写）」） */
+        var buyer = (ov && ov.buyer) ? ov.buyer : it.buyer;
         var meta = base[short] || {name:(ov&&ov.name)||short, core:false, pending:short==='待填写'};
         var g = groups[short];
         if(!g){
@@ -18391,8 +18402,8 @@ window.__test = {
         if(it.sku) g.skus[it.sku]=1;
         if(it.spu) g.spus[it.spu]=1;
         if(it.doc) g.docs[it.doc]=1;
-        if(it.buyer) g.buyers[it.buyer]=1;
-        g.items.push(it);
+        if(buyer) g.buyers[buyer]=1;
+        g.items.push(buyer && buyer !== it.buyer ? Object.assign({}, it, {buyer:buyer}) : it);
       });
     });
     var arr = Object.keys(groups).filter(function(k){ return groups[k].plan>0; }).map(function(k){
@@ -18685,6 +18696,112 @@ window.__test = {
     if(arrow) arrow.textContent='▾';
   }
 
+  /* 采购员汇总行下钻：展开该采购员（含「（未填写）」）名下全部待下单明细 */
+  function wkBuyerToggle(tr){
+    closePanel();
+    var next = tr.nextElementSibling;
+    var arrow = tr.querySelector('.wk-arrow');
+    if(next && next.classList.contains('wk-sub')){ next.remove(); if(arrow) arrow.textContent='▸'; return; }
+    var b = tr.getAttribute('data-buyer');
+    var agg = WK_BUYER_AGG[b];
+    if(!agg) return;
+    var sub = document.createElement('tr');
+    sub.className = 'wk-sub';
+    sub.setAttribute('data-buyer', b);
+    var td = document.createElement('td');
+    td.colSpan = 8;
+    td.innerHTML = buyerItemsHtml(agg);
+    sub.appendChild(td);
+    tr.parentNode.insertBefore(sub, tr.nextSibling);
+    if(arrow) arrow.textContent='▾';
+  }
+
+  function buyerItemsHtml(agg){
+    var items = (agg.items||[]).slice().sort(function(a,b){ return (b.it.qty||0)-(a.it.qty||0); });
+    var h = '<div style="max-height:320px;overflow:auto;padding:6px 8px">'
+      + '<table class="wk wk-items"><colgroup>'
+      + '<col style="width:140px"><col style="width:52px"><col style="width:150px"><col style="width:120px">'
+      + '<col style="width:90px"><col style="width:70px"><col><col style="width:80px">'
+      + '</colgroup><thead><tr>'
+      + '<th>SKU</th><th>SPU</th><th>规格型号</th><th>申请单号</th><th>申请日期</th>'
+      + '<th style="text-align:right">数量</th><th>供应商</th><th>运营</th></tr></thead><tbody>';
+    items.forEach(function(x){
+      var it = x.it;
+      h += '<tr><td class="mono" style="font-family:Consolas,monospace">'+esc(it.sku||'')+'</td>'
+        + '<td style="color:var(--muted)">'+esc(it.spu||'')+'</td>'
+        + '<td class="spec-cell">'+esc(it.spec||'')+'</td>'
+        + '<td style="color:var(--muted)">'+esc(it.doc||'')+'</td>'
+        + '<td style="color:var(--muted)">'+esc(it.date||'')+'</td>'
+        + '<td style="text-align:right">'+nf(it.qty||0)+'</td>'
+        + '<td>'+esc(x.supName||'')+'</td>'
+        + '<td style="color:var(--muted)">'+esc(it.ling||'')+'</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    return h;
+  }
+
+  /* ---------- 导出 Excel（明细 + 供应商透视，双 sheet） ---------- */
+  function wkStamp(){
+    var d = new Date(), p2 = function(n){ return n<10?'0'+n:''+n; };
+    return ''+d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'-'+p2(d.getHours())+p2(d.getMinutes());
+  }
+  function wkToast(msg, kind){
+    try{
+      var t = document.createElement('div');
+      t.textContent = msg;
+      t.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:99999;'
+        + 'background:'+(kind==='err'?'#DC2626':'#0F6E56')+';color:#fff;padding:8px 16px;border-radius:8px;'
+        + 'font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.18)';
+      document.body.appendChild(t);
+      setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 2600);
+    }catch(e){}
+  }
+  function wkDownload(bytes, filename, mime){
+    var blob = new Blob([bytes], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+  }
+  /* 数据准备：受当前申请日期 / 核心·普通 / 搜索筛选影响（与页面所见一致），阈值不影响导出 */
+  function wkExportRows(){
+    var list = scopeList();
+    var rows1 = [['物料编码','SPU','规格型号','申请单号','申请日期','数量','采购','供应商','运营名称','备注']];
+    var agg = {};
+    list.forEach(function(g){
+      var supName = g.pending ? '待填写' : (g.name || g.short);
+      (g.items||[]).forEach(function(it){
+        rows1.push([it.sku||'', it.spu||'', it.spec||'', it.doc||'', it.date||'', Number(it.qty)||0,
+          it.buyer||'', supName, it.ling||'', '']);
+      });
+      agg[supName] = (agg[supName]||0) + (g.plan||0);
+    });
+    var rows2 = [['供应商全称','数量']];
+    Object.keys(agg).sort(function(a,b){ return agg[b]-agg[a]; }).forEach(function(k){
+      rows2.push([k, Math.round(agg[k]*10)/10]);
+    });
+    rows2.push(['总计', Math.round(list.reduce(function(s,x){ return s + (x.plan||0); },0)*10)/10]);
+    return { rows1: rows1, rows2: rows2 };
+  }
+  function wkExportExcel(){
+    if(!WK){ wkToast('数据还没加载完，稍后再试', 'err'); return; }
+    var d = wkExportRows();
+    if(d.rows1.length <= 1){ wkToast('当前筛选下没有待下单数据', 'err'); return; }
+    if(typeof XLSX === 'undefined'){
+      wkToast('Excel 组件未加载，请刷新页面重试', 'err');
+      return;
+    }
+    var wb = { SheetNames: ['下单明细','供应商汇总'], Sheets: {} };
+    wb.Sheets['下单明细'] = XLSX.utils.aoa_to_sheet(d.rows1);
+    wb.Sheets['下单明细']['!cols'] = [{wch:18},{wch:7},{wch:26},{wch:14},{wch:11},{wch:9},{wch:9},{wch:30},{wch:10},{wch:14}];
+    wb.Sheets['供应商汇总'] = XLSX.utils.aoa_to_sheet(d.rows2);
+    wb.Sheets['供应商汇总']['!cols'] = [{wch:32},{wch:12}];
+    var out = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    wkDownload(out, '待下单汇总_' + wkStamp() + '.xlsx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    wkToast('已导出 ' + (d.rows1.length-1) + ' 行明细 · ' + (d.rows2.length-2) + ' 家供应商');
+  }
+
   function wkTable(el, arr, max, total){
     if(!el) return;
     if(!arr.length){ el.innerHTML = '<div class="hint">本组无供应商</div>'; return; }
@@ -18741,18 +18858,20 @@ window.__test = {
     wkTable(document.getElementById('wkA'), list.filter(function(x){ return x.plan >= thr; }), max, total);
     wkTable(document.getElementById('wkB'), list.filter(function(x){ return x.plan < thr; }), max, total);
 
-    // 采购员维度：待下单数量总和
+    // 采购员维度：待下单数量总和（items 留给下钻明细）
     var buyerAgg = {};
     list.forEach(function(x){
       (x.items||[]).forEach(function(it){
         var b = it.buyer || '（未填写）';
-        var a2 = buyerAgg[b] || (buyerAgg[b] = {qty:0, rows:0, sups:{}, skus:{}, docs:{}});
+        var a2 = buyerAgg[b] || (buyerAgg[b] = {qty:0, rows:0, sups:{}, skus:{}, docs:{}, items:[]});
         a2.qty += (it.qty||0); a2.rows++;
         a2.sups[x.short]=1;
         if(it.sku) a2.skus[it.sku]=1;
         if(it.doc) a2.docs[it.doc]=1;
+        a2.items.push({it:it, supName:(x.pending ? '待填写' : (x.name || x.short))});
       });
     });
+    WK_BUYER_AGG = buyerAgg;
     var buyers = Object.keys(buyerAgg).map(function(k){
       var v=buyerAgg[k];
       return {name:k, qty:Math.round(v.qty*10)/10, rows:v.rows,
@@ -18786,7 +18905,7 @@ window.__test = {
       else {
         var bTotal = buyers.reduce(function(t,x){ return t + x.qty; }, 0);
         var acc2 = 0;
-        bs.innerHTML = '<table class="wk"><thead><tr><th>采购员</th>'
+        bs.innerHTML = '<table class="wk"><thead><tr><th style="width:24px"></th><th>采购员</th>'
           + '<th style="text-align:right;width:120px">待下单总量</th>'
           + '<th style="text-align:right;width:70px">占比</th>'
           + '<th style="text-align:right;width:70px">行数</th>'
@@ -18795,7 +18914,7 @@ window.__test = {
           + '<th style="text-align:right;width:70px">单据</th></tr></thead><tbody>'
           + buyers.map(function(x){
               acc2 += x.qty;
-              return '<tr><td><b>'+x.name+'</b></td>'
+              return '<tr class="wk-row" data-buyer="'+esc(x.name)+'"><td class="wk-arrow">▸</td><td><b>'+esc(x.name)+'</b></td>'
                 + '<td style="text-align:right">'+nf(x.qty)+'</td>'
                 + '<td style="text-align:right">'+(bTotal>0?(x.qty/bTotal*100).toFixed(1):'0.0')+'%</td>'
                 + '<td style="text-align:right;color:var(--muted)">'+x.rows+'</td>'
@@ -18803,10 +18922,11 @@ window.__test = {
                 + '<td style="text-align:right;color:var(--muted)">'+x.sups+'</td>'
                 + '<td style="text-align:right;color:var(--muted)">'+x.docs+'</td></tr>';
             }).join('')
-          + '<tr class="wk-total"><td>合计 <span class="muted">'+buyers.length+' 人</span></td>'
+          + '<tr class="wk-total"><td></td><td>合计 <span class="muted">'+buyers.length+' 人</span></td>'
           + '<td style="text-align:right">'+nf(bTotal)+'</td><td style="text-align:right">100.0%</td>'
           + '<td colspan="4"></td></tr>'
           + '</tbody></table>';
+        bs.querySelectorAll('tr.wk-row').forEach(function(tr){ tr.onclick = function(){ wkBuyerToggle(tr); }; });
       }
     }
     updateSelBar();
@@ -18845,6 +18965,8 @@ window.__test = {
 
       var inp = document.getElementById('wkThr');
       if(inp){ inp.oninput = wkRender; }
+      var eb = document.getElementById('wkExportExcel');
+      if(eb){ eb.onclick = wkExportExcel; }
       var df=document.getElementById('wkDateFrom'), dt2=document.getElementById('wkDateTo');
       function applyDate(){ WK_DATE.from=df?df.value:''; WK_DATE.to=dt2?dt2.value:''; rebuild(); WK_SEL={}; wkRender(); fillAssignSelect(); }
       if(df) df.onchange=applyDate;
