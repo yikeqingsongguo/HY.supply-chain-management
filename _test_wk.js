@@ -83,8 +83,12 @@ const A = (c, msg) => { if (!c) { console.log('FAIL:', msg); process.exitCode = 
   A(!!mask && /（未填写）/.test(dlgTitle), '小窗标题含采购员名（未填写）');
   const dlgTable = mask ? mask.querySelector('.dlg-bd table') : null;
   A(!!dlgTable && dlgTable.querySelectorAll('tbody tr').length > 0, '小窗含明细表（' + (dlgTable ? dlgTable.querySelectorAll('tbody tr').length : 0) + ' 行）');
-  A(!!dlgTable && /申请单号/.test(dlgTable.innerHTML) && /规格型号/.test(dlgTable.innerHTML) && /供应商/.test(dlgTable.innerHTML), '小窗列头含 申请单号/规格型号/供应商');
-  A(mask.querySelectorAll('.dlg-bd th button.wk-fil').length === 7, '采购员详情各列均有筛选按钮（' + mask.querySelectorAll('.dlg-bd th button.wk-fil').length + ' 个）');
+  const headTxt = dlgTable ? Array.prototype.slice.call(dlgTable.querySelectorAll('th')).map(t => t.textContent.replace(/▾/g, '').trim()).join('/') : '';
+  A(/SKU/.test(headTxt) && /SPU/.test(headTxt) && /物料名称/.test(headTxt) && /规格/.test(headTxt)
+    && /采购员/.test(headTxt) && /申请单号/.test(headTxt) && /供应商名称/.test(headTxt)
+    && /创建日期/.test(headTxt) && /领星创建人/.test(headTxt) && /备注/.test(headTxt) && /待下单/.test(headTxt),
+    '采购员详情列与供应商详情统一（11 列）：' + headTxt);
+  A(mask.querySelectorAll('.dlg-bd th button.wk-fil').length === 10, '采购员详情除待下单外各列均有筛选按钮（' + mask.querySelectorAll('.dlg-bd th button.wk-fil').length + ' 个）');
   const specTd = mask.querySelector('.dlg-bd td.spec-cell');
   A(!!specTd && specTd.textContent.length <= 6 && !!specTd.getAttribute('title'), '规格型号仅显示前 5 字符且悬停有全文（' + (specTd ? specTd.textContent : '') + '）');
   // 小窗按钮：导出明细 + 关闭
@@ -137,6 +141,29 @@ const A = (c, msg) => { if (!c) { console.log('FAIL:', msg); process.exitCode = 
   A(/data-buyer="梁成杰"/.test(html2), '补录采购员「梁成杰」后汇总出现该采购员行');
   const localMap = JSON.parse(w.localStorage.getItem('wk_sup_map_v1') || '{}');
   A(localMap['VYGJZ011203'] && localMap['VYGJZ011203'].buyer === '梁成杰', 'localStorage wk_sup_map_v1 已记录 buyer');
+
+  // 映射表（主模块）→ 待下单：填了简称/采购员必须立刻生效，不再各存一份
+  const st0 = w.__test.state();
+  const wkWraw = JSON.parse(JSON.stringify(st0));
+  // 找一个当前仍在「（未填写）」里的 SKU，模拟在映射表补录
+  const pendItem = (w.__wkPendingSkus || [])[0];
+  if (pendItem) {
+    const before2 = bs.innerHTML;
+    st0.mapping.push({
+      sku: pendItem.sku, shortName: '测试厂', supplier: '测试皮具有限公司', buyer: '测试采购员', price: ''
+    });
+    w.__wkRefreshFromMap();
+    await sleep(300);
+    const after2 = bs.innerHTML;
+    A(/data-buyer="测试采购员"/.test(after2), '映射表补录采购员后，采购员汇总立即出现该采购员');
+    A(after2 !== before2, '映射表补录后待下单汇总已重算（不再是补录前的内容）');
+    // 还原
+    st0.mapping.pop();
+    w.__wkRefreshFromMap();
+    await sleep(200);
+  } else {
+    A(true, '映射表补录联动（当前无待补录 SKU，跳过）');
+  }
 
   // 导出 Excel（多分表）
   const btn = w.document.getElementById('wkExportExcel');

@@ -301,6 +301,9 @@ tr.grp-row.unm td{background:#FBE9E9 !important;border-top:1px solid var(--dange
 @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .mask{position:fixed;inset:0;background:rgba(17,17,17,.55);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto}
 .dlg{background:var(--card);border:1px solid #111;box-shadow:8px 8px 0 0 #111;max-width:440px;width:100%;overflow:hidden;max-height:88vh;display:flex;flex-direction:column}
+/* 弹窗高度不超过视口：内容在 .dlg-bd 内部滚动，底部「导出明细/关闭」始终可见 */
+.mask>.dlg{max-height:calc(100vh - 24px)}
+.mask>.dlg.lg{max-height:calc(100vh - 24px)}
 .dlg-hd{padding:15px 17px 0;font-family:var(--serif);font-weight:900;font-size:17px}
 .dlg-bd{padding:11px 17px 15px;font-size:13.5px;color:var(--text2);line-height:1.65;overflow:auto}
 .dlg-ft{padding:11px 17px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--line);background:#F0F0F0}
@@ -763,6 +766,9 @@ table.wk-items td.wk-ck input{width:15px;height:15px;cursor:pointer}
 .wk-assignbar.on{display:flex}
 .wk-assignbar b{font-size:13px}
 .wk-assign-mask{position:fixed;inset:0;background:rgba(30,20,50,.14);z-index:10000;overflow:auto}
+/* 统计汇总 / 采购员汇总 并列两列 */
+.wk-duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:1180px){.wk-duo{grid-template-columns:1fr}}
 .wk-assign{position:absolute;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(50,30,90,.28);width:380px;padding:20px 22px}
 /* 指定供应商：简称联想候选 */
 .wk-sug{display:none;margin-top:6px;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;box-shadow:0 8px 22px rgba(50,30,90,.12)}
@@ -1287,17 +1293,20 @@ table.wk td b{white-space:nowrap}
     <div class="card-hd"><h3>表 B · 待下单 &lt; <span id="wkThrB">5,000</span></h3><span class="hint">点击行展开该供应商 SKU 明细</span></div>
     <div class="card-bd" id="wkB"></div>
   </div>
-  <div class="card">
-    <div class="card-hd"><h3>统计汇总</h3><span class="hint">按供应商与待下单总数</span></div>
-    <div class="card-bd" id="wkSummary"></div>
-  </div>
-  <div class="card">
-    <div class="card-hd" style="display:flex;align-items:center;gap:10px">
-      <h3 style="margin:0">采购员汇总</h3>
-      <span class="hint">点击行可下钻明细（受创建日期与核心/普通筛选影响）</span>
-      <button class="btn" id="wkExportExcel" style="margin-left:auto;white-space:nowrap">导出 Excel</button>
+  <!-- 统计汇总 + 采购员汇总 左右并列，各占一半宽度 -->
+  <div class="wk-duo">
+    <div class="card">
+      <div class="card-hd"><h3>统计汇总</h3><span class="hint">按供应商与待下单总数</span></div>
+      <div class="card-bd" id="wkSummary"></div>
     </div>
-    <div class="card-bd" id="wkBuyerSummary"></div>
+    <div class="card">
+      <div class="card-hd" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h3 style="margin:0">采购员汇总</h3>
+        <span class="hint">点击行可下钻明细（受创建日期与核心/普通筛选影响）</span>
+        <button class="btn" id="wkExportExcel" style="margin-left:auto;white-space:nowrap">导出 Excel</button>
+      </div>
+      <div class="card-bd" id="wkBuyerSummary"></div>
+    </div>
   </div>
 </div>
 
@@ -1843,10 +1852,19 @@ table.wk td b{white-space:nowrap}
     return (c ^ 0xFFFFFFFF) >>> 0;
   }
 
-  function sheetXML(data) {
+  function sheetXML(data, cols) {
     var parts = [];
     parts.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
-    parts.push('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>');
+    parts.push('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">');
+    if (cols && cols.length) {
+      parts.push('<cols>');
+      for (var q = 0; q < cols.length; q++) {
+        var wid = Number(cols[q]) || 10;
+        parts.push('<col min="' + (q + 1) + '" max="' + (q + 1) + '" width="' + wid + '" customWidth="1"/>');
+      }
+      parts.push('</cols>');
+    }
+    parts.push('<sheetData>');
     for (var r = 0; r < data.length; r++) {
       var row = data[r] || [];
       parts.push('<row r="' + (r + 1) + '">');
@@ -1879,50 +1897,8 @@ table.wk td b{white-space:nowrap}
     return s;
   }
 
-  /* data: 二维数组；sheetName: 工作表名 → 返回 Uint8Array（.xlsx） */
-  function buildXLSX(data, sheetName) {
-    var files = [];
-    function add(name, content) {
-      var u = (typeof content === 'string') ? utf8encode(content) : content;
-      files.push({ name: name, data: u });
-    }
-    var ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-      '<Default Extension="xml" ContentType="application/xml"/>' +
-      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
-      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
-      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
-      '</Types>';
-    var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
-      '</Relationships>';
-    var wb = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-      '<sheets><sheet name="' + xmlEsc(sheetName || 'Sheet1') + '" sheetId="1" r:id="rId1"/></sheets></workbook>';
-    var wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
-      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
-      '</Relationships>';
-    var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-      '<fonts count="1"><font><sz val="11"/><color theme="1"/><name val="Calibri"/></font></fonts>' +
-      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
-      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-      '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
-      '</styleSheet>';
-
-    add('[Content_Types].xml', ct);
-    add('_rels/.rels', rels);
-    add('xl/workbook.xml', wb);
-    add('xl/_rels/workbook.xml.rels', wbRels);
-    add('xl/styles.xml', styles);
-    add('xl/worksheets/sheet1.xml', sheetXML(data));
-
-    // 组装 zip（全部 stored）
+  /* 把 {name,data} 列表打成 stored zip（xlsx 容器） */
+  function zipStore(files) {
     var total = 0, i;
     var chunks = [], central = [], offset = 0;
     for (i = 0; i < files.length; i++) {
@@ -1989,6 +1965,108 @@ table.wk td b{white-space:nowrap}
     for (i = 0; i < central.length; i++) { out.set(central[i], ptr); ptr += central[i].length; }
     out.set(eocd, ptr);
     return out;
+  }
+
+  /* data: 二维数组；sheetName: 工作表名 → 返回 Uint8Array（.xlsx） */
+  function buildXLSX(data, sheetName) {
+    var files = [];
+    function add(name, content) {
+      var u = (typeof content === 'string') ? utf8encode(content) : content;
+      files.push({ name: name, data: u });
+    }
+    var ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      '</Types>';
+    var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>';
+    var wb = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets><sheet name="' + xmlEsc(sheetName || 'Sheet1') + '" sheetId="1" r:id="rId1"/></sheets></workbook>';
+    var wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+      '</Relationships>';
+    var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<fonts count="1"><font><sz val="11"/><color theme="1"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
+      '</styleSheet>';
+
+    add('[Content_Types].xml', ct);
+    add('_rels/.rels', rels);
+    add('xl/workbook.xml', wb);
+    add('xl/_rels/workbook.xml.rels', wbRels);
+    add('xl/styles.xml', styles);
+    add('xl/worksheets/sheet1.xml', sheetXML(data));
+
+    return zipStore(files);
+  }
+
+  /* 多工作表版本（不依赖任何外部库，避免 CDN/静态资源缺失时导出失败）
+   * sheets: [{ name, data: 二维数组, cols: [列宽...] }] → Uint8Array（.xlsx） */
+  function buildXLSXBook(sheets) {
+    sheets = (sheets || []).filter(function (s) { return s && s.data; });
+    if (!sheets.length) throw new Error('no sheet');
+    var files = [];
+    function add(name, content) {
+      files.push({ name: name, data: (typeof content === 'string') ? utf8encode(content) : content });
+    }
+    var n = sheets.length;
+    var ctParts = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'];
+    var sheetTags = [], sheetRels = [];
+    for (var i = 0; i < n; i++) {
+      ctParts.push('<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>');
+      sheetTags.push('<sheet name="' + xmlEsc(String(sheets[i].name || ('Sheet' + (i + 1))).slice(0, 31)) +
+        '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>');
+      sheetRels.push('<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>');
+    }
+    ctParts.push('</Types>');
+    var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>';
+    var wb = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets>' + sheetTags.join('') + '</sheets></workbook>';
+    var wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      sheetRels.join('') +
+      '<Relationship Id="rId' + (n + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+      '</Relationships>';
+    var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<fonts count="1"><font><sz val="11"/><color theme="1"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
+      '</styleSheet>';
+
+    add('[Content_Types].xml', ctParts.join(''));
+    add('_rels/.rels', rels);
+    add('xl/workbook.xml', wb);
+    add('xl/_rels/workbook.xml.rels', wbRels);
+    add('xl/styles.xml', styles);
+    for (var k = 0; k < n; k++) {
+      add('xl/worksheets/sheet' + (k + 1) + '.xml', sheetXML(sheets[k].data, sheets[k].cols));
+    }
+    return zipStore(files);
   }
 
   function buildCSV(data) {
@@ -2335,7 +2413,10 @@ table.wk td b{white-space:nowrap}
           tg.blockedLines++;               // 整行按未下单
           blockedOrder++;
         } else if (ar.remainQty < 0) {
-          tg.orderQty += ar.qty;           // 超量：仍计入已下单量
+          /* 剩余 = 申请 - 已下单  ⇒  已下单 = 申请 - 剩余。
+             剩余为负说明下超了：已下单量必须大于申请量，否则
+             「申请 194 / 已下单 194 / 剩余 -6」三个数对不上。 */
+          tg.orderQty += (ar.qty - ar.remainQty);
           tg.overLines++;
           tg.overQty += (-ar.remainQty);   // 超出的数量
           overOrder++;
@@ -2372,7 +2453,8 @@ table.wk td b{white-space:nowrap}
       var supplier = pickTop(it.suppliers);
       var lingxingCreator = pickTop(it.lingxingCreators);
       var type = 'ok';
-      if (diff <= 0) type = 'ok';
+      if (diff < 0) type = 'over';                        // 超下单（剩余为负）
+      else if (diff === 0) type = 'ok';
       else if (it.orderQty <= 0) type = 'not_ordered';   // 未下单
       else type = 'partial';                              // 数量不足
       rows.push({
@@ -2460,7 +2542,7 @@ table.wk td b{white-space:nowrap}
     normDate: normDate, serialToDate: serialToDate, todayStr: todayStr,
     parseCSV: parseCSV, parseXLSX: parseXLSX, splitHeader: splitHeader,
     trimEmptyRows: trimEmptyRows,
-    buildXLSX: buildXLSX, buildCSV: buildCSV,
+    buildXLSX: buildXLSX, buildXLSXBook: buildXLSXBook, buildCSV: buildCSV,
     inflateRaw: inflateRaw, readZip: readZip,
     detectColumns: detectColumns, ROLE_DEFS: ROLE_DEFS,
     isExcluded: isExcluded,
@@ -13980,11 +14062,13 @@ function filteredCheckRows() {
        不再叠加「仅看有差异」——超量行的 diffQty<=0，叠加后必然是空集，
        这正是「表里有剩余<0 的数据却筛不出来」的原因。 */
     if (!rem) {
-      if (f === 'diff' && r.diffQty <= 0) return false;
+      /* 「有差异」= 申请量与已下单量不相等：正数=待补下单，负数=超下单。
+         之前用 diffQty<=0 过滤，超下单行(diff<0)在「查看全部」里被整体丢掉。 */
+      if (f === 'diff' && r.diffQty === 0) return false;
       if (f === 'not_ordered' && r.gapType !== 'not_ordered') return false;
       if (f === 'partial' && r.gapType !== 'partial') return false;
+      if (f === 'over' && r.gapType !== 'over' && !(r.overQty > 0)) return false;
     }
-    if (f === 'over' && !(r.overQty > 0)) return false;
     /* 顶部快速筛选：工厂/供应商、采购员 */
     if (supF && r.supplier !== supF) return false;
     if (buyF && r.buyer !== buyF) return false;
@@ -16754,7 +16838,7 @@ function renderCheckTable() {
   page.forEach(function (r) {
     var tr = el('tr');
     var tdT = el('td');
-    if (r.overQty > 0) tdT.appendChild(el('span', 'bdg blue', '超量 ' + fmtNum(r.overQty)));
+    if (r.diffQty < 0) tdT.appendChild(el('span', 'bdg blue', '超下单 ' + fmtNum(-r.diffQty)));
     else if (r.diffQty > 0) tdT.appendChild(el('span', 'bdg ' + (r.gapType === 'not_ordered' ? 'red' : 'amber'), r.gapType === 'not_ordered' ? '未下单' : '数量不足'));
     else tdT.appendChild(el('span', 'bdg green', '充足'));
     tr.appendChild(tdT);
@@ -16773,6 +16857,7 @@ function renderCheckTable() {
     tr.appendChild(el('td', 'num', r.realRemain === null || r.realRemain === undefined ? '—' : fmtNum(r.realRemain)));
     var tdD = el('td', 'num');
     if (r.diffQty > 0) { var bb = el('b', null, fmtNum(r.diffQty)); bb.style.color = 'var(--danger)'; tdD.appendChild(bb); }
+    else if (r.diffQty < 0) { var bo = el('b', null, fmtNum(r.diffQty)); bo.style.color = 'var(--primary)'; tdD.appendChild(bo); }
     else tdD.textContent = '0';
     tr.appendChild(tdD);
     tr.appendChild(el('td', null, r.buyer || '—'));
@@ -16804,6 +16889,8 @@ function refreshAll() {
   else if (state.tab === 'check') { renderFileInfo('order'); renderColMap('order', ROLES_BY_KIND.order); renderCheckStats(); renderCheckQuickFilters(); renderCheckGroups(); renderCheckTable(); }
   else if (state.tab === 'supplier') renderSupplierPanel();
   else if (state.tab === 'unmatch') renderUnmatchPanel();
+  /* 映射表改动后立刻通知「待下单汇总」重算（否则两边各存一份，映射表填了不生效） */
+  if (window.__wkRefreshFromMap) { try { window.__wkRefreshFromMap(); } catch (e) {} }
 }
 
 /* 只读模式：映射表 / 待下单默认只读，仅管理员口令可解锁编辑 */
@@ -17128,7 +17215,8 @@ function exportTable(kind) {
     sheetName = '漏下单核查';
     data = [['判定', '申请单号', '创建日期', '物料编码', '供应商名称', '领星创建人', '申请量', '已下单量', '剩余数量', '差异数量', '采购员']];
     filteredCheckRows().forEach(function (r) {
-      var judge = r.diffQty > 0 ? (r.gapType === 'not_ordered' ? '未下单' : '数量不足') : '充足';
+      var judge = r.diffQty > 0 ? (r.gapType === 'not_ordered' ? '未下单' : '数量不足')
+                : (r.diffQty < 0 ? '超下单' : '充足');
       var firstNo = (r.nos && r.nos[0]) || '';
       var noCell = r.nos && r.nos.length > 1 ? (firstNo + ' 等 ' + r.nos.length + ' 单') : firstNo;
       data.push([judge, noCell, r.dateMin || '', r.sku, r.supplier, r.lingxingCreator || '',
@@ -18328,6 +18416,7 @@ else boot();
 /* 冒烟测试钩子：只读暴露最小内部接口，不参与业务流程 */
 window.__test = {
   state: function () { return state; },
+  buildMapIndex: buildMapIndex,
   parseFileBuffer: parseFileBuffer,
   onFileChanged: onFileChanged,
   runMatch: runMatch,
@@ -18389,6 +18478,43 @@ window.__test = {
   var LOCAL_MAP = {};         // { sku: {short, name, buyer} }
   var WK_BUYER_AGG = {};      // 最新一次采购员汇总（供下钻明细）
   var WK_DETAIL = null;       // 当前打开的详情小窗（供应商下钻刷新用）
+  /* ---------- 弹窗定位：顶边对齐点击处水平线，且整体不超出视口 ---------- */
+  var LAST_POINTER_Y = null;
+  document.addEventListener('pointerdown', function(e){
+    if (typeof e.clientY === 'number' && e.clientY > 0) LAST_POINTER_Y = e.clientY;
+  }, true);
+
+  function placeModal(node){
+    var dlg = node.querySelector('.dlg');
+    if(!dlg) return;
+    var vh = window.innerHeight || 800;
+    /* 先锁高度上限，再按高度反推可用顶边：保证底边一定在视口内（按钮不被挤出去） */
+    dlg.style.maxHeight = (vh - 32) + 'px';
+    var h = Math.round(dlg.getBoundingClientRect().height) || 0;
+    var y = (LAST_POINTER_Y == null) ? 16 : LAST_POINTER_Y;
+    var top = Math.round(y - 14);
+    if (top < 8) top = 8;
+    var limit = vh - h - 16;
+    if (top > limit) top = Math.max(8, limit);
+    dlg.style.marginTop = top + 'px';
+  }
+  try {
+    new MutationObserver(function(muts){
+      for (var i = 0; i < muts.length; i++) {
+        var nodes = muts[i].addedNodes;
+        for (var j = 0; j < nodes.length; j++) {
+          var n = nodes[j];
+          if (!n || n.nodeType !== 1 || !n.classList) continue;
+          if (n.classList.contains('mask')) {
+            (function(node){
+              requestAnimationFrame(function(){ placeModal(node); setTimeout(function(){ placeModal(node); }, 60); });
+            })(n);
+          }
+        }
+      }
+    }).observe(document.body, { childList: true });
+  } catch (e) {}
+
   var LS_KEY = 'wk_sup_map_v1';
   var COLS = [
     {key:'sku',  label:'SKU',        w:152},
@@ -18427,6 +18553,17 @@ window.__test = {
   }
 
   // 供「未匹配补录」页调用：保存成功后立刻生效
+  /* 映射表页保存后调用：重读映射表并重算待下单（不再各存一份） */
+  window.__wkRefreshFromMap = function(){
+    if (!WK) return;
+    refreshMainMap();
+    rebuild();
+    WK_SEL = {};
+    try { updateSelBar(); } catch (e) {}
+    wkRender();
+    fillAssignSelect();
+  };
+
   window.__wkOnMappingSaved = function(normKey, short, name, buyer){
     var k = String(normKey || '').toUpperCase();
     if(!k) return;
@@ -18470,6 +18607,36 @@ window.__test = {
     }).catch(function(){ if(m) m.textContent='自动载入失败，请点右侧「重新上传」'; });
   }
 
+  // ---------- 映射表（主模块）→ 待下单 的只读索引 ----------
+  /* 单一事实源：映射表填了「简称 / 供应商全称 / 采购员」，待下单必须按它分组。
+     三级匹配（精确 → 剥前缀 → 款号兜底）与映射表页同一套规则。 */
+  var MAIN_MAP = null;
+  function refreshMainMap(){
+    MAIN_MAP = null;
+    try {
+      var t = window.__test;
+      if (!t || !t.buildMapIndex) return;
+      var st = t.state();
+      var idx = t.buildMapIndex();
+      var pfx = (Core && Core.parsePrefixes) ? Core.parsePrefixes((st && st.opts && st.opts.prefixes) || '') : [];
+      MAIN_MAP = function (sku) {
+        var r = Core.lookupSKU(sku, idx, pfx);
+        return r && r.hit ? r.hit : null;
+      };
+    } catch (e) { MAIN_MAP = null; }
+  }
+  function mainMapped(sku){
+    if (!MAIN_MAP) return null;
+    var h = null;
+    try { h = MAIN_MAP(sku); } catch (e) { h = null; }
+    if (!h) return null;
+    var short = String(h.shortName || '').trim();
+    var sup = String(h.supplier || '').trim();
+    var buy = String(h.buyer || '').trim();
+    if (!short && !sup && !buy) return null;
+    return { short: short, name: sup, buyer: buy };
+  }
+
   // ---------- 用本地映射重算分组 ----------
   function rebuild(){
     if(!WK) return;
@@ -18488,10 +18655,12 @@ window.__test = {
       (s.items||[]).forEach(function(it){
         if(!inRange(it.date)) return;
         var ov = LOCAL_MAP[it.sku];
-        var short = ov ? ov.short : s.short;
-        /* 补录填写的采购员优先于源数据（否则采购员汇总里永远挂「（未填写）」） */
-        var buyer = (ov && ov.buyer) ? ov.buyer : it.buyer;
-        var meta = base[short] || {name:(ov&&ov.name)||short, core:false, pending:short==='待填写'};
+        /* 优先级：映射表（单一事实源）> 本机临时指定/补录 > 申请单源数据 */
+        var mv = mainMapped(it.sku);
+        var short = (mv && mv.short) ? mv.short : (ov ? ov.short : s.short);
+        if (!short && mv && mv.name) short = mv.name;      // 只填了全称没填简称
+        var buyer = (mv && mv.buyer) ? mv.buyer : ((ov && ov.buyer) ? ov.buyer : it.buyer);
+        var meta = base[short] || {name:(mv&&mv.name)||(ov&&ov.name)||short, core:false, pending:short==='待填写'};
         var g = groups[short];
         if(!g){
           g = groups[short] = {name:meta.name, short:short, core:!!meta.core, pending:!!meta.pending,
@@ -18959,20 +19128,24 @@ window.__test = {
     });
   }
 
+  /* 采购员详情：列集合与「供应商详情」统一，仅多一列「供应商名称」
+     SKU/SPU/物料名称/规格/采购员/申请单号/供应商名称/创建日期/领星创建人/备注/待下单 */
   function buyerItemsHtml(rows, bf){
     var HEAD = [
-      { k:'doc',     l:'申请单号' },
-      { k:'date',    l:'创建日期' },
-      { k:'sku',     l:'物料编码' },
-      { k:'spu',     l:'SPU' },
-      { k:'spec',    l:'规格型号' },
-      { k:'qty',     l:'数量', num:true },
-      { k:'supName', l:'供应商' },
-      { k:'ling',    l:'运营' }
+      { k:'sku',     l:'SKU',       w:152 },
+      { k:'spu',     l:'SPU',       w:56  },
+      { k:'name',    l:'物料名称',  w:96  },
+      { k:'spec',    l:'规格',      w:0   },
+      { k:'buyer',   l:'采购员',    w:66  },
+      { k:'doc',     l:'申请单号',  w:122 },
+      { k:'supName', l:'供应商名称', w:172 },
+      { k:'date',    l:'创建日期',  w:100 },
+      { k:'ling',    l:'领星创建人', w:84  },
+      { k:'remark',  l:'备注',      w:96  },
+      { k:'qty',     l:'待下单',    w:76, num:true }
     ];
     var h = '<table class="wk wk-items"><colgroup>'
-      + '<col style="width:152px"><col style="width:96px"><col style="width:150px"><col style="width:52px">'
-      + '<col><col style="width:76px"><col style="width:130px"><col style="width:84px">'
+      + HEAD.map(function(c){ return '<col'+(c.w?(' style="width:'+c.w+'px"'):'')+'>'; }).join('')
       + '</colgroup><thead><tr>';
     HEAD.forEach(function(c){
       var on = !!(bf && bf[c.k] && bf[c.k].size);
@@ -18985,20 +19158,24 @@ window.__test = {
     rows.forEach(function(x){
       var it = x.it;
       sum += (it.qty || 0);
-      h += '<tr><td class="mono" style="color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(it.doc||'')+'">'+esc(it.doc||'—')+'</td>'
-        + '<td style="color:var(--muted);white-space:nowrap">'+esc(it.date||'—')+'</td>'
-        + '<td class="mono" style="font-family:Consolas,monospace;font-weight:700">'+esc(it.sku||'')+'</td>'
+      h += '<tr>'
+        + '<td class="mono" title="'+esc(it.sku||'')+'" style="font-family:Consolas,monospace;font-weight:700">'+esc(it.sku||'')+'</td>'
         + '<td style="color:var(--muted)">'+esc(it.spu||'')+'</td>'
+        + '<td title="'+esc(it.name||'')+'">'+esc(it.name||'')+'</td>'
         + '<td class="spec-cell" title="'+esc(it.spec||'')+'">'+esc(cut5(it.spec))+'</td>'
-        + '<td style="text-align:right">'+nf(it.qty||0)+'</td>'
-        + '<td>'+esc(x.supName||'')+'</td>'
-        + '<td style="color:var(--muted)">'+esc(it.ling||'')+'</td></tr>';
+        + '<td>'+esc(it.buyer||'—')+'</td>'
+        + '<td class="mono" style="color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(it.doc||'')+'">'+esc(it.doc||'—')+'</td>'
+        + '<td title="'+esc(x.supName||'')+'" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(x.supName||'—')+'</td>'
+        + '<td style="color:var(--muted);white-space:nowrap">'+esc(it.date||'—')+'</td>'
+        + '<td style="color:var(--muted)">'+esc(it.ling||'')+'</td>'
+        + '<td class="td-remark" title="'+esc(it.remark||'')+'">'+esc(cut5(it.remark))+'</td>'
+        + '<td style="text-align:right">'+nf(it.qty||0)+'</td></tr>';
     });
     if(!rows.length){
-      h += '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
+      h += '<tr><td colspan="'+HEAD.length+'" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
     } else {
-      h += '<tr class="wk-total"><td colspan="5">合计 <span class="muted">'+rows.length+' 行</span></td>'
-        + '<td style="text-align:right">'+nf(sum)+'</td><td colspan="2"></td></tr>';
+      h += '<tr class="wk-total"><td colspan="'+(HEAD.length-1)+'">合计 <span class="muted">'+rows.length+' 行</span></td>'
+        + '<td style="text-align:right">'+nf(sum)+'</td></tr>';
     }
     h += '</tbody></table>';
     return h;
@@ -19077,11 +19254,12 @@ window.__test = {
         it.buyer||'', supName, it.ling||'', it.remark||'']);
     });
     if(rows.length <= 1){ wkToast('没有可导出的明细', 'err'); return; }
-    if(typeof XLSX === 'undefined'){ wkToast('Excel 组件未加载，请刷新页面重试', 'err'); return; }
-    var wb = { SheetNames: ['下单明细'], Sheets: {} };
-    wb.Sheets['下单明细'] = XLSX.utils.aoa_to_sheet(rows);
-    wb.Sheets['下单明细']['!cols'] = [{wch:16},{wch:18},{wch:7},{wch:28},{wch:11},{wch:9},{wch:9},{wch:32},{wch:10},{wch:16}];
-    var out = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    var out;
+    try {
+      out = Core.buildXLSXBook([
+        { name:'下单明细', data:rows, cols:[16,18,7,28,11,9,9,32,10,16] }
+      ]);
+    } catch(e){ wkToast('生成 Excel 失败：' + (e && e.message || e), 'err'); return; }
     wkDownload(out, fileTag + '_' + wkStamp() + '.xlsx',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     wkToast('已导出 ' + (rows.length - 1) + ' 行明细');
@@ -19137,21 +19315,18 @@ window.__test = {
     if(!WK){ wkToast('数据还没加载完，稍后再试', 'err'); return; }
     var d = wkExportRows();
     if(d.rows1.length <= 1){ wkToast('当前筛选下没有待下单数据', 'err'); return; }
-    if(typeof XLSX === 'undefined'){
-      wkToast('Excel 组件未加载，请刷新页面重试', 'err');
-      return;
-    }
     var mapRows = wkMapSheetRows(), chkRows = wkCheckSheetRows();
-    var wb = { SheetNames: ['下单明细','供应商汇总','SKU映射表','历史未下单明细'], Sheets: {} };
-    wb.Sheets['下单明细'] = XLSX.utils.aoa_to_sheet(d.rows1);
-    wb.Sheets['下单明细']['!cols'] = [{wch:18},{wch:18},{wch:7},{wch:28},{wch:11},{wch:9},{wch:9},{wch:30},{wch:10},{wch:14}];
-    wb.Sheets['供应商汇总'] = XLSX.utils.aoa_to_sheet(d.rows2);
-    wb.Sheets['供应商汇总']['!cols'] = [{wch:32},{wch:12}];
-    wb.Sheets['SKU映射表'] = XLSX.utils.aoa_to_sheet(mapRows);
-    wb.Sheets['SKU映射表']['!cols'] = [{wch:20},{wch:10},{wch:32},{wch:9},{wch:10},{wch:17}];
-    wb.Sheets['历史未下单明细'] = XLSX.utils.aoa_to_sheet(chkRows);
-    wb.Sheets['历史未下单明细']['!cols'] = [{wch:22},{wch:18},{wch:7},{wch:11},{wch:9},{wch:9},{wch:10},{wch:9},{wch:30},{wch:10},{wch:9}];
-    var out = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    /* 用页面内置的 xlsx 生成器（Core.buildXLSXBook），不依赖 vendor/SheetJS：
+       GitHub Pages 曾漏发布 vendor/ → 线上报「Excel 组件未加载」 */
+    var out;
+    try {
+      out = Core.buildXLSXBook([
+        { name:'下单明细',       data:d.rows1,  cols:[18,18,7,28,11,9,9,30,10,14] },
+        { name:'供应商汇总',     data:d.rows2,  cols:[32,12] },
+        { name:'SKU映射表',      data:mapRows,  cols:[20,10,32,9,10,17] },
+        { name:'历史未下单明细', data:chkRows,  cols:[22,18,7,11,9,9,10,9,30,10,9] }
+      ]);
+    } catch(e){ wkToast('生成 Excel 失败：' + (e && e.message || e), 'err'); return; }
     wkDownload(out, '待下单汇总_' + wkStamp() + '.xlsx',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     wkToast('已导出 ' + (d.rows1.length-1) + ' 行明细 · ' + (d.rows2.length-2) + ' 家供应商'
@@ -19315,6 +19490,7 @@ window.__test = {
         return !_keep[String((x && x.sku) || '').toUpperCase()];
       });
       loadLocal();
+      refreshMainMap();          // 先把映射表索引读进来，再分组
       rebuild();
       wkRender();
       fillAssignSelect();

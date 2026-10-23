@@ -37,10 +37,13 @@ jobs:
 
       - name: Stage dashboard + purchasing console
         # 看板单文件 + 原采购管理台（console/ 含 map.json/price.json，供 iframe 同源加载）
+        # vendor/ 必须一起发布：console/index.html 通过 ../vendor/xlsx.full.min.js 引用 SheetJS，
+        # 漏拷会导致线上 404 → 导出按钮报「Excel 组件未加载」。
         run: |
           mkdir -p _site
           cp index.html _site/
           cp -r console _site/console
+          cp -r vendor _site/vendor
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
