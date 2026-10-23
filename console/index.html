@@ -739,6 +739,8 @@ tr.wk-sub table.wk th{background:#FAFAFA;position:sticky;top:0}
 table.wk-items{table-layout:fixed;width:100%}
 table.wk-items th{position:relative}
 table.wk-items td.spec-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+table.wk-items td.td-remark{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+table.wk-items td.mono{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 table.wk-items th .wk-fil{display:inline-block;margin-left:4px;padding:0 4px;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:10px;line-height:14px;border-radius:3px}
 table.wk-items th .wk-fil:hover{background:#EFE9FB;color:#6D28D9}
 table.wk-items th .wk-fil.on{background:#7C3AED;color:#fff}
@@ -18389,15 +18391,15 @@ window.__test = {
   var WK_DETAIL = null;       // 当前打开的详情小窗（供应商下钻刷新用）
   var LS_KEY = 'wk_sup_map_v1';
   var COLS = [
-    {key:'sku',  label:'SKU',        w:138},
+    {key:'sku',  label:'SKU',        w:152},
     {key:'spu',  label:'SPU',        w:56},
-    {key:'name', label:'物料名称',    w:100},
+    {key:'name', label:'物料名称',    w:90},
     {key:'spec', label:'规格',        w:132, cls:'spec-cell'},
     {key:'buyer',label:'采购员',      w:66},
-    {key:'doc',  label:'申请单单号',   w:126},
-    {key:'date', label:'创建日期',    w:92},
+    {key:'doc',  label:'申请单单号',   w:118},
+    {key:'date', label:'创建日期',    w:102},
     {key:'ling', label:'领星创建人',   w:82},
-    {key:'remark',label:'备注',       w:84},
+    {key:'remark',label:'备注',       w:96},
     {key:'qty',  label:'待下单',      w:72, num:true}
   ];
 
