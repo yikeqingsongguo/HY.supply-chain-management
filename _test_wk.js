@@ -84,6 +84,9 @@ const A = (c, msg) => { if (!c) { console.log('FAIL:', msg); process.exitCode = 
   const dlgTable = mask ? mask.querySelector('.dlg-bd table') : null;
   A(!!dlgTable && dlgTable.querySelectorAll('tbody tr').length > 0, '小窗含明细表（' + (dlgTable ? dlgTable.querySelectorAll('tbody tr').length : 0) + ' 行）');
   A(!!dlgTable && /申请单号/.test(dlgTable.innerHTML) && /规格型号/.test(dlgTable.innerHTML) && /供应商/.test(dlgTable.innerHTML), '小窗列头含 申请单号/规格型号/供应商');
+  A(mask.querySelectorAll('.dlg-bd th button.wk-fil').length === 7, '采购员详情各列均有筛选按钮（' + mask.querySelectorAll('.dlg-bd th button.wk-fil').length + ' 个）');
+  const specTd = mask.querySelector('.dlg-bd td.spec-cell');
+  A(!!specTd && specTd.textContent.length <= 6 && !!specTd.getAttribute('title'), '规格型号仅显示前 5 字符且悬停有全文（' + (specTd ? specTd.textContent : '') + '）');
   // 小窗按钮：导出明细 + 关闭
   let dlgBtns = mask ? Array.prototype.slice.call(mask.querySelectorAll('.dlg-ft button')).map(b => b.textContent) : [];
   A(dlgBtns.indexOf('导出明细') >= 0 && dlgBtns.indexOf('关闭') >= 0, '小窗按钮含 导出明细/关闭');
@@ -135,22 +138,44 @@ const A = (c, msg) => { if (!c) { console.log('FAIL:', msg); process.exitCode = 
   const localMap = JSON.parse(w.localStorage.getItem('wk_sup_map_v1') || '{}');
   A(localMap['VYGJZ011203'] && localMap['VYGJZ011203'].buyer === '梁成杰', 'localStorage wk_sup_map_v1 已记录 buyer');
 
-  // 导出 Excel
+  // 导出 Excel（多分表）
   const btn = w.document.getElementById('wkExportExcel');
   btn.click();
-  await sleep(400);
+  await sleep(600);
   A(!!w.__lastBlob && w.__lastBlob.size > 5000, '点击导出生成有效 .xlsx Blob（' + (w.__lastBlob ? w.__lastBlob.size : 0) + ' bytes）');
   if (w.__lastBlob) {
     const buf = Buffer.from(await w.__lastBlob.arrayBuffer());
     A(buf.slice(0, 2).toString() === 'PK', 'Blob 为 zip 签名（.xlsx 容器正确）');
-    const names = [];
-    // 粗扫 zip local file headers 里的 sheet 名
-    const s = buf.toString('latin1');
-    ['xl/worksheets/sheet1.xml', 'xl/worksheets/sheet2.xml', 'xl/workbook.xml'].forEach(n => {
-      if (s.indexOf(n) >= 0) names.push(n);
-    });
-    A(names.length === 3, '包含双 worksheet + workbook 结构（' + names.join(', ') + '）');
+    const XL = require(path.join(HERE, 'vendor', 'xlsx.full.min.js'));
+    const wb = XL.read(buf, { type: 'buffer' });
+    const want = ['下单明细', '供应商汇总', 'SKU映射表', '历史未下单明细'];
+    A(want.every(n => wb.SheetNames.includes(n)), '包含 4 个分表（' + wb.SheetNames.join(' / ') + '）');
+    const a1 = XL.utils.sheet_to_json(wb.Sheets['下单明细'], { header: 1, raw: false });
+    A(a1[0][0] === '申请单号' && a1[0][4] === '创建日期' && a1[0][9] === '备注', '下单明细列序：申请单号→…→创建日期→…→备注');
+    const a3 = XL.utils.sheet_to_json(wb.Sheets['SKU映射表'], { header: 1, raw: false });
+    A(a3.length > 100, 'SKU映射表含数据（' + (a3.length - 1) + ' 行）');
+    const a4 = XL.utils.sheet_to_json(wb.Sheets['历史未下单明细'], { header: 1, raw: false });
+    A(a4[0][0] === '申请单号' && a4[0].length === 11, '历史未下单明细 11 列（' + (a4.length - 1) + ' 行）');
   }
+
+  // 多分表导出后重新载入数据，供后续小窗用例
+  // 只读 / 口令解锁
+  const eb0 = w.document.getElementById('btnEditMode');
+  A(!!eb0 && /只读模式/.test(eb0.textContent), '默认只读模式（编辑按钮显示「只读模式」）');
+  A(!!w.document.querySelector('#tab-map .ro-bar'), '映射表页显示只读提示条');
+  eb0.click();
+  await sleep(150);
+  const pwd = w.document.getElementById('editPwd');
+  A(!!pwd, '点击后弹出管理员口令框');
+  pwd.value = 'wrong';
+  Array.from(w.document.querySelectorAll('.dlg-ft button')).find(b => /解锁/.test(b.textContent)).click();
+  await sleep(150);
+  A(/只读模式/.test(eb0.textContent), '口令错误仍保持只读');
+  pwd.value = 'hy2026';
+  Array.from(w.document.querySelectorAll('.dlg-ft button')).find(b => /解锁/.test(b.textContent)).click();
+  await sleep(250);
+  A(/退出编辑/.test(eb0.textContent), '口令正确后进入编辑模式');
+  A(!w.document.querySelector('#tab-map .ro-bar'), '解锁后只读提示条消失');
 
   // 语法/错误
   A(errors.length === 0, '无致命 JS 错误' + (errors.length ? ' → ' + errors.slice(0, 3).join(' | ') : ''));

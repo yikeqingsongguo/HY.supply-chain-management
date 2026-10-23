@@ -87,6 +87,8 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--text)}
 .todo-item.amber{border-left:4px solid #111;color:var(--text)}
 .todo-item.blue{border-left:4px double #111;color:var(--text2)}
 .todo-empty{color:var(--muted);font-size:13px;padding:2px 0}
+/* 只读提示条（映射表 / 待下单） */
+.ro-bar{margin:10px 0 0;padding:9px 13px;background:#FFF8E6;border:1px solid #F0C36D;border-left:4px solid #D97706;color:#7A4A00;font-size:12.5px;line-height:1.5}
 
 /* ---------- 步骤条（版面导航） ---------- */
 .steps{display:flex;gap:0;margin:14px 0;overflow-x:auto;padding-bottom:2px;border:1px solid var(--line);background:var(--card)}
@@ -297,7 +299,7 @@ tr.grp-row.unm td{background:#FBE9E9 !important;border-top:1px solid var(--dange
 .toast.ok{background:#111;border-left:5px solid #F9F9F7}
 .toast.err{background:var(--danger);border-color:var(--danger)}
 @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.mask{position:fixed;inset:0;background:rgba(17,17,17,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
+.mask{position:fixed;inset:0;background:rgba(17,17,17,.55);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto}
 .dlg{background:var(--card);border:1px solid #111;box-shadow:8px 8px 0 0 #111;max-width:440px;width:100%;overflow:hidden;max-height:88vh;display:flex;flex-direction:column}
 .dlg-hd{padding:15px 17px 0;font-family:var(--serif);font-weight:900;font-size:17px}
 .dlg-bd{padding:11px 17px 15px;font-size:13.5px;color:var(--text2);line-height:1.65;overflow:auto}
@@ -379,10 +381,10 @@ tr.grp-row.unm td{background:#FBE9E9 !important;border-top:1px solid var(--dange
 .sup-chart-wrap{margin:0 0 16px}
 .sup-chart-wrap .chart-cap{font-family:var(--serif);font-weight:900;font-size:14px;color:var(--text);margin:0 0 6px}
 
-/* === 大尺寸弹窗（供应商详情：宽高各占 80%）=== */
-.dlg.lg{max-width:80vw;width:80vw;height:80vh;max-height:80vh}
+/* === 大尺寸弹窗（供应商详情）：宽度 80vw，高度随内容自适应，超出视口才内部滚动 === */
+.dlg.lg{max-width:80vw;width:80vw;height:auto;max-height:calc(100vh - 32px)}
 .dlg.lg .dlg-bd{display:flex;flex-direction:column;flex:1;min-height:0}
-.dlg.lg .dlg-bd .tw{flex:1;min-height:0;overflow:auto}
+.dlg.lg .dlg-bd .tw{flex:0 1 auto;min-height:0;overflow:auto}
 /* 表格里的备注单元格：截断 + 可点击查看全文 */
 .td-note{max-width:200px;cursor:pointer}
 .td-note .note-cut{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
@@ -758,8 +760,15 @@ table.wk-items td.wk-ck input{width:15px;height:15px;cursor:pointer}
   background:#F5F0FF;border:1px solid #DDD6FE;font-size:12.5px;color:#5B21B6}
 .wk-assignbar.on{display:flex}
 .wk-assignbar b{font-size:13px}
-.wk-assign-mask{position:fixed;inset:0;background:rgba(30,20,50,.14);z-index:10000}
+.wk-assign-mask{position:fixed;inset:0;background:rgba(30,20,50,.14);z-index:10000;overflow:auto}
 .wk-assign{position:absolute;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(50,30,90,.28);width:380px;padding:20px 22px}
+/* 指定供应商：简称联想候选 */
+.wk-sug{display:none;margin-top:6px;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;box-shadow:0 8px 22px rgba(50,30,90,.12)}
+.wk-sug-item{display:flex;gap:8px;align-items:baseline;padding:7px 10px;cursor:pointer;font-size:12.5px;border-bottom:1px solid #F1F1F1}
+.wk-sug-item:last-child{border-bottom:none}
+.wk-sug-item:hover{background:#F5F3FF}
+.wk-sug-item b{color:#332F3A;min-width:64px}
+.wk-sug-item span{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wk-assign h4{margin:0 0 4px;font-size:15px;color:#332F3A}
 .wk-assign .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
 .wk-assign label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
@@ -825,6 +834,7 @@ table.wk td b{white-space:nowrap}
   </div>
   <div class="spacer" style="flex:1"></div>
   <div class="sync" id="syncBadge"><span class="dot"></span><span id="syncTxt">初始化…</span></div>
+  <button class="btn sm" id="btnEditMode" title="映射表 / 待下单默认只读；点击输入管理员口令后解锁编辑">只读模式</button>
   <div style="position:relative">
     <div class="icon-btn" id="bellBtn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>
@@ -1054,7 +1064,7 @@ table.wk td b{white-space:nowrap}
         <table id="matchTable">
           <thead><tr>
             <th data-key="no"><div class="th-inner"><span class="th-l">申请单号</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
-            <th data-key="date" class="col-date" style="min-width:104px"><div class="th-inner"><span class="th-l">申请日期</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
+            <th data-key="date" class="col-date" style="min-width:104px"><div class="th-inner"><span class="th-l">创建日期</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th class="sku-big" data-key="sku" style="min-width:168px"><div class="th-inner"><span class="th-l">物料编码</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th class="num" data-key="qty"><div class="th-inner"><span class="th-l">数量</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th class="num" data-key="approvedQty"><div class="th-inner"><span class="th-l">批准数量</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
@@ -1152,8 +1162,8 @@ table.wk td b{white-space:nowrap}
               <option value="">自定义（用下方起止）</option>
             </select>
           </div>
-          <div class="field"><label>申请日期起</label><input class="inp" type="date" id="optDateFrom"></div>
-          <div class="field"><label>申请日期止</label><input class="inp" type="date" id="optDateTo"></div>
+          <div class="field"><label>创建日期起</label><input class="inp" type="date" id="optDateFrom"></div>
+          <div class="field"><label>创建日期止</label><input class="inp" type="date" id="optDateTo"></div>
         </div>
       </div>
       <div class="card-bd" style="padding-top:0;border-top:1px dashed var(--line)">
@@ -1212,7 +1222,7 @@ table.wk td b{white-space:nowrap}
           <thead><tr>
             <th style="width:72px">判定</th>
             <th class="mono" data-key="no" style="min-width:120px"><div class="th-inner"><span class="th-l">申请单号</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
-            <th class="col-date" style="width:104px">申请日期</th>
+            <th class="col-date" style="width:104px">创建日期</th>
             <th class="sku-big mono" data-key="sku" style="min-width:210px"><div class="th-inner"><span class="th-l">物料编码</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th data-key="supplier" style="min-width:160px"><div class="th-inner"><span class="th-l">供应商名称</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
             <th data-key="lingxingCreator" style="min-width:96px"><div class="th-inner"><span class="th-l">领星创建人</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>
@@ -1245,7 +1255,7 @@ table.wk td b{white-space:nowrap}
         <span style="margin-left:10px">阶梯分界：</span>
         <input class="inp" type="number" id="wkThr" value="5000" step="500" min="0">
         <span>≥ 表 A，&lt; 表 B</span>
-        <span style="margin-left:12px;white-space:nowrap">申请日期：</span>
+        <span style="margin-left:12px;white-space:nowrap">创建日期：</span>
         <input class="inp" type="date" id="wkDateFrom" style="width:142px" title="起始日期">
         <span>—</span>
         <input class="inp" type="date" id="wkDateTo" style="width:142px" title="结束日期">
@@ -1282,7 +1292,7 @@ table.wk td b{white-space:nowrap}
   <div class="card">
     <div class="card-hd" style="display:flex;align-items:center;gap:10px">
       <h3 style="margin:0">采购员汇总</h3>
-      <span class="hint">点击行可下钻明细（受申请日期与核心/普通筛选影响）</span>
+      <span class="hint">点击行可下钻明细（受创建日期与核心/普通筛选影响）</span>
       <button class="btn" id="wkExportExcel" style="margin-left:auto;white-space:nowrap">导出 Excel</button>
     </div>
     <div class="card-bd" id="wkBuyerSummary"></div>
@@ -1294,8 +1304,8 @@ table.wk td b{white-space:nowrap}
       <div class="card-bd">
       <div class="stats" id="supplierStats"></div>
     </div>
-    <div class="sup-date-bar" id="supDateBar" title="按申请日期筛选">
-      <span class="hint" style="font-weight:500;white-space:nowrap">按申请日期筛选</span>
+    <div class="sup-date-bar" id="supDateBar" title="按创建日期筛选">
+      <span class="hint" style="font-weight:500;white-space:nowrap">按创建日期筛选</span>
       <select class="inp" id="supDateQuick">
         <option value="">全部（不过滤）</option>
         <option value="last_tue">上周二及之前</option>
@@ -1305,9 +1315,9 @@ table.wk td b{white-space:nowrap}
         <option value="filedate">仅文件名日期当日</option>
         <option value="custom">自定义（用下方起止）</option>
       </select>
-      <input class="inp" type="date" id="supDateFrom" title="申请日期起">
+      <input class="inp" type="date" id="supDateFrom" title="创建日期起">
       <span class="hint">至</span>
-      <input class="inp" type="date" id="supDateTo" title="申请日期止">
+      <input class="inp" type="date" id="supDateTo" title="创建日期止">
     </div>
     <div class="tbl-tools">
         <input class="inp grow" id="supplierSearch" placeholder="搜索供应商 / 简称…" style="max-width:280px">
@@ -1998,7 +2008,7 @@ table.wk td b{white-space:nowrap}
   var ROLE_DEFS = [
     { role: 'sku', label: 'SKU', required: true, aliases: ['sku', '物料编码', '物料代码', '物料编号', '物料号', '商品编码', '商品编号', '商品代码', '产品编码', '产品编号', '存货编码', '存货代码', '存货编号', '货号', '编码', '料号', 'itemcode', 'item code', 'materialcode', 'material', 'itemno', 'item', 'partno', 'part', 'code', 'sku编码', 'sku编号'] },
     { role: 'qty', label: '数量', required: true, aliases: ['申请数量', '请购数量', '需求数量', '申购数量', '采购数量', '下单数量', '订单数量', '订货数量', '数量', 'qty', 'quantity', 'amount', 'num', 'count', 'qnty'] },
-    { role: 'date', label: '日期', required: false, aliases: ['申请日期', '请购日期', '单据日期', '制单日期', '需求日期', '订单日期', '下单日期', '日期', '时间', 'date', 'orderdate', 'createdate', '申请时间'] },
+    { role: 'date', label: '日期', required: false, aliases: ['创建日期', '申请日期', '请购日期', '单据日期', '制单日期', '需求日期', '订单日期', '下单日期', '日期', '时间', 'date', 'orderdate', 'createdate', '申请时间'] },
     { role: 'no', label: '单号', required: false, aliases: ['申请单号', '请购单号', '申购单号', '单据编号', '单据号', '申请编号', '订单号', '采购订单号', '采购单号', '单号', '编号', 'orderno', 'order no', 'applyno', 'billno', 'no', 'docno'] },
     { role: 'status', label: '状态', required: false, aliases: ['状态', '单据状态', '订单状态', '行状态', '审核状态', 'status', 'state', 'orderstatus'] },
     { role: 'remain', label: '剩余数量', required: false, aliases: ['剩余数量', '未下单数量', '剩余未下单数量', '未执行数量', '未转订单数量', '剩余未执行', '未订货数量', '待下单数量', '剩余', 'remainqty', 'remain', 'remainquantity', 'leftqty', 'unorderqty', '未结数量'] },
@@ -2482,7 +2492,8 @@ var state = {
   mapLoaded: false,
   syncMode: 'init',     // init | cloud | local
   cloudOK: false,
-  readOnly: false,      // 公开链接（无 SDK）下进入只读模式：禁用所有写操作
+  readOnly: true,       // 默认只读：映射表 / 待下单需管理员口令解锁后才能改（防他人误改）
+  editUnlocked: false,  // 本次会话是否已解锁编辑
   dirty: false,
   mapSearch: '', mapBuyer: '', mapSupplier: '', mapPage: 1, mapOnlyConflict: false,
   apply: { name: '', headers: [], rows: [], colMap: null, records: [] },
@@ -13479,7 +13490,6 @@ function initMapping() {
   if (!d) {
     // 公开链接（无 SDK）→ 同域发布映射优先，回退 BUNDLED_MAP；本地可编辑叠加不变。
     state.cloudOK = false;
-    state.readOnly = false;
     setSync('busy', '加载中…');
     var localBySku = {};
     if (local && local.length) local.forEach(function (m) { if (m.sku) localBySku[Core.normSKU(m.sku)] = m; });
@@ -13535,7 +13545,6 @@ function initMapping() {
       return Promise.resolve();
     });
   }
-  state.readOnly = false;
   return fetchCloudMap().then(function (rows) {
     state.cloudOK = true;
     if (!rows.length) {
@@ -14332,7 +14341,7 @@ function renderMatchUnmatchSummary() {
 /* 按供应商聚合：申请总量 / 已下单量 / 剩余量 /SKU数 / 涉及单号 / 明细 */
 function buildSupplierGroups() {
   if (!state.matchResult) return [];
-  /* 透视页日期筛选：按申请日期（r.date）区间过滤，再聚合，使统计/图/卡片/明细/导出一致联动 */
+  /* 透视页日期筛选：按创建日期（r.date）区间过滤，再聚合，使统计/图/卡片/明细/导出一致联动 */
   var df = state.supplierDateFrom || '', dt = state.supplierDateTo || '';
   var srcRows = state.matchResult.rows.filter(function (r) {
     if (!df && !dt) return true;
@@ -14580,7 +14589,7 @@ function renderSupplierPanel() {
       t.innerHTML = '<thead><tr>'
         + '<th class="ctr" style="width:36px"><input type="checkbox" class="sup-chk-all" style="width:15px;height:15px"></th>'
         + '<th data-key="no" style="min-width:84px"><div class="th-inner"><span class="th-l">申请单号</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>'
-        + '<th data-key="date" class="col-date" style="width:100px"><div class="th-inner"><span class="th-l">申请日期</span></div></th>'
+        + '<th data-key="date" class="col-date" style="width:100px"><div class="th-inner"><span class="th-l">创建日期</span></div></th>'
         + '<th data-key="sku" class="sku-big" style="min-width:210px"><div class="th-inner"><span class="th-l">物料编码</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>'
         + '<th data-key="spu" style="width:92px"><div class="th-inner"><span class="th-l">SPU</span><button class="th-fil-btn" type="button" tabindex="-1">▾</button><button class="th-clr-btn" type="button" tabindex="-1" title="清除该列筛选">×</button></div></th>'
         + '<th data-key="spec" style="width:180px;min-width:150px"><div class="th-inner"><span class="th-l">规格型号</span></div></th>'
@@ -14912,7 +14921,7 @@ function showSupplierChartDetail(g) {
   // 明细表
   var tw = el('div', 'tw');
   var t = document.createElement('table');
-  t.innerHTML = '<thead><tr><th style="width:100px">申请单号</th><th class="col-date" style="width:100px">申请日期</th><th style="width:210px">物料编码</th><th style="width:92px">SPU</th><th style="width:180px">规格型号</th><th class="num">申请量</th><th class="num">已下单</th><th class="num">剩余</th><th>状态</th><th>采购员</th><th>运营</th><th>备注</th></tr></thead>';
+  t.innerHTML = '<thead><tr><th style="width:100px">申请单号</th><th class="col-date" style="width:100px">创建日期</th><th style="width:210px">物料编码</th><th style="width:92px">SPU</th><th style="width:180px">规格型号</th><th class="num">申请量</th><th class="num">已下单</th><th class="num">剩余</th><th>状态</th><th>采购员</th><th>运营</th><th>备注</th></tr></thead>';
   var tb = document.createElement('tbody');
   g.items.forEach(function (r) {
     var tr = el('tr');
@@ -15054,7 +15063,7 @@ function saveSupplierNote(name, val) {
 function exportSupplierDetail(g) {
   try {
     /* 列序与「按供应商维度明细导出」示例一致：申请单号在前 */
-    var data = [['申请单号', '物料编码', 'SPU', '规格型号', '申请日期', '数量', '采购员', '供应商', '运营名称', '备注']];
+    var data = [['申请单号', '物料编码', 'SPU', '规格型号', '创建日期', '数量', '采购员', '供应商', '运营名称', '备注']];
     (g.items || []).forEach(function (r) {
       data.push([r.no || '', r.sku || '', Core.kindOf(r.sku) || '', r.spec || '', r.date || '',
         (r.qty === null || r.qty === undefined) ? '' : r.qty, r.buyer || '', g.name, r.lingxingCreator || '', r.remark || '']);
@@ -16447,7 +16456,7 @@ function showGroupDetail(no, rows) {
     buttons: [
       { label: '导出明细', cls: 'btn', onClick: function () {
         try {
-          var data = [['申请单号', '物料编码', 'SPU', '规格型号', '申请日期', '数量', '采购员', '供应商', '运营名称', '备注']];
+          var data = [['申请单号', '物料编码', 'SPU', '规格型号', '创建日期', '数量', '采购员', '供应商', '运营名称', '备注']];
           (rows || []).forEach(function (r) {
             data.push([r.no || no, r.sku || '', Core.kindOf(r.sku) || '', r.spec || '', r.date || '',
               (r.qty === null || r.qty === undefined) ? '' : r.qty, r.buyer || '', r.supplier || '', r.lingxingCreator || '', r.remark || '']);
@@ -16491,7 +16500,7 @@ function showMappingDetail(r) {
   lines.push(['申请单号', r.no || '—']);
   lines.push(['SKU（原值 / 归一后）', (r.sku || '—') + (r.sku && r.sku !== Core.normSKU(r.sku) ? '  /  ' + Core.normSKU(r.sku) : '')]);
   lines.push(['数量 / 批准 / 剩余', fmtNum(r.qty) + ' / ' + (r.approvedQty === null || r.approvedQty === undefined ? '—' : fmtNum(r.approvedQty)) + ' / ' + (r.remainQty === null || r.remainQty === undefined ? '—' : fmtNum(r.remainQty))]);
-  lines.push(['申请日期', r.date || '—']);
+  lines.push(['创建日期', r.date || '—']);
   lines.push(['状态（原始）', r.status || '—']);
   lines.push(['关闭状态', r.closeStatus || '—']);
   lines.push(['匹配方式', viaLabel(r.via)]);
@@ -16750,7 +16759,7 @@ function renderCheckTable() {
     /* 申请单号：取前 1 个（多单合并时显示第 1 个 + 共 N 单） */
     var nos = r.nos || [];
     tr.appendChild(el('td', 'mono', nos.length > 1 ? (nos[0] + ' 等 ' + nos.length + '单') : (nos[0] || '—')));
-    /* 申请日期：按 SKU 汇总时取最早的申请日期 */
+    /* 创建日期：按 SKU 汇总时取最早的创建日期 */
     tr.appendChild(el('td', 'col-date', r.dateMin || '—'));
     tr.appendChild(el('td', 'sku-big mono', r.sku));
     tr.appendChild(el('td', null, r.supplier || '—'));
@@ -16795,16 +16804,63 @@ function refreshAll() {
   else if (state.tab === 'unmatch') renderUnmatchPanel();
 }
 
-/* 只读模式（公开链接无 SDK）：隐藏/禁用所有写操作 */
+/* 只读模式：映射表 / 待下单默认只读，仅管理员口令可解锁编辑 */
 function applyReadOnly() {
-  if (!state.readOnly) return;
   var writeIds = ['btnImportMap', 'btnImportPrice', 'btnAddRow', 'btnSaveMap', 'btnBatchSet', 'btnBatchDel',
-                  'btnClearDemo', 'btnClearApply', 'btnClearOrder', 'btnRestore'];
+                  'btnClearDemo', 'btnClearApply', 'btnClearOrder', 'btnRestore', 'btnSupBatchSet'];
   writeIds.forEach(function (id) {
     var b = $(id);
-    if (b) b.style.display = 'none';
+    if (b) b.style.display = state.readOnly ? 'none' : '';
   });
-  /* 备份/导出类按钮保留（只读不影响下载） */
+  var eb = $('btnEditMode');
+  if (eb) eb.textContent = state.readOnly ? '只读模式' : '退出编辑';
+  ['map', 'supplier'].forEach(function (t) {
+    var host = $('tab-' + t);
+    if (!host) return;
+    var bar = host.querySelector('.ro-bar');
+    if (state.readOnly) {
+      if (!bar) {
+        bar = el('div', 'ro-bar', '只读模式：本页仅可查看。需要修改请点右上角「只读模式」输入管理员口令解锁。');
+        host.insertBefore(bar, host.firstChild);
+      }
+    } else if (bar && bar.parentNode) {
+      bar.parentNode.removeChild(bar);
+    }
+  });
+}
+
+/* 口令哈希（防误改用途，非服务端鉴权） */
+var EDIT_HASH = '21c2c3e9';
+function hashPwd(s) {
+  var h = 5381, t = 'hy#' + String(s || '') + '#salt';
+  for (var i = 0; i < t.length; i++) { h = (((h << 5) + h) ^ t.charCodeAt(i)) >>> 0; }
+  return h.toString(16);
+}
+function openUnlock() {
+  dialog({
+    title: '管理员编辑口令',
+    html: '<div class="field"><label>解锁后可编辑 SKU 映射表与待下单汇总</label>'
+      + '<input class="inp" id="editPwd" type="password" placeholder="请输入管理员口令" autocomplete="off"></div>'
+      + '<div class="todo-empty" style="margin-top:10px">仅用于防止他人误改；刷新或退出后自动回到只读模式。</div>',
+    buttons: [
+      { label: '取消' },
+      { label: '解锁', cls: 'btn pri', onClick: function (bd) {
+        var v = (bd.querySelector('#editPwd') || {}).value || '';
+        if (hashPwd(v) === EDIT_HASH) {
+          state.editUnlocked = true;
+          state.readOnly = false;
+          applyReadOnly();
+          refreshAll();
+          toast('已解锁编辑模式', 'ok');
+          return false;
+        }
+        toast('口令不正确', 'err');
+        return true;
+      } }
+    ]
+  });
+  var inp = $('editPwd');
+  if (inp) setTimeout(function () { try { inp.focus(); } catch (e) {} }, 30);
 }
 
 /* 步骤条上"未匹配补录"的红数 badge */
@@ -17044,7 +17100,7 @@ function exportTable(kind) {
   } else if (kind === 'match') {
     if (!state.matchResult) { toast('还没有匹配结果'); return; }
     sheetName = '申请单匹配结果';
-    data = [['申请单号', '物料编码', '数量', '批准数量', '剩余数量', '匹配方式', '申请日期', '申请单状态', '采购员', '供应商', '运营', '匹配状态']];
+    data = [['申请单号', '物料编码', '数量', '批准数量', '剩余数量', '匹配方式', '创建日期', '申请单状态', '采购员', '供应商', '运营', '匹配状态']];
     filteredMatchRows().forEach(function (r) {
       data.push([r.no, r.sku, r.qty,
         r.approvedQty === null || r.approvedQty === undefined ? '' : r.approvedQty,
@@ -17058,7 +17114,7 @@ function exportTable(kind) {
   } else if (kind === 'supplier') {
     if (!state.matchResult) { toast('还没有匹配结果'); return; }
     sheetName = '供应商下单明细';
-    data = [['物料编码', 'SPU', '规格型号', '申请单号', '申请日期', '数量', '采购', '供应商', '运营名称', '备注']];
+    data = [['物料编码', 'SPU', '规格型号', '申请单号', '创建日期', '数量', '采购', '供应商', '运营名称', '备注']];
     buildSupplierGroups().forEach(function (g) {
       g.items.forEach(function (r) {
         data.push([r.sku || '', Core.kindOf(r.sku) || '', r.spec || '', r.no || '', r.date || '', r.qty, r.buyer || '', g.name, r.lingxingCreator || '', r.remark || '']);
@@ -17068,7 +17124,7 @@ function exportTable(kind) {
   } else if (kind === 'check') {
     if (!state.checkResult) { toast('还没有核查结果'); return; }
     sheetName = '漏下单核查';
-    data = [['判定', '申请单号', '申请日期', '物料编码', '供应商名称', '领星创建人', '申请量', '已下单量', '剩余数量', '差异数量', '采购员']];
+    data = [['判定', '申请单号', '创建日期', '物料编码', '供应商名称', '领星创建人', '申请量', '已下单量', '剩余数量', '差异数量', '采购员']];
     filteredCheckRows().forEach(function (r) {
       var judge = r.diffQty > 0 ? (r.gapType === 'not_ordered' ? '未下单' : '数量不足') : '充足';
       var firstNo = (r.nos && r.nos[0]) || '';
@@ -17099,7 +17155,7 @@ function demoApply() {
     var x = new Date(today.getTime() - off * 86400000);
     return x.getFullYear() + '-' + Core.pad2(x.getMonth() + 1) + '-' + Core.pad2(x.getDate());
   }
-  var headers = ['申请单号', '物料编码', '申请数量', '申请日期', '单据状态'];
+  var headers = ['申请单号', '物料编码', '申请数量', '创建日期', '单据状态'];
   var rows = [
     ['AP2026001', skus[0], 500, d(20), '已审核'],
     ['AP2026002', skus[1], 300, d(18), '已审核'],
@@ -17178,6 +17234,7 @@ function bindBatchShortSuggest(inp, body, ids) {
 }
 
 function batchSet() {
+  if (state.readOnly) { toast('当前为只读模式，请点右上角「只读模式」输入管理员口令解锁', 'err'); return; }
   var sel = state.mapping.filter(function (m) { return m._sel && !m._deleted; });
   if (!sel.length) { toast('请先勾选要修改的行'); return; }
   var bd = dialog({
@@ -17266,6 +17323,7 @@ function batchSet() {
 }
 /* 透视页批量设置：把勾选的 SKU 在映射表里的主供应商改成指定值（简称联想带出供应商/采购员） */
 function supBatchSet() {
+  if (state.readOnly) { toast('当前为只读模式，请点右上角「只读模式」输入管理员口令解锁', 'err'); return; }
   var skus = Object.keys(state.supSelSkus || {});
   if (!skus.length) { toast('请先展开供应商、勾选要修改的 SKU'); return; }
   var bd = dialog({
@@ -17432,6 +17490,21 @@ function bindEvents() {
   };
   $('btnAddRow').onclick = function () { addMappingRow('', '', '', ''); state.mapPage = 1; refreshAll(); setTimeout(function () { var i = $('mapBody').querySelector('input.inp-cell'); if (i) i.focus(); }, 60); };
   $('btnSaveMap').onclick = function () { saveMapping(); };
+  var eb2 = $('btnEditMode');
+  if (eb2) eb2.onclick = function () {
+    if (state.editUnlocked) {
+      state.editUnlocked = false;
+      state.readOnly = true;
+      applyReadOnly();
+      refreshAll();
+      toast('已退出编辑，回到只读模式', 'ok');
+    } else {
+      openUnlock();
+    }
+  };
+  /* 只读时给子模块用：wk 模块指定供应商等写操作前校验 */
+  window.__canEdit = function () { return !state.readOnly; };
+  window.__needEdit = function () { toast('当前为只读模式，请点右上角「只读模式」输入管理员口令解锁', 'err'); return false; };
   $('btnTpl').onclick = function () {
     var data = [['SKU', '供应商', '采购员', '备注'], ['SKU-DEMO-001', '示例供应商有限公司', '张三', '照这个格式填']];
     downloadBytes(Core.buildXLSX(data, 'SKU映射表'), 'SKU映射表模板.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -18310,7 +18383,7 @@ window.__test = {
   var WK_FIELD = {};          // { 简称: { 列key: Set } }
   var WK_PANEL = null;
   var WK_SEL = {};            // { "doc|sku": true }
-  var WK_DATE = { from:'', to:'' };   // 申请日期区间（按申请单创建日期）
+  var WK_DATE = { from:'', to:'' };   // 创建日期区间（按申请单创建日期）
   var LOCAL_MAP = {};         // { sku: {short, name, buyer} }
   var WK_BUYER_AGG = {};      // 最新一次采购员汇总（供下钻明细）
   var WK_DETAIL = null;       // 当前打开的详情小窗（供应商下钻刷新用）
@@ -18322,13 +18395,17 @@ window.__test = {
     {key:'spec', label:'规格',        w:132, cls:'spec-cell'},
     {key:'buyer',label:'采购员',      w:66},
     {key:'doc',  label:'申请单单号',   w:126},
+    {key:'date', label:'创建日期',    w:92},
     {key:'ling', label:'领星创建人',   w:82},
+    {key:'remark',label:'备注',       w:84},
     {key:'qty',  label:'待下单',      w:72, num:true}
   ];
 
   function nf(n){ return (Math.round((n||0)*10)/10).toLocaleString('zh-CN'); }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
     return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+  /* 备注/规格等窄列：只显示前 5 个字符，完整内容放 title 悬停查看 */
+  function cut5(s){ s = String(s==null?'':s); return s.length > 5 ? s.slice(0,5) + '…' : s; }
 
   function loadLocal(){
     try{ LOCAL_MAP = JSON.parse(localStorage.getItem(LS_KEY)||'{}') || {}; }catch(e){ LOCAL_MAP = {}; }
@@ -18537,7 +18614,9 @@ window.__test = {
       h += '<td class="spec-cell" title="'+esc(it.spec)+'">'+esc(it.spec)+'</td>';
       h += '<td>'+esc(it.buyer)+'</td>';
       h += '<td class="mono" title="'+esc(it.doc)+'">'+esc(it.doc||'—')+'</td>';
+      h += '<td class="col-date" style="color:var(--muted);white-space:nowrap">'+esc(it.date||'—')+'</td>';
       h += '<td>'+esc(it.ling||'—')+'</td>';
+      h += '<td class="td-remark" title="'+esc(it.remark||'')+'">'+esc(cut5(it.remark))+'</td>';
       h += '<td style="text-align:right;font-variant-numeric:tabular-nums">'+nf(it.qty)+'</td>';
       h += '<td style="text-align:center"><button class="wk-op" data-op="assign">指定</button></td>';
       h += '</tr>';
@@ -18546,7 +18625,7 @@ window.__test = {
       h += '<tr><td colspan="'+(COLS.length+2)+'" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
     }else{
       var sum = items.reduce(function(a,b){ return a + (b.qty||0); }, 0);
-      h += '<tr class="wk-total"><td colspan="8">合计 <span class="muted">'+items.length+' 行</span></td>'
+      h += '<tr class="wk-total"><td colspan="'+(COLS.length)+'">合计 <span class="muted">'+items.length+' 行</span></td>'
         + '<td style="text-align:right">'+nf(sum)+'</td><td></td></tr>';
     }
     h += '</tbody></table>';
@@ -18614,37 +18693,64 @@ window.__test = {
       .join('');
     mask.innerHTML = '<div class="wk-assign"><h4>'+esc(title)+'</h4><div class="sub">'+esc(subTxt)+'</div>'
       + '<label>选择已有供应商</label><select id="wkPickSel"><option value="">— 请选择 —</option>'+opts+'</select>'
-      + '<label>或填写新的供应商（简称）</label><input id="wkPickNew" placeholder="例如：新动力">'
+      + '<label>或填写新的供应商（简称）<span style="color:var(--muted);font-weight:400"> · 输入即联想</span></label>'
+      + '<input id="wkPickNew" placeholder="例如：新动力" autocomplete="off">'
+      + '<div id="wkPickSug" class="wk-sug"></div>'
       + '<label>新供应商全称（可选）</label><input id="wkPickFull" placeholder="例如：广州新动力皮具有限公司">'
       + '<div class="acts"><button class="btn sm" id="wkPickCancel">取消</button>'
       + '<button class="btn sm primary" id="wkPickOk">确定</button></div></div>';
     document.body.appendChild(mask);
-    // 面板贴着被点击的行：优先下方，放不下就翻到上方
+    /* 小窗统一贴视口顶部（避免页面很长时窗口跑到屏幕外，要一直下拉才找得到） */
     var panel = mask.querySelector('.wk-assign');
-    var r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
-    if (r) {
-      var pw = 380, ph = panel.offsetHeight || 320;
-      var left = Math.max(12, Math.min(r.left, window.innerWidth - pw - 16));
-      var top = r.bottom + 8;
-      var spaceBelow = window.innerHeight - top - 12;
-      if (spaceBelow < 240) {
-        // 下方太挤 → 翻到上方，但底部贴着按钮，不要飘到屏幕顶
-        var spaceAbove = r.top - 20;
-        var h2 = Math.min(ph, Math.max(200, spaceAbove));
-        panel.style.maxHeight = h2 + 'px';
-        panel.style.overflow = 'auto';
-        top = Math.max(12, r.top - h2 - 8);
-      } else {
-        panel.style.maxHeight = Math.min(ph, spaceBelow) + 'px';
-        panel.style.overflow = 'auto';
-      }
-      panel.style.left = left + 'px';
-      panel.style.top = top + 'px';
-    } else {
-      panel.style.left = Math.round((window.innerWidth - 380) / 2) + 'px';
-      panel.style.top = Math.round((window.innerHeight - 320) / 2) + 'px';
-    }
+    var pw = 380;
+    panel.style.left = Math.round((window.innerWidth - pw) / 2) + 'px';
+    panel.style.top = '16px';
+    panel.style.maxHeight = (window.innerHeight - 32) + 'px';
+    panel.style.overflow = 'auto';
     var sel = mask.querySelector('#wkPickSel'), inp = mask.querySelector('#wkPickNew'), full = mask.querySelector('#wkPickFull');
+    var sug = mask.querySelector('#wkPickSug');
+    /* 简称 / 全称 输入联想：大小写不敏感、支持包含匹配 */
+    function supCandidates(q){
+      q = String(q||'').trim().toLowerCase();
+      if(!q) return [];
+      var pool = (WK && WK.suppliers || []).filter(function(x){ return !x.pending && x.short; });
+      var out = pool.filter(function(x){
+        return String(x.short).toLowerCase().indexOf(q) >= 0 || String(x.name||'').toLowerCase().indexOf(q) >= 0;
+      });
+      out.sort(function(a,b){
+        var as = String(a.short).toLowerCase().indexOf(q) === 0 ? 0 : 1;
+        var bs = String(b.short).toLowerCase().indexOf(q) === 0 ? 0 : 1;
+        return as - bs || (b.plan||0) - (a.plan||0);
+      });
+      return out.slice(0, 8);
+    }
+    function renderSug(){
+      var cand = supCandidates(inp.value);
+      sug.innerHTML = cand.map(function(x, i){
+        return '<div class="wk-sug-item" data-i="'+i+'"><b>'+esc(x.short)+'</b>'
+          + '<span>'+esc(x.name||'')+'</span></div>';
+      }).join('');
+      sug.style.display = cand.length ? 'block' : 'none';
+      sug._cand = cand;
+    }
+    inp.oninput = renderSug;
+    inp.onfocus = renderSug;
+    inp.onkeydown = function(e){
+      if(e.key === 'Enter'){
+        var c = sug._cand && sug._cand[0];
+        if(c){ e.preventDefault(); inp.value = c.short; full.value = c.name || ''; sug.style.display='none'; }
+      }
+    };
+    sug.onmousedown = function(e){
+      var it = e.target.closest ? e.target.closest('.wk-sug-item') : null;
+      if(!it) return;
+      e.preventDefault();
+      var c = (sug._cand||[])[Number(it.getAttribute('data-i'))];
+      if(!c) return;
+      inp.value = c.short;
+      full.value = c.name || '';
+      sug.style.display = 'none';
+    };
     mask.querySelector('#wkPickCancel').onclick = function(){ mask.remove(); };
     mask.querySelector('#wkPickOk').onclick = function(){
       var v = inp.value.trim();
@@ -18676,6 +18782,7 @@ window.__test = {
   }
 
   function batchAssign(rawKeys, anchor){
+    if(window.__canEdit && !window.__canEdit()){ if(window.__needEdit) window.__needEdit(); return; }
     if(!rawKeys.length) return;
     var keys=expandBySpu(rawKeys);
     var skus = {}, qty = 0, rows = 0;
@@ -18750,36 +18857,147 @@ window.__test = {
         { v: Object.keys(agg.sups||{}).length, l: '供应商' },
         { v: Object.keys(agg.docs||{}).length, l: '单据' }
       ]);
+      var bf = {};   // 列筛选：key -> Set(允许值)
       var tw = document.createElement('div');
       tw.className = 'tw';
-      tw.innerHTML = buyerItemsHtml(agg);
       bd.appendChild(tw);
-      /* 导出明细：列序与示例一致，含供应商列 */
+      function rowsFiltered(){
+        return items.filter(function(x){
+          for(var k in bf){
+            var set = bf[k];
+            if(set && set.size && !set.has(String(buyerField(x, k)))) return false;
+          }
+          return true;
+        });
+      }
+      function render(){
+        var rows = rowsFiltered();
+        tw.innerHTML = buyerItemsHtml(rows, bf);
+        bindBuyerFilter(tw, items, bf, render);
+      }
+      render();
+      /* 导出明细：导出当前筛选后的行（与所见一致） */
       bExp.onclick = function(){
-        wkExportDetail(items, '采购员明细_' + wkSafe(b));
+        wkExportDetail(rowsFiltered(), '采购员明细_' + wkSafe(b));
       };
     });
   }
 
-  function buyerItemsHtml(agg){
-    var items = (agg.items||[]).slice().sort(function(a,b){ return (b.it.qty||0)-(a.it.qty||0); });
+  /* 采购员明细表的字段取值（导出/筛选共用） */
+  function buyerField(x, k){
+    if(k === 'supName') return x.supName || '';
+    if(k === 'spec') return x.it.spec || '';
+    return (x.it && x.it[k] != null) ? x.it[k] : '';
+  }
+  /* 表头筛选面板（通用）：values 为可选值列表，cur 为当前 Set，cb(null) = 取消筛选 */
+  var WK_FP = null;
+  function wkFilterPanel(btn, label, values, cur, cb){
+    var same = WK_FP && WK_FP._btn === btn;
+    if(WK_FP){ WK_FP.parentNode && WK_FP.parentNode.removeChild(WK_FP); WK_FP = null; }
+    if(same) return;
+    var panel = document.createElement('div');
+    panel.className = 'wk-fil-panel';
+    var allSel = !cur || !cur.size;
+    panel.innerHTML = '<div class="fp-hd"><a data-a="all">全选</a><a data-a="none">清空</a>'
+      + '<span style="margin-left:auto">'+esc(label)+'</span></div>'
+      + values.map(function(v,i){
+          return '<label><input type="checkbox" data-i="'+i+'"'+(allSel || cur.has(v) ? ' checked':'')+'>'
+            + (v === '' ? '<span style="color:var(--muted)">（空）</span>' : esc(v)) + '</label>';
+        }).join('');
+    document.body.appendChild(panel);
+    var r = btn.getBoundingClientRect();
+    panel.style.position = 'fixed';
+    panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 300)) + 'px';
+    panel.style.top = Math.min(r.bottom + 4, window.innerHeight - 220) + 'px';
+    panel.style.zIndex = '10001';
+    function commit(){
+      var boxes = [].slice.call(panel.querySelectorAll('input[type=checkbox]'));
+      var checked = boxes.filter(function(x){ return x.checked; })
+        .map(function(x){ return values[Number(x.getAttribute('data-i'))]; });
+      if(checked.length === values.length) cb(null);
+      else cb(new Set(checked));
+    }
+    panel.querySelectorAll('input[type=checkbox]').forEach(function(x){ x.onchange = commit; });
+    panel.querySelectorAll('a[data-a]').forEach(function(a){
+      a.onclick = function(){
+        var on = a.getAttribute('data-a') === 'all';
+        panel.querySelectorAll('input[type=checkbox]').forEach(function(x){ x.checked = on; });
+        commit();
+      };
+    });
+    panel.onclick = function(e){ e.stopPropagation(); };
+    panel._btn = btn;
+    WK_FP = panel;
+    setTimeout(function(){
+      document.addEventListener('click', function close(){
+        if(WK_FP === panel){ if(panel.parentNode) panel.parentNode.removeChild(panel); WK_FP = null; }
+        document.removeEventListener('click', close);
+      });
+    }, 0);
+  }
+
+  function bindBuyerFilter(tw, allItems, bf, render){
+    tw.querySelectorAll('button.wk-fil').forEach(function(btn){
+      btn.onclick = function(ev){
+        ev.stopPropagation();
+        var k = btn.getAttribute('data-k');
+        var vals = {}, list = [];
+        allItems.forEach(function(x){
+          var v = String(buyerField(x, k));
+          if(!vals[v]){ vals[v] = 1; list.push(v); }
+        });
+        list.sort(function(a, b){ return a.localeCompare(b, 'zh'); });
+        var th = btn.parentNode;
+        var label = (th.textContent || '').replace('▾','').trim();
+        wkFilterPanel(btn, label, list, bf[k], function(set){
+          if(set) bf[k] = set; else delete bf[k];
+          render();
+        });
+      };
+    });
+  }
+
+  function buyerItemsHtml(rows, bf){
+    var HEAD = [
+      { k:'doc',     l:'申请单号' },
+      { k:'date',    l:'创建日期' },
+      { k:'sku',     l:'物料编码' },
+      { k:'spu',     l:'SPU' },
+      { k:'spec',    l:'规格型号' },
+      { k:'qty',     l:'数量', num:true },
+      { k:'supName', l:'供应商' },
+      { k:'ling',    l:'运营' }
+    ];
     var h = '<table class="wk wk-items"><colgroup>'
       + '<col style="width:152px"><col style="width:96px"><col style="width:150px"><col style="width:52px">'
       + '<col><col style="width:76px"><col style="width:130px"><col style="width:84px">'
-      + '</colgroup><thead><tr>'
-      + '<th>申请单号</th><th>申请日期</th><th>物料编码</th><th>SPU</th><th>规格型号</th>'
-      + '<th style="text-align:right">数量</th><th>供应商</th><th>运营</th></tr></thead><tbody>';
-    items.forEach(function(x){
+      + '</colgroup><thead><tr>';
+    HEAD.forEach(function(c){
+      var on = !!(bf && bf[c.k] && bf[c.k].size);
+      h += '<th'+(c.num?' style="text-align:right"':'')+'>'+c.l
+        + (c.k === 'qty' ? '' : '<button class="wk-fil'+(on?' on':'')+'" type="button" data-k="'+c.k+'" title="筛选 '+c.l+'">▾</button>')
+        + '</th>';
+    });
+    h += '</tr></thead><tbody>';
+    var sum = 0;
+    rows.forEach(function(x){
       var it = x.it;
+      sum += (it.qty || 0);
       h += '<tr><td class="mono" style="color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(it.doc||'')+'">'+esc(it.doc||'—')+'</td>'
         + '<td style="color:var(--muted);white-space:nowrap">'+esc(it.date||'—')+'</td>'
         + '<td class="mono" style="font-family:Consolas,monospace;font-weight:700">'+esc(it.sku||'')+'</td>'
         + '<td style="color:var(--muted)">'+esc(it.spu||'')+'</td>'
-        + '<td class="spec-cell">'+esc(it.spec||'')+'</td>'
+        + '<td class="spec-cell" title="'+esc(it.spec||'')+'">'+esc(cut5(it.spec))+'</td>'
         + '<td style="text-align:right">'+nf(it.qty||0)+'</td>'
         + '<td>'+esc(x.supName||'')+'</td>'
         + '<td style="color:var(--muted)">'+esc(it.ling||'')+'</td></tr>';
     });
+    if(!rows.length){
+      h += '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
+    } else {
+      h += '<tr class="wk-total"><td colspan="5">合计 <span class="muted">'+rows.length+' 行</span></td>'
+        + '<td style="text-align:right">'+nf(sum)+'</td><td colspan="2"></td></tr>';
+    }
     h += '</tbody></table>';
     return h;
   }
@@ -18850,11 +19068,11 @@ window.__test = {
   }
   /* 按供应商/采购员维度导出明细（列序与示例一致） */
   function wkExportDetail(list, fileTag){
-    var rows = [['申请单号','物料编码','SPU','规格型号','申请日期','数量','采购员','供应商','运营名称','备注']];
+    var rows = [['申请单号','物料编码','SPU','规格型号','创建日期','数量','采购员','供应商','运营名称','备注']];
     (list||[]).forEach(function(x){
       var it = x.it || x, supName = x.supName || '';
       rows.push([it.doc||'', it.sku||'', it.spu||'', it.spec||'', it.date||'', Number(it.qty)||0,
-        it.buyer||'', supName, it.ling||'', '']);
+        it.buyer||'', supName, it.ling||'', it.remark||'']);
     });
     if(rows.length <= 1){ wkToast('没有可导出的明细', 'err'); return; }
     if(typeof XLSX === 'undefined'){ wkToast('Excel 组件未加载，请刷新页面重试', 'err'); return; }
@@ -18866,25 +19084,52 @@ window.__test = {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     wkToast('已导出 ' + (rows.length - 1) + ' 行明细');
   }
-  /* 数据准备：受当前申请日期 / 核心·普通 / 搜索筛选影响（与页面所见一致），阈值不影响导出 */
+  /* 数据准备：受当前创建日期 / 核心·普通 / 搜索筛选影响（与页面所见一致），阈值不影响导出 */
   function wkExportRows(){
     var list = scopeList();
-    var rows1 = [['物料编码','SPU','规格型号','申请单号','申请日期','数量','采购','供应商','运营名称','备注']];
+    /* 列序按业务要求：申请单号 → 物料编码 → SPU → 规格型号 → 创建日期 → 数量 → 采购员 → 供应商 → 运营 → 备注 */
+    var rows1 = [['申请单号','物料编码','SPU','规格型号','创建日期','数量','采购员','供应商','运营名称','备注']];
     var agg = {};
     list.forEach(function(g){
       var supName = g.pending ? '待填写' : (g.name || g.short);
       (g.items||[]).forEach(function(it){
-        rows1.push([it.sku||'', it.spu||'', it.spec||'', it.doc||'', it.date||'', Number(it.qty)||0,
-          it.buyer||'', supName, it.ling||'', '']);
+        rows1.push([it.doc||'', it.sku||'', it.spu||'', it.spec||'', it.date||'', Number(it.qty)||0,
+          it.buyer||'', supName, it.ling||'', it.remark||'']);
       });
       agg[supName] = (agg[supName]||0) + (g.plan||0);
     });
-    var rows2 = [['供应商全称','数量']];
+    var rows2 = [['供应商全称','待下单数量']];
     Object.keys(agg).sort(function(a,b){ return agg[b]-agg[a]; }).forEach(function(k){
       rows2.push([k, Math.round(agg[k]*10)/10]);
     });
     rows2.push(['总计', Math.round(list.reduce(function(s,x){ return s + (x.plan||0); },0)*10)/10]);
     return { rows1: rows1, rows2: rows2 };
+  }
+  /* 主模块只读状态（映射表 / 漏下单核查），用于多分表导出 */
+  function wkMainState(){
+    try { return (window.__test && window.__test.state) ? window.__test.state() : null; } catch(e){ return null; }
+  }
+  function wkMapSheetRows(){
+    var st = wkMainState();
+    var rows = [['SKU','简称','供应商','采购员','含税单价','更新时间']];
+    ((st && st.mapping) || []).forEach(function(m){
+      if(m._deleted) return;
+      rows.push([m.sku||'', m.shortName||'', m.supplier||'', m.buyer||'', m.price||'', m.updated||'']);
+    });
+    return rows;
+  }
+  function wkCheckSheetRows(){
+    var st = wkMainState();
+    var rows = [['申请单号','物料编码','SPU','创建日期','申请量','已下单','未下单量','采购员','供应商','运营','判定']];
+    var src = (st && st.checkResult && st.checkResult.rows) || [];
+    src.forEach(function(r){
+      if(!(r.diffQty > 0)) return;
+      var spu = String(r.sku||'').replace(/\D/g,'').slice(0,4);
+      rows.push([(r.nos||[]).join(' / '), r.sku||'', spu, r.dateMin||'', Number(r.applyQty)||0,
+        Number(r.orderQty)||0, Number(r.diffQty)||0, r.buyer||'', r.supplier||'',
+        r.lingxingCreator||'', r.gapType === 'not_ordered' ? '未下单' : (r.gapType === 'partial' ? '数量不足' : r.gapType||'')]);
+    });
+    return rows;
   }
   function wkExportExcel(){
     if(!WK){ wkToast('数据还没加载完，稍后再试', 'err'); return; }
@@ -18894,15 +19139,21 @@ window.__test = {
       wkToast('Excel 组件未加载，请刷新页面重试', 'err');
       return;
     }
-    var wb = { SheetNames: ['下单明细','供应商汇总'], Sheets: {} };
+    var mapRows = wkMapSheetRows(), chkRows = wkCheckSheetRows();
+    var wb = { SheetNames: ['下单明细','供应商汇总','SKU映射表','历史未下单明细'], Sheets: {} };
     wb.Sheets['下单明细'] = XLSX.utils.aoa_to_sheet(d.rows1);
-    wb.Sheets['下单明细']['!cols'] = [{wch:18},{wch:7},{wch:26},{wch:14},{wch:11},{wch:9},{wch:9},{wch:30},{wch:10},{wch:14}];
+    wb.Sheets['下单明细']['!cols'] = [{wch:18},{wch:18},{wch:7},{wch:28},{wch:11},{wch:9},{wch:9},{wch:30},{wch:10},{wch:14}];
     wb.Sheets['供应商汇总'] = XLSX.utils.aoa_to_sheet(d.rows2);
     wb.Sheets['供应商汇总']['!cols'] = [{wch:32},{wch:12}];
+    wb.Sheets['SKU映射表'] = XLSX.utils.aoa_to_sheet(mapRows);
+    wb.Sheets['SKU映射表']['!cols'] = [{wch:20},{wch:10},{wch:32},{wch:9},{wch:10},{wch:17}];
+    wb.Sheets['历史未下单明细'] = XLSX.utils.aoa_to_sheet(chkRows);
+    wb.Sheets['历史未下单明细']['!cols'] = [{wch:22},{wch:18},{wch:7},{wch:11},{wch:9},{wch:9},{wch:10},{wch:9},{wch:30},{wch:10},{wch:9}];
     var out = XLSX.write(wb, { bookType:'xlsx', type:'array' });
     wkDownload(out, '待下单汇总_' + wkStamp() + '.xlsx',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    wkToast('已导出 ' + (d.rows1.length-1) + ' 行明细 · ' + (d.rows2.length-2) + ' 家供应商');
+    wkToast('已导出 ' + (d.rows1.length-1) + ' 行明细 · ' + (d.rows2.length-2) + ' 家供应商'
+      + ' · 映射 ' + (mapRows.length-1) + ' 条 · 历史未下单 ' + (chkRows.length-1) + ' 行');
   }
 
   function wkTable(el, arr, max, total){

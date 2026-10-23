@@ -296,7 +296,7 @@ def main():
             snap4 = snapshot_exports(incoming_dir)
             env_apply = env.copy()
             env_apply["KINGDEE_FORM"] = "采购申请单列表"
-            env_apply["KINGDEE_PO_SCHEME"] = cfg.get("sync", {}).get("apply_scheme", "周计划申请(共享)")
+            env_apply["KINGDEE_PO_SCHEME"] = cfg.get("sync", {}).get("apply_scheme", "周计划（含备注）")
             run_subprocess(
                 [python_exe, str(collector_dir / "kingdee_collector.py"), "--export-only"],
                 cwd=str(collector_dir),

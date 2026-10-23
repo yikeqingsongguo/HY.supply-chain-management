@@ -193,6 +193,14 @@ def build():
     h = [str(c).strip() if c is not None else "" for c in rows[0]]
     i = {k: n for n, k in enumerate(h)}
 
+    # 防止「引出只带一列」的坏文件冲掉上一版好数据（金蝶方案列配置异常时会出现）
+    _needed = ["单据编号", "物料编码", "申请数量", "创建日期"]
+    _missing = [k for k in _needed if k not in i]
+    if len(h) < 5 or _missing:
+        print(f"❌ 申请单导出列不完整（共 {len(h)} 列，缺 {_missing}）——已保留上一版数据，"
+              f"请检查金蝶「采购申请单列表」方案的显示列配置")
+        return
+
     def g(r, *keys):
         for k in keys:
             n = i.get(k)
@@ -282,6 +290,7 @@ def build():
             "approved_qty": round(num(g(r, "批准数量")), 1),
             "ordered_qty": round(num(g(r, "订单数量")), 1),
             "status": str(g(r, "数据状态") or "").strip(),
+            "remark": str(g(r, "备注") or "").strip(),
             "mapped": bool(info),
         })
 
