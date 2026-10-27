@@ -47,7 +47,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "src")
 
 # 核心供应商简称（需求固定清单）
-CORE_SUPPLIERS = ["忆恩", "佳俊", "同光", "拿可", "宝莎", "贝瑞卡", "浩川", "骏航", "思哲"]
+# 核心供应商（2026-10-26 用户给定 10 家；骏航并入浩川，不再单列）
+CORE_SUPPLIERS = ["贝瑞卡", "思哲", "宝莎", "同光", "拿可", "润峰", "格莱尔", "浩川", "忆恩", "佳俊"]
+# 主体合并：骏航 → 浩川（视为同一主体，产能按浩川计）
+MERGE_SHORT = {"骏航": "浩川"}
+MERGE_FULL = {"骏航": "道县浩川皮具有限公司"}
 
 # 手动简称覆盖：以下供应商不在产能表中，join 拿不到简称（否则短名会落成全称）
 SHORT_OVERRIDE = {
@@ -313,6 +317,8 @@ def clean():
     ))
 
     cap_map = load_capacity(cap_path)
+    # 按简称索引产能表：供主体合并后（如骏航→浩川）取合并主体的产能
+    CAP_BY_SHORT = {v.get("short"): v for v in cap_map.values() if v.get("short")}
     weekly = load_weekly(weekly_path, cap_map)
 
     header, rows = load_first_sheet(po_path)
@@ -350,7 +356,13 @@ def clean():
         full = str(g(r, "供应商") or "").strip()
         cap = cap_map.get(full, {})
         short = short_of(full, cap)
-        buyer = BUYER_OVERRIDE.get(full) or (cap.get("buyer", "") if cap else "")
+        orig_buyer = BUYER_OVERRIDE.get(full) or (cap.get("buyer", "") if cap else "")
+        # 主体合并：骏航 → 浩川（同一主体；全称/简称统一，产能按浩川）
+        if short in MERGE_SHORT:
+            full = MERGE_FULL.get(short, full)
+            short = MERGE_SHORT[short]
+            cap = CAP_BY_SHORT.get(short, cap)
+        buyer = orig_buyer
         month_cap = cap.get("month_cap", 0) if cap else 0
 
         mc = g(r, "物料编码")
