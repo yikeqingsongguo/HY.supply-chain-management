@@ -69,6 +69,49 @@ const A = (c, msg) => { if (!c) { console.log('FAIL:', msg); process.exitCode = 
   A(!!bs && /采购员/.test(bs.innerHTML), '采购员汇总已渲染');
   A(!!w.document.getElementById('wkExportExcel'), '存在「导出 Excel」按钮');
 
+  // ---------- 统计汇总：列结构 / 搜索 / 行下钻 ----------
+  const sumEl = w.document.getElementById('wkSummary');
+  A(!!sumEl && sumEl.querySelectorAll('tr.wk-row').length > 0, '统计汇总已渲染（' + (sumEl ? sumEl.querySelectorAll('tr.wk-row').length : 0) + ' 家）');
+  const sumHead = sumEl ? Array.prototype.slice.call(sumEl.querySelectorAll('thead th')).map(t => t.textContent.trim()).join('/') : '';
+  A(/SPU 数/.test(sumHead), '统计汇总含「SPU 数」列：' + sumHead);
+  A(!/累计占比/.test(sumHead), '统计汇总已删除「累计占比」列：' + sumHead);
+  A(!!w.document.getElementById('wkSumSearch') && !!w.document.getElementById('wkSumSearchBtn'), '统计汇总含搜索输入框 + 搜索按钮');
+  // 位置：统计汇总必须排在表 A 之上
+  const sumCard = sumEl.closest ? sumEl.closest('.card') : null;
+  const aCard = w.document.getElementById('wkA') ? w.document.getElementById('wkA').closest('.card') : null;
+  A(!!sumCard && !!aCard && (sumCard.compareDocumentPosition(aCard) & 4) !== 0,
+    '统计汇总 / 采购员汇总已上移到表 A / 表 B 之前');
+
+  const sumInp = w.document.getElementById('wkSumSearch');
+  const sumBtn = w.document.getElementById('wkSumSearchBtn');
+  const allN = sumEl.querySelectorAll('tr.wk-row').length;
+  sumInp.value = '浩川';
+  sumBtn.click();
+  await sleep(200);
+  const rowsF = Array.prototype.slice.call(sumEl.querySelectorAll('tr.wk-row'));
+  A(rowsF.length > 0 && rowsF.length < allN, '统计汇总搜索「浩川」后仅剩 ' + rowsF.length + ' 家（原 ' + allN + ' 家）');
+  A(rowsF.every(r => /浩川/.test(r.textContent)), '搜索结果行均含关键词');
+  sumInp.value = '';
+  sumBtn.click();
+  await sleep(200);
+  A(sumEl.querySelectorAll('tr.wk-row').length === allN, '清空搜索后恢复全部 ' + allN + ' 家');
+  A(w.document.getElementById('wkSumSearchClear').style.display === 'none', '未搜索时「清空」按钮隐藏');
+
+  // 统计汇总行下钻 → 与表 A 点开的明细同构
+  sumEl.querySelector('tr.wk-row').click();
+  await sleep(250);
+  let sMask = w.document.querySelector('body > .mask');
+  const sTitle = sMask ? (sMask.querySelector('.dlg-hd') || {}).textContent : '';
+  A(!!sMask && /供应商详情/.test(sTitle), '统计汇总行可点开「供应商详情」（' + sTitle + '）');
+  const sTh = sMask ? sMask.querySelectorAll('.dlg-bd thead th').length : 0;
+  A(sTh === 12, '明细列为勾选+10+操作，共 12 列（' + sTh + '）');
+  A(!!sMask && !!sMask.querySelector('.dlg-bd thead th.wk-ck input.wk-ck-all') && !!sMask.querySelector('.dlg-bd tbody button.wk-op[data-op="assign"]'),
+    '统计汇总明细含全选框与「指定」列（同表 A）');
+  A(!!sMask && sMask.querySelectorAll('.dlg-bd th button.wk-fil').length === 9, '统计汇总明细除待下单外各列均可筛选（' + (sMask ? sMask.querySelectorAll('.dlg-bd th button.wk-fil').length : 0) + ' 个）');
+  if (sMask) sMask.querySelector('.dlg-ft button:last-child').click();
+  await sleep(120);
+  A(!w.document.querySelector('body > .mask'), '统计汇总明细小窗可关闭');
+
   const buyerRows = Array.prototype.slice.call(bs.querySelectorAll('tr.wk-row[data-buyer]'));
   A(buyerRows.length > 0, '采购员行可识别（' + buyerRows.length + ' 人）');
   const unfilled = buyerRows.find(r => r.getAttribute('data-buyer') === '（未填写）');
@@ -85,12 +128,15 @@ const A = (c, msg) => { if (!c) { console.log('FAIL:', msg); process.exitCode = 
   A(!!dlgTable && dlgTable.querySelectorAll('tbody tr').length > 0, '小窗含明细表（' + (dlgTable ? dlgTable.querySelectorAll('tbody tr').length : 0) + ' 行）');
   const headTxt = dlgTable ? Array.prototype.slice.call(dlgTable.querySelectorAll('th')).map(t => t.textContent.replace(/▾/g, '').trim()).join('/') : '';
   A(/SKU/.test(headTxt) && /SPU/.test(headTxt) && /物料名称/.test(headTxt) && /规格/.test(headTxt)
-    && /采购员/.test(headTxt) && /申请单号/.test(headTxt) && /供应商名称/.test(headTxt)
+    && /采购员/.test(headTxt) && /申请单/.test(headTxt) && /供应商名称/.test(headTxt)
     && /创建日期/.test(headTxt) && /领星创建人/.test(headTxt) && /备注/.test(headTxt) && /待下单/.test(headTxt),
-    '采购员详情列与供应商详情统一（11 列）：' + headTxt);
+    '采购员详情列与供应商详情统一（含供应商名称）：' + headTxt);
+  // 与供应商详情/表 A 完全同构：勾选列 + 11 个数据列 + 操作列，故 13 个 th
+  A(dlgTable && dlgTable.querySelectorAll('thead th').length === 13, '采购员详情列结构同表 A（勾选+11 列+操作，共 ' + (dlgTable ? dlgTable.querySelectorAll('thead th').length : 0) + ' 列）');
+  A(!!dlgTable && !!dlgTable.querySelector('thead th.wk-ck input.wk-ck-all') && !!dlgTable.querySelector('tbody button.wk-op[data-op="assign"]'), '采购员详情含全选框与「指定」操作列（与表 A 一致）');
   A(mask.querySelectorAll('.dlg-bd th button.wk-fil').length === 10, '采购员详情除待下单外各列均有筛选按钮（' + mask.querySelectorAll('.dlg-bd th button.wk-fil').length + ' 个）');
   const specTd = mask.querySelector('.dlg-bd td.spec-cell');
-  A(!!specTd && specTd.textContent.length <= 6 && !!specTd.getAttribute('title'), '规格型号仅显示前 5 字符且悬停有全文（' + (specTd ? specTd.textContent : '') + '）');
+  A(!!specTd && specTd.textContent === (specTd.getAttribute('title') || '') && specTd.textContent.length > 0, '规格列全文 + 悬停 title（与表 A 一致，靠 CSS 省略）：' + (specTd ? specTd.textContent : ''));
   // 小窗按钮：导出明细 + 关闭
   let dlgBtns = mask ? Array.prototype.slice.call(mask.querySelectorAll('.dlg-ft button')).map(b => b.textContent) : [];
   A(dlgBtns.indexOf('导出明细') >= 0 && dlgBtns.indexOf('关闭') >= 0, '小窗按钮含 导出明细/关闭');
@@ -203,6 +249,54 @@ const A = (c, msg) => { if (!c) { console.log('FAIL:', msg); process.exitCode = 
   await sleep(250);
   A(/退出编辑/.test(eb0.textContent), '口令正确后进入编辑模式');
   A(!w.document.querySelector('#tab-map .ro-bar'), '解锁后只读提示条消失');
+
+  // ---------- SKU 映射表：只看多家报价 + 最低价高亮 ----------
+  const sbm = w.document.querySelector('.sb-item[data-tab="map"]');
+  A(!!sbm, '存在 SKU 映射表入口');
+  if (sbm) {
+    sbm.click();
+    await sleep(400);
+    const omq = w.document.getElementById('btnOnlyMultiQuote');
+    A(!!omq, '映射表工具栏存在「只看多家报价」按钮');
+    const n0 = w.document.querySelectorAll('#mapBody tr').length;
+    // 过滤前行内报价数 <2 的行数（用于对比过滤是否真的生效）
+    const countPrice = tr => {
+      const cells = Array.prototype.slice.call(tr.children).slice(5, 10);
+      const num = s => { const m = String(s.textContent || '').match(/([\d.]+)\s*$/); return m ? parseFloat(m[1]) : NaN; };
+      let n = 0;
+      cells.forEach(td => Array.prototype.slice.call(td.querySelectorAll('span')).forEach(s => { if (!isNaN(num(s))) n++; }));
+      return n;
+    };
+    const singleBefore = Array.prototype.slice.call(w.document.querySelectorAll('#mapBody tr')).filter(tr => countPrice(tr) < 2).length;
+    omq.click();
+    await sleep(500);
+    const n1 = w.document.querySelectorAll('#mapBody tr').length;
+    A(n1 > 0, '开启「只看多家报价」后仍有行（' + n1 + ' 行 / 原 ' + n0 + ' 行）');
+    // 表头列序：勾选 | SKU | 简称 | 供应商 | 采购员 | 价格 | 备选1..4 | 操作
+    const mRows = Array.prototype.slice.call(w.document.querySelectorAll('#mapBody tr'));
+    A(mRows.every(tr => countPrice(tr) >= 2), '过滤后每行都至少 2 家报价（过滤前有 ' + singleBefore + ' 行仅 1 家）');
+    A(singleBefore > 0, '过滤前确实存在仅 1 家报价的行（' + singleBefore + ' 行）→ 按钮有效');
+    let checked = 0, bad = 0;
+    mRows.forEach(tr => {
+      const cells = Array.prototype.slice.call(tr.children).slice(5, 10);
+      const spans = [];
+      cells.forEach(td => Array.prototype.slice.call(td.querySelectorAll('span')).forEach(s => spans.push(s)));
+      const num = s => { const m = String(s.textContent || '').match(/([\d.]+)\s*$/); return m ? parseFloat(m[1]) : NaN; };
+      const vals = spans.map(num).filter(v => !isNaN(v));
+      if (vals.length < 2) return;      // 有备选报价才校验
+      const bolds = spans.filter(s => !isNaN(num(s)) && /800/.test(s.style.fontWeight || ''));
+      if (!bolds.length) { bad++; return; }
+      const mn = Math.min.apply(null, vals);
+      bolds.forEach(s => { if (num(s) !== mn) bad++; });
+      checked++;
+    });
+    A(checked > 0 && bad === 0, '每行最低价加粗高亮且等于该行最小报价（校验 ' + checked + ' 行，异常 ' + bad + '）');
+    // 关闭回到全部
+    omq.click();
+    await sleep(400);
+    const n2 = w.document.querySelectorAll('#mapBody tr').length;
+    A(n2 >= n0, '再次点击恢复全部映射行（' + n2 + ' 行）');
+  }
 
   // 语法/错误
   A(errors.length === 0, '无致命 JS 错误' + (errors.length ? ' → ' + errors.slice(0, 3).join(' | ') : ''));

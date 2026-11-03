@@ -8,38 +8,38 @@
 <style>
 /* =====================================================================
  * 设计系统：Newsprint（报纸排版）
- * 背景 #F9F9F7 报纸米白 · 墨黑 #111 结构线 · 社论红 #CC0000 仅作警报
+ * 背景 #F9F9F7 报纸米白 · 墨黑 #111 结构线 · 社论红 #BA1212 仅作警报
  * 零圆角 · 无软阴影 · 硬偏移阴影 · 点阵纸纹 · 衬线标题 + 等宽数据
  * 字体全部系统栈（零外链）：标题 Georgia/宋体，数据 Courier/Consolas
  * ===================================================================== */
 /* =====================================================================
  * 设计系统：Corporate Trust（企业信任风）
- * 浅底 #F8FAFC · 白卡 · 靛蓝 #4F46E5 + 紫罗兰 #7C3AED 渐变
+ * 浅底 #F8FCFB · 白卡 · 靛蓝 #0E9E8E + 紫罗兰 #0E9E8E 渐变
  * 12px 圆角 · 靛蓝彩色柔和阴影 · 全局字体：微软雅黑（零外链、离线可用）
  * 令牌集中在 :root；同特异性覆盖层置于样式区末尾（后写胜出）。
  * ===================================================================== */
 :root{
-  --bg:#F8FAFC; --card:#FFFFFF; --line:#E2E8F0; --line2:#E2E8F0;
-  --text:#0F172A; --text2:#475569; --muted:#64748B;
-  --primary:#4F46E5; --primary-d:#4338CA; --primary-soft:#EEF2FF;
-  --secondary:#7C3AED; --secondary-d:#6D28D9;
-  --grad:linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%);
-  --grad-soft:linear-gradient(135deg,#EEF2FF 0%,#F5F3FF 100%);
-  --grad-head:linear-gradient(135deg,#EEF2FF 0%,#F5F3FF 60%,#FAF5FF 100%);
+  --bg:#F8FCFB; --card:#FFFFFF; --line:#E0F0EC; --line2:#E0F0EC;
+  --text:#16302D; --text2:#4A6B66; --muted:#5A736F;
+  --primary:#0E9E8E; --primary-d:#0B8878; --primary-soft:#E8F7F4;
+  --secondary:#0E9E8E; --secondary-d:#0B8878;
+  --grad:linear-gradient(135deg,#0E9E8E 0%,#0E9E8E 100%);
+  --grad-soft:linear-gradient(135deg,#E8F7F4 0%,#ECF8F6 100%);
+  --grad-head:linear-gradient(135deg,#E8F7F4 0%,#ECF8F6 60%,#F7FDFC 100%);
   --danger:#EF4444; --danger-soft:#FEE2E2; --danger-line:#EF4444;
   --warn:#F59E0B; --warn-soft:#FEF3C7; --warn-line:#F59E0B;
   --ok:#10B981; --ok-soft:#D1FAE5; --ok-line:#10B981;
-  --accent:#4F46E5;
+  --accent:#0E9E8E;
   --sans:"Microsoft YaHei","微软雅黑",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Hiragino Sans GB",Arial,sans-serif;
   --serif:var(--sans);
   --mono:var(--sans);
   --font-sans:var(--sans); --font-mono:var(--mono);
-  --shadow-soft:0 4px 20px -2px rgba(79,70,229,.10);
-  --shadow-hover:0 10px 25px -5px rgba(79,70,229,.15),0 8px 10px -6px rgba(79,70,229,.10);
-  --shadow-btn:0 4px 14px 0 rgba(79,70,229,.30);
+  --shadow-soft:0 4px 20px -2px rgba(14,158,142,.10);
+  --shadow-hover:0 10px 25px -5px rgba(14,158,142,.15),0 8px 10px -6px rgba(14,158,142,.10);
+  --shadow-btn:0 4px 14px 0 rgba(14,158,142,.30);
   --shadow-inset:inset 0 1px 0 rgba(255,255,255,.6);
   --shadow:var(--shadow-soft);
-  --ring:0 0 0 3px rgba(79,70,229,.20);
+  --ring:0 0 0 3px rgba(14,158,142,.20);
   --radius:12px; --radius-sm:8px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -88,7 +88,7 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--text)}
 .todo-item.blue{border-left:4px double #111;color:var(--text2)}
 .todo-empty{color:var(--muted);font-size:13px;padding:2px 0}
 /* 只读提示条（映射表 / 待下单） */
-.ro-bar{margin:10px 0 0;padding:9px 13px;background:#FFF8E6;border:1px solid #F0C36D;border-left:4px solid #D97706;color:#7A4A00;font-size:12.5px;line-height:1.5}
+.ro-bar{margin:10px 0 0;padding:9px 13px;background:#FDF7E8;border:1px solid #E4BF79;border-left:4px solid #C67619;color:#6F480B;font-size:12.5px;line-height:1.5}
 
 /* ---------- 步骤条（版面导航） ---------- */
 .steps{display:flex;gap:0;margin:14px 0;overflow-x:auto;padding-bottom:2px;border:1px solid var(--line);background:var(--card)}
@@ -122,7 +122,7 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--text)}
 .btn:active{transform:translate(1px,1px)}
 .btn svg{flex:none}
 .btn.pri{background:#111;border-color:#111;color:#F9F9F7}
-.btn.pri:hover{background:var(--card);color:#111;border-color:#111;box-shadow:4px 4px 0 0 #CC0000}
+.btn.pri:hover{background:var(--card);color:#111;border-color:#111;box-shadow:4px 4px 0 0 #BA1212}
 .btn.dgr{color:var(--danger);border-color:var(--danger);background:transparent}
 .btn.dgr:hover{background:var(--danger);border-color:var(--danger);color:#F9F9F7}
 .btn.sm{min-height:30px;padding:0 9px;font-size:11.5px;letter-spacing:.08em}
@@ -256,11 +256,11 @@ th.sku-big{color:#F9F9F7;background:#111;font-weight:600;font-size:12px}
 .grp-bd{border-top:1px solid var(--line)}
 /* matchTab 专用：表格内联分组 */
 tr.grp-hd-row td{background:#F0F0F0 !important;border-top:2px solid var(--text);border-bottom:1px solid var(--text)}
-tr.grp-hd-row.has-unm td{background:#F9F1F1 !important;border-top:2px solid var(--danger)}
+tr.grp-hd-row.has-unm td{background:#F8F2F2 !important;border-top:2px solid var(--danger)}
 tr.grp-hd-row .grp-hd{border:none;background:transparent;padding:6px 10px}
 tr.grp-hd-row:hover td{background:#E5E5E0 !important}
 tr.grp-row td{background:#FFF !important}
-tr.grp-row.unm td{background:#FBE9E9 !important;border-top:1px solid var(--danger);border-bottom:1px solid var(--danger)}
+tr.grp-row.unm td{background:#F9EBEB !important;border-top:1px solid var(--danger);border-bottom:1px solid var(--danger)}
 .grp-toggle{font-family:var(--mono);font-size:13px;color:var(--text);width:14px;display:inline-block}
 .grp-mono{font-family:var(--mono);font-size:13px;color:var(--muted);padding:3px 8px;border:1px dashed var(--line2);background:var(--card)}
 .grp-meta-item{font-family:var(--mono);font-size:13px;color:var(--text2);padding:3px 8px;border:1px solid var(--line2);background:var(--card)}
@@ -343,14 +343,14 @@ tr.grp-row.unm td{background:#FBE9E9 !important;border-top:1px solid var(--dange
 /* === 未匹配补录：单元格选区 / 填充柄 === */
 .unmatch-cell-selected .inp-cell,
 .unmatch-cell-selected.inp-cell{
-  background:#E6F1FB !important;
-  outline:2px solid #378ADD !important;
+  background:#E9F8F6 !important;
+  outline:2px solid #50C4B5 !important;
   outline-offset:-2px;
 }
 .unmatch-row-selected td{ background:transparent; }
 .unmatch-row-selected td:first-child{ box-shadow: inset 3px 0 0 #0F6E56; }
 .unmatch-spu-cell{ font-family:var(--mono,monospace); font-weight:500; }
-.unmatch-spu-cell.grp{ background:#E1F5EE; color:#085041; text-align:center; border-radius:4px; }
+.unmatch-spu-cell.grp{ background:#E4F2ED; color:#124635; text-align:center; border-radius:4px; }
 .unmatch-fill-handle{
   position:absolute;
   width:8px;height:8px;
@@ -385,7 +385,7 @@ tr.grp-row.unm td{background:#FBE9E9 !important;border-top:1px solid var(--dange
 .sup-chart-wrap .chart-cap{font-family:var(--serif);font-weight:900;font-size:14px;color:var(--text);margin:0 0 6px}
 
 /* === 大尺寸弹窗（供应商详情）：宽度 80vw，高度随内容自适应，超出视口才内部滚动 === */
-.dlg.lg{max-width:80vw;width:80vw;height:auto;max-height:calc(100vh - 32px)}
+.dlg.lg{max-width:min(94vw,1340px);width:min(94vw,1340px);height:auto;max-height:calc(100vh - 32px)}
 .dlg.lg .dlg-bd{display:flex;flex-direction:column;flex:1;min-height:0}
 .dlg.lg .dlg-bd .tw{flex:0 1 auto;min-height:0;overflow:auto}
 /* 表格里的备注单元格：截断 + 可点击查看全文 */
@@ -453,7 +453,7 @@ tr.grp-row.unm td{background:#FBE9E9 !important;border-top:1px solid var(--dange
 .btn.pri{background:var(--primary);border-color:var(--primary);color:#fff}
 .btn.pri:hover{background:var(--primary-d);border-color:var(--primary-d);color:#fff;box-shadow:none}
 .step.on{background:var(--primary);color:#fff}
-.step.on .step-d{color:#c7d2fe}
+.step.on .step-d{color:#CFF6F1}
 .step.on .step-n{border-color:#fff;color:#fff}
 .step.on .step-ok{color:#fff}
 
@@ -486,7 +486,7 @@ body{font-size:16px}
 .todo-hd{background:var(--primary);color:#fff;font-family:inherit;font-size:13px;letter-spacing:.12em}
 .todo-hd svg{color:#fff}
 .todo-item{border-radius:var(--radius-sm)}
-.todo-item:hover{box-shadow:0 2px 8px rgba(15,23,42,.12);transform:translate(-1px,-1px)}
+.todo-item:hover{box-shadow:0 2px 8px rgba(22,48,45,.12);transform:translate(-1px,-1px)}
 .todo-item.amber{border-left-color:var(--warn)}
 .todo-item.blue{border-left-color:var(--primary)}
 .steps{border-radius:var(--radius);box-shadow:var(--shadow)}
@@ -508,15 +508,15 @@ body{font-size:16px}
 .drop:hover,.drop.over{background:var(--primary-soft);box-shadow:var(--shadow)}
 .drop-ic{color:var(--primary)}
 .file-chip{border-color:var(--line);border-left:4px solid var(--primary);background:var(--primary-soft);font-size:15px;border-radius:var(--radius-sm)}
-th{background:#f1f5f9;color:#475569;border:1px solid var(--line);font-family:inherit;font-size:13.5px;letter-spacing:.02em}
-th .th-fil-btn{color:#94a3b8}
+th{background:#EDF6F4;color:#4A6B66;border:1px solid var(--line);font-family:inherit;font-size:13.5px;letter-spacing:.02em}
+th .th-fil-btn{color:#94A3B8}
 th .th-fil-btn.has{color:var(--primary);background:var(--primary-soft)}
 td{font-size:15px}
-tbody tr:hover td{background:#f8fafc}
-tbody tr.unm:hover td{background:#f8fafc}
+tbody tr:hover td{background:#F8FCFB}
+tbody tr.unm:hover td{background:#F8FCFB}
 th.sku-big,td.sku-big{font-size:17px}
-th.sku-big{color:#475569;background:#f1f5f9}
-.kv th{background:#f8fafc;color:var(--text2);font-family:inherit;font-size:13px}
+th.sku-big{color:#4A6B66;background:#EDF6F4}
+.kv th{background:#F8FCFB;color:var(--text2);font-family:inherit;font-size:13px}
 .th-pop{border-color:var(--line);box-shadow:var(--shadow);border-radius:var(--radius)}
 .th-pop .th-pop-opt:hover{background:var(--primary-soft)}
 .hd-fil .hd-fil-pop{border-color:var(--line);box-shadow:var(--shadow);border-radius:var(--radius)}
@@ -528,9 +528,9 @@ th.sku-big{color:#475569;background:#f1f5f9}
 .stat.amber .stat-v,.stat.amber .stat-l{color:var(--warn)}
 .stat.green .stat-v{color:var(--ok)}
 .stat.blue .stat-v{color:var(--primary)}
-.grp-hd{background:#f8fafc}
-.grp-hd:hover{background:#f1f5f9}
-tr.grp-hd-row td{background:#f8fafc !important;border-top:2px solid var(--line);border-bottom:1px solid var(--line)}
+.grp-hd{background:#F8FCFB}
+.grp-hd:hover{background:#EDF6F4}
+tr.grp-hd-row td{background:#F8FCFB !important;border-top:2px solid var(--line);border-bottom:1px solid var(--line)}
 /* 透视明细表：固定高度 + 内部滚动（表头 sticky 生效），避免整页持续下拉 */
 .grp-bd .tw{max-height:56vh;overflow:auto}
 .grp-bd .tw th{position:sticky;top:0;z-index:3}
@@ -541,8 +541,8 @@ td.ctr .sup-chk{margin:0}
 .note.info{border-left-color:var(--primary)}
 .rule{border-left:4px solid var(--primary);font-size:14px}
 .mode-opt:hover{box-shadow:var(--shadow)}
-.dlg{border-color:var(--line);box-shadow:0 10px 30px rgba(15,23,42,.18);border-radius:var(--radius)}
-.dlg-ft{background:#f8fafc}
+.dlg{border-color:var(--line);box-shadow:0 10px 30px rgba(22,48,45,.18);border-radius:var(--radius)}
+.dlg-ft{background:#F8FCFB}
 
 /* =====================================================================
  * Corporate Trust 覆盖层（第 11 轮全局换肤）
@@ -560,7 +560,7 @@ body{
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
   text-rendering:optimizeLegibility;
 }
-::selection{background:rgba(79,70,229,.18)}
+::selection{background:rgba(14,158,142,.18)}
 h1,h2,h3,h4{letter-spacing:-.02em}
 .wrap{position:relative;z-index:1}
 
@@ -569,75 +569,75 @@ body::before,body::after{
   content:'';position:fixed;z-index:0;pointer-events:none;border-radius:50%;
   filter:blur(90px);
 }
-body::before{width:520px;height:520px;top:-190px;right:-130px;background:rgba(79,70,229,.15)}
-body::after{width:440px;height:440px;bottom:-210px;left:-150px;background:rgba(124,58,237,.12)}
+body::before{width:520px;height:520px;top:-190px;right:-130px;background:rgba(14,158,142,.15)}
+body::after{width:440px;height:440px;bottom:-210px;left:-150px;background:rgba(14,158,142,.12)}
 
 /* ---- 卡片：圆角 + 靛蓝彩色柔和阴影 ---- */
 .card{
   border-radius:var(--radius);
-  border-color:#EEF2FF;
+  border-color:#E8F7F4;
   background:var(--card);
   box-shadow:var(--shadow-soft);
   transition:box-shadow .25s ease-out,border-color .25s ease-out;
 }
-.card:hover{box-shadow:var(--shadow-hover);border-color:#E0E7FF}
-.card-hd{border-bottom-color:#F1F5F9}
+.card:hover{box-shadow:var(--shadow-hover);border-color:#D4F0EA}
+.card-hd{border-bottom-color:#EDF6F4}
 .card-hd h3{font-weight:700;color:var(--text)}
 
 /* ---- 按钮 ---- */
 .btn{border-radius:var(--radius-sm);letter-spacing:.01em;font-weight:600;transition:all .2s ease-out}
-.btn:hover{background:var(--primary-soft);border-color:#C7D2FE;color:var(--primary-d);transform:translateY(-1px)}
+.btn:hover{background:var(--primary-soft);border-color:#CFF6F1;color:var(--primary-d);transform:translateY(-1px)}
 .btn.pri{background:var(--grad);border-color:transparent;color:#fff;box-shadow:var(--shadow-btn)}
-.btn.pri:hover{background:var(--grad);border-color:transparent;color:#fff;transform:translateY(-2px);box-shadow:0 10px 24px -6px rgba(79,70,229,.5)}
-.btn.dgr{border-color:#FECACA;color:#B91C1C}
-.btn.dgr:hover{background:#FEF2F2;border-color:#FCA5A5;color:#B91C1C}
+.btn.pri:hover{background:var(--grad);border-color:transparent;color:#fff;transform:translateY(-2px);box-shadow:0 10px 24px -6px rgba(14,158,142,.5)}
+.btn.dgr{border-color:#FECACA;color:#DC2626}
+.btn.dgr:hover{background:#FDF3F3;border-color:#FCA5A5;color:#DC2626}
 
 /* ---- 输入：聚焦靛蓝光环 ---- */
 .inp,.inp-cell,.search{border-radius:var(--radius-sm);border-color:var(--line);
   transition:border-color .18s ease-out,box-shadow .18s ease-out,background-color .18s ease-out}
 .inp:focus,.inp-cell:focus,.search:focus{outline:none;border-color:var(--primary);box-shadow:var(--ring);background:#fff}
-.field label{font-family:var(--sans);font-weight:600;font-size:12.5px;letter-spacing:0;color:#334155}
+.field label{font-family:var(--sans);font-weight:600;font-size:12.5px;letter-spacing:0;color:#38504D}
 
 /* ---- 表格：靛蓝渐变表头 + 自适应内边距 ---- */
-th{background:var(--grad-head);color:#3730A3;border-color:#E0E7FF;
+th{background:var(--grad-head);color:#0B6F66;border-color:#D4F0EA;
    font-family:var(--sans);font-weight:600;font-size:14px;letter-spacing:0}
-th.sku-big{background:var(--grad-head);color:#3730A3}
-th .th-fil-btn{color:#818CF8}
+th.sku-big{background:var(--grad-head);color:#0B6F66}
+th .th-fil-btn{color:#93E6DB}
 th .th-fil-btn.has{color:#fff;background:var(--grad)}
-th .th-clr-btn{color:#DC2626}
-td{padding:9px 12px;line-height:1.5;border-color:#F1F5F9}
+th .th-clr-btn{color:#EF4444}
+td{padding:9px 12px;line-height:1.5;border-color:#EDF6F4}
 td.num,th.num{padding-left:8px}
 td.col-date,th.col-date{padding-left:10px;padding-right:10px}
 td.sku-big,th.sku-big{padding-left:12px}
-tbody tr:hover td{background:#F8FAFF}
+tbody tr:hover td{background:#F9FEFD}
 .mono{font-family:var(--mono);font-size:13px}
 td.sku-big,th.sku-big{font-family:var(--mono)}
 
 /* ---- 侧栏 / 顶栏 ---- */
-.sb-logo{background:var(--grad);border-radius:9px;box-shadow:0 4px 12px -2px rgba(79,70,229,.5)}
+.sb-logo{background:var(--grad);border-radius:9px;box-shadow:0 4px 12px -2px rgba(14,158,142,.5)}
 .sb-item{border-radius:var(--radius-sm);font-weight:500;
   transition:background-color .18s ease-out,color .18s ease-out}
-.sb-item.active{background:var(--grad-soft);color:var(--primary);box-shadow:inset 0 0 0 1px #E0E7FF}
+.sb-item.active{background:var(--grad-soft);color:var(--primary);box-shadow:inset 0 0 0 1px #D4F0EA}
 .sb-collapse{border-radius:var(--radius-sm)}
 .header{background:rgba(255,255,255,.86);backdrop-filter:saturate(180%) blur(8px)}
 .icon-btn{border-radius:10px}
-.avatar{background:var(--grad);border-radius:50%;box-shadow:0 4px 12px -3px rgba(79,70,229,.45)}
-.search{background:rgba(248,250,252,.9)}
+.avatar{background:var(--grad);border-radius:50%;box-shadow:0 4px 12px -3px rgba(14,158,142,.45)}
+.search{background:rgba(248,252,251,.9)}
 
 /* ---- 统计卡 / 步骤条 / 待办 ---- */
-.stat-card{border-radius:var(--radius);border-color:#EEF2FF;box-shadow:var(--shadow-soft);
+.stat-card{border-radius:var(--radius);border-color:#E8F7F4;box-shadow:var(--shadow-soft);
   position:relative;overflow:hidden;
   transition:box-shadow .25s ease-out,transform .25s ease-out}
 .stat-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--grad)}
 .stat-card:hover{box-shadow:var(--shadow-hover);transform:translateY(-3px) rotateX(1.5deg)}
-.quick-btn{border-radius:var(--radius);border-color:#EEF2FF;box-shadow:var(--shadow-soft);
+.quick-btn{border-radius:var(--radius);border-color:#E8F7F4;box-shadow:var(--shadow-soft);
   transition:all .2s ease-out}
-.quick-btn:hover{border-color:#C7D2FE;background:var(--grad-soft);transform:translateY(-2px)}
+.quick-btn:hover{border-color:#CFF6F1;background:var(--grad-soft);transform:translateY(-2px)}
 .step{border-radius:0}
-.step.on{background:var(--grad);color:#fff;box-shadow:0 6px 16px -6px rgba(79,70,229,.5)}
+.step.on{background:var(--grad);color:#fff;box-shadow:0 6px 16px -6px rgba(14,158,142,.5)}
 .step:hover{background:var(--grad-soft)}
 .step-n{border-radius:var(--radius-sm)}
-.todo{border-radius:var(--radius);border-color:#EEF2FF;box-shadow:var(--shadow-soft)}
+.todo{border-radius:var(--radius);border-color:#E8F7F4;box-shadow:var(--shadow-soft)}
 .todo-hd{background:var(--grad)}
 .todo-item{border-radius:var(--radius-sm);transition:box-shadow .2s ease-out,transform .2s ease-out}
 .todo-item:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px)}
@@ -645,30 +645,30 @@ td.sku-big,th.sku-big{font-family:var(--mono)}
 /* ---- 徽标 / 提示 / 弹窗 ---- */
 .bdg{border-radius:999px;font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:0}
 .bdg.blue{background:var(--primary-soft);color:var(--primary-d);border-color:transparent}
-.bdg.green{background:var(--ok-soft);color:#047857;border-color:transparent}
-.bdg.red{background:var(--danger-soft);color:#B91C1C;border-color:transparent;box-shadow:none}
+.bdg.green{background:var(--ok-soft);color:#14684C;border-color:transparent}
+.bdg.red{background:var(--danger-soft);color:#DC2626;border-color:transparent;box-shadow:none}
 .bdg.amber{background:var(--warn-soft);color:#B45309;border-color:transparent}
-.bdg.grey{background:#F1F5F9;color:var(--muted);border-color:transparent}
+.bdg.grey{background:#EDF6F4;color:var(--muted);border-color:transparent}
 .note,.rule{border-radius:var(--radius);border-left-color:var(--primary)}
-.dlg{border-radius:14px;border-color:#EEF2FF;
-  box-shadow:0 24px 60px -18px rgba(15,23,42,.35),0 8px 20px -8px rgba(79,70,229,.25)}
+.dlg{border-radius:14px;border-color:#E8F7F4;
+  box-shadow:0 24px 60px -18px rgba(22,48,45,.35),0 8px 20px -8px rgba(14,158,142,.25)}
 .dlg-hd{font-weight:700;letter-spacing:-.01em}
-.dlg-ft{background:#F8FAFC;border-top:1px solid #F1F5F9}
-.th-pop,.hd-fil .hd-fil-pop,.suggest,.nav-pop{border-radius:var(--radius);border-color:#EEF2FF;box-shadow:var(--shadow-hover)}
+.dlg-ft{background:#F8FCFB;border-top:1px solid #EDF6F4}
+.th-pop,.hd-fil .hd-fil-pop,.suggest,.nav-pop{border-radius:var(--radius);border-color:#E8F7F4;box-shadow:var(--shadow-hover)}
 .th-pop .th-pop-opt{border-radius:6px}
 .suggest-opt{font-family:var(--sans)}
-.toast{background:#0F172A;color:#F8FAFC;border:1px solid #1E293B;border-radius:var(--radius-sm);
-  letter-spacing:0;box-shadow:0 12px 30px -8px rgba(15,23,42,.5)}
-.toast.ok{background:#0F172A;border-left:4px solid var(--ok)}
-.toast.err{background:#7F1D1D;border-color:#991B1B}
-.prog{border-radius:999px;border:none;background:#EEF2FF;overflow:hidden}
+.toast{background:#16302D;color:#F8FCFB;border:1px solid #223734;border-radius:var(--radius-sm);
+  letter-spacing:0;box-shadow:0 12px 30px -8px rgba(22,48,45,.5)}
+.toast.ok{background:#16302D;border-left:4px solid var(--ok)}
+.toast.err{background:#762626;border-color:#8E2626}
+.prog{border-radius:999px;border:none;background:#E8F7F4;overflow:hidden}
 .prog>i{border-radius:999px;background:var(--grad)}
-.mask{background:rgba(15,23,42,.48);backdrop-filter:blur(3px)}
+.mask{background:rgba(22,48,45,.48);backdrop-filter:blur(3px)}
 
 /* ---- 分组 / 透视 / 分页 ---- */
-.grp{border-radius:var(--radius);border-color:#EEF2FF;box-shadow:var(--shadow-soft);overflow:hidden}
-.grp-hd{background:#FAFBFF}
-.grp-hd:hover{background:#F4F6FF}
+.grp{border-radius:var(--radius);border-color:#E8F7F4;box-shadow:var(--shadow-soft);overflow:hidden}
+.grp-hd{background:#FBFEFE}
+.grp-hd:hover{background:#F6FDFC}
 .grp-mono,.grp-meta-item{border-radius:999px}
 .pgbtn{border-radius:var(--radius-sm)}
 .pgbtn.on{background:var(--grad);border-color:transparent;color:#fff}
@@ -677,7 +677,7 @@ td.sku-big,th.sku-big{font-family:var(--mono)}
 /* ---- 滚动条 ---- */
 *::-webkit-scrollbar{width:10px;height:10px}
 *::-webkit-scrollbar-track{background:transparent}
-*::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+*::-webkit-scrollbar-thumb{background:#CEDEDC;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
 *::-webkit-scrollbar-thumb:hover{background:#94A3B8;background-clip:padding-box}
 
 /* ---- 动效降级 ---- */
@@ -686,8 +686,8 @@ td.sku-big,th.sku-big{font-family:var(--mono)}
   .btn:hover,.btn.pri:hover,.stat-card:hover,.quick-btn:hover,.todo-item:hover{transform:none}
 }
 .prog>i{background:var(--primary)}
-.toast{background:#1e293b;color:#fff;border-color:#1e293b;font-size:14px}
-.toast.ok{background:#1e293b;border-left:5px solid var(--ok)}
+.toast{background:#223734;color:#fff;border-color:#223734;font-size:14px}
+.toast.ok{background:#223734;border-left:5px solid var(--ok)}
 .sb-name{font-size:16px}
 .sb-item{font-size:15px}
 .sb-collapse{font-size:14px}
@@ -699,11 +699,11 @@ td.sku-big,th.sku-big{font-family:var(--mono)}
 </style>
 <style id="dash-theme">
 :root{
-  --bg:#F4F1FA; --card:#FFFFFF; --line:rgba(124,58,237,.14);
-  --text:#332F3A; --muted:#635F69;
-  --primary:#7C3AED; --primary-d:#6D28D9; --primary-soft:#F3E8FF;
-  --secondary:#7C3AED; --secondary-d:#6D28D9; --accent:#7C3AED;
-  --radius:20px; --shadow:0 8px 24px rgba(124,58,237,.07);
+  --bg:#F8FCFB; --card:#FFFFFF; --line:rgba(14,158,142,.14);
+  --text:#16302D; --muted:#5A736F;
+  --primary:#0E9E8E; --primary-d:#0B8878; --primary-soft:#ECFBF9;
+  --secondary:#0E9E8E; --secondary-d:#0B8878; --accent:#0E9E8E;
+  --radius:20px; --shadow:0 8px 24px rgba(14,158,142,.07);
 }
 body{
   font-family:"Nunito","DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
@@ -717,7 +717,7 @@ body{
 <style id="dash-auto">
 #dropApply{display:none!important}
 .apply-auto{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:10px}
-.apply-auto .dot{width:8px;height:8px;border-radius:50%;background:#16A34A;flex:none}
+.apply-auto .dot{width:8px;height:8px;border-radius:50%;background:#10B981;flex:none}
 .apply-auto .aa-t{font-weight:600;font-size:13px}
 .apply-auto .aa-s{font-size:12px;color:var(--muted);margin-top:1px}
 #tab-supplier > *:not(#wkPlanPanel){display:none!important}
@@ -727,9 +727,9 @@ table.wk{width:100%;border-collapse:collapse;font-size:12.5px}
 table.wk th{text-align:left;color:var(--muted);font-weight:500;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 table.wk td{padding:7px 8px;border-bottom:1px solid #F2F2F2;vertical-align:middle}
 table.wk tbody tr.wk-row{cursor:pointer}
-table.wk tbody tr.wk-row:hover{background:#FAF8FF}
-.wk-bar{height:12px;background:#F1EFE8;border-radius:3px;overflow:hidden;min-width:60px}
-.wk-bar i{display:block;height:100%;background:#7C3AED}
+table.wk tbody tr.wk-row:hover{background:#F9FEFD}
+.wk-bar{height:12px;background:#F0EFE9;border-radius:3px;overflow:hidden;min-width:60px}
+.wk-bar i{display:block;height:100%;background:#0E9E8E}
 .wk-num{width:68px;text-align:right;font-variant-numeric:tabular-nums}
 tr.wk-sub td{background:#FAFAFA;padding:0}
 tr.wk-sub table.wk{font-size:12px}
@@ -738,54 +738,59 @@ tr.wk-sub table.wk th{background:#FAFAFA;position:sticky;top:0}
 .wk-scope{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .wk-scope span{padding:5px 12px;cursor:pointer;font-size:12.5px;color:var(--muted);background:#fff;border-right:1px solid var(--line);user-select:none}
 .wk-scope span:last-child{border-right:0}
-.wk-scope span.on{background:#7C3AED;color:#fff;font-weight:600}
+.wk-scope span.on{background:#0E9E8E;color:#fff;font-weight:600}
 table.wk-items{table-layout:fixed;width:100%}
 table.wk-items th{position:relative}
 table.wk-items td.spec-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
 table.wk-items td.td-remark{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
 table.wk-items td.mono{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 table.wk-items th .wk-fil{display:inline-block;margin-left:4px;padding:0 4px;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:10px;line-height:14px;border-radius:3px}
-table.wk-items th .wk-fil:hover{background:#EFE9FB;color:#6D28D9}
-table.wk-items th .wk-fil.on{background:#7C3AED;color:#fff}
+table.wk-items th .wk-fil:hover{background:#ECF8F6;color:#0B8878}
+table.wk-items th .wk-fil.on{background:#0E9E8E;color:#fff}
 .wk-fil-panel{position:absolute;z-index:9999;background:#fff;border:1px solid var(--line);border-radius:10px;
-  box-shadow:0 10px 28px rgba(60,40,110,.16);padding:8px;min-width:260px;max-width:340px;max-height:290px;overflow:auto;font-size:12.5px}
+  box-shadow:0 10px 28px rgba(53,97,91,.16);padding:8px;min-width:260px;max-width:340px;max-height:290px;overflow:auto;font-size:12.5px}
 .wk-fil-panel .fp-hd{display:flex;gap:8px;padding:2px 4px 8px;border-bottom:1px solid var(--line);margin-bottom:6px;color:var(--muted)}
-.wk-fil-panel .fp-hd a{cursor:pointer;color:#6D28D9}
+.wk-fil-panel .fp-hd a{cursor:pointer;color:#0B8878}
 .wk-fil-panel label{display:flex;align-items:center;gap:7px;padding:4px 5px;border-radius:6px;cursor:pointer;white-space:nowrap}
-.wk-fil-panel label:hover{background:#FAF8FF}
+.wk-fil-panel label:hover{background:#F9FEFD}
 .wk-fil-panel label input{width:14px;height:14px}
-tr.wk-total td{background:#FAF8FF;font-weight:600;border-top:2px solid var(--line)}
+tr.wk-total td{background:#F9FEFD;font-weight:600;border-top:2px solid var(--line)}
 tr.wk-total td .muted{font-weight:400;color:var(--muted)}
 table.wk-items td.wk-ck,table.wk-items th.wk-ck{text-align:center;padding-left:4px;padding-right:4px}
 table.wk-items td.wk-ck input{width:15px;height:15px;cursor:pointer}
 .wk-op{display:inline-block;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;
-  color:#6D28D9;font-size:11.5px;cursor:pointer;white-space:nowrap}
-.wk-op:hover{background:#F5F0FF;border-color:#C4B5FD}
+  color:#0B8878;font-size:11.5px;cursor:pointer;white-space:nowrap}
+.wk-op:hover{background:#F3FCFB;border-color:#A0E3DA}
 .wk-assignbar{display:none;align-items:center;gap:10px;margin-top:10px;padding:9px 12px;border-radius:10px;
-  background:#F5F0FF;border:1px solid #DDD6FE;font-size:12.5px;color:#5B21B6}
+  background:#F3FCFB;border:1px solid #CCEFE9;font-size:12.5px;color:#087066}
 .wk-assignbar.on{display:flex}
 .wk-assignbar b{font-size:13px}
-.wk-assign-mask{position:fixed;inset:0;background:rgba(30,20,50,.14);z-index:10000;overflow:auto}
-/* 统计汇总 / 采购员汇总 并列两列 */
-.wk-duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
-@media (max-width:1180px){.wk-duo{grid-template-columns:1fr}}
-.wk-assign{position:absolute;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(50,30,90,.28);width:380px;padding:20px 22px}
+.wk-assign-mask{position:fixed;inset:0;background:rgba(26,44,42,.14);z-index:10000;overflow:auto}
+/* 统计汇总 / 采购员汇总 并列两列：等高 + 表体内部滚动 */
+.wk-duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:stretch}
+.wk-duo>.card{display:flex;flex-direction:column;min-height:0;max-height:600px}
+.wk-duo>.card>.card-hd{flex:none}
+.wk-duo>.card>.card-bd{flex:1 1 auto;min-height:0;overflow:auto}
+.wk-duo>.card>.card-bd>table.wk{margin:0}
+.wk-duo>.card>.card-bd>table.wk thead th{position:sticky;top:0;z-index:2;background:#FFFFFF}
+@media (max-width:1180px){.wk-duo{grid-template-columns:1fr}.wk-duo>.card{max-height:none}}
+.wk-assign{position:absolute;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(41,79,74,.28);width:380px;padding:20px 22px}
 /* 指定供应商：简称联想候选 */
-.wk-sug{display:none;margin-top:6px;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;box-shadow:0 8px 22px rgba(50,30,90,.12)}
+.wk-sug{display:none;margin-top:6px;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;box-shadow:0 8px 22px rgba(41,79,74,.12)}
 .wk-sug-item{display:flex;gap:8px;align-items:baseline;padding:7px 10px;cursor:pointer;font-size:12.5px;border-bottom:1px solid #F1F1F1}
 .wk-sug-item:last-child{border-bottom:none}
-.wk-sug-item:hover{background:#F5F3FF}
-.wk-sug-item b{color:#332F3A;min-width:64px}
+.wk-sug-item:hover{background:#ECF8F6}
+.wk-sug-item b{color:#16302D;min-width:64px}
 .wk-sug-item span{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wk-assign h4{margin:0 0 4px;font-size:15px;color:#332F3A}
+.wk-assign h4{margin:0 0 4px;font-size:15px;color:#16302D}
 .wk-assign .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
 .wk-assign label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
 .wk-assign select,.wk-assign input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;
   font-size:13px;box-sizing:border-box;background:#fff}
 .wk-assign .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-tr.wk-pending td{background:#FFF8F7}
+tr.wk-pending td{background:#FEF9F8}
 tr.wk-pending .wk-bar i{background:#F97316}
-.tag.pending{background:#FEE2E2;color:#B91C1C;border:1px solid #FECACA;white-space:nowrap}
+.tag.pending{background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;white-space:nowrap}
 #tab-unmatch.fold-help .rule.mb12,
 #tab-unmatch.fold-help .note,
 #tab-unmatch.fold-help .tbl-tools{display:none!important}
@@ -845,7 +850,7 @@ table.wk td b{white-space:nowrap}
   <button class="btn sm" id="btnEditMode" title="映射表 / 待下单默认只读；点击输入管理员口令后解锁编辑">只读模式</button>
   <div style="position:relative">
     <div class="icon-btn" id="bellBtn">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A736F" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>
       <span class="badge">3</span>
     </div>
     <div class="nav-pop" id="notifMenu">
@@ -934,7 +939,7 @@ table.wk td b{white-space:nowrap}
       <div class="card-hd">
         <h3>SKU 映射表管理</h3>
         <span class="hint" id="mapCountHint"></span>
-        <span class="hint" id="priceSummary" style="margin-left:12px;color:#4f46e5"></span>
+        <span class="hint" id="priceSummary" style="margin-left:12px;color:#0E9E8E"></span>
         <span class="spacer" style="flex:1"></span>
         <span class="bdg amber hidden" id="dirtyBadge">有未保存改动</span>
       </div>
@@ -989,6 +994,7 @@ table.wk td b{white-space:nowrap}
         <select class="inp" id="mapFilterBuyer" style="max-width:150px"><option value="">全部采购员</option></select>
         <select class="inp" id="mapFilterSupplier" style="max-width:170px"><option value="">全部供应商</option></select>
         <button class="btn sm" id="btnOnlyConflict" title="只显示疑似错配的行：同一简称挂了多个供应商，或同一供应商挂了多个简称">只看冲突行</button>
+        <button class="btn sm" id="btnOnlyMultiQuote" title="只显示存在多家供应商报价的 SKU（即备选1～4 中至少有一家报价）">只看多家报价</button>
         <span class="spacer" style="flex:1"></span>
         <span class="pi" id="mapSelHint" style="font-size:12.5px;color:var(--muted)"></span>
         <button class="btn sm" id="btnBatchSet">批量设置</button>
@@ -1285,18 +1291,18 @@ table.wk td b{white-space:nowrap}
       </div>
     </div>
   </div>
-  <div class="card">
-    <div class="card-hd"><h3>表 A · 待下单 ≥ <span id="wkThrA">5,000</span></h3><span class="hint">点击行展开该供应商 SKU 明细</span></div>
-    <div class="card-bd" id="wkA"></div>
-  </div>
-  <div class="card">
-    <div class="card-hd"><h3>表 B · 待下单 &lt; <span id="wkThrB">5,000</span></h3><span class="hint">点击行展开该供应商 SKU 明细</span></div>
-    <div class="card-bd" id="wkB"></div>
-  </div>
   <!-- 统计汇总 + 采购员汇总 左右并列，各占一半宽度 -->
   <div class="wk-duo">
     <div class="card">
-      <div class="card-hd"><h3>统计汇总</h3><span class="hint">按供应商与待下单总数</span></div>
+      <div class="card-hd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <h3 style="margin:0">统计汇总</h3>
+        <span class="hint">按供应商与待下单总数 · 点击行看明细</span>
+        <span class="spacer" style="flex:1"></span>
+        <input class="inp" id="wkSumSearch" placeholder="搜索供应商 / 简称…" autocomplete="off"
+               style="max-width:150px;height:28px;padding:3px 8px;font-size:12.5px">
+        <button class="btn sm" id="wkSumSearchBtn" style="white-space:nowrap">搜索</button>
+        <button class="btn sm" id="wkSumSearchClear" style="white-space:nowrap;display:none">清空</button>
+      </div>
       <div class="card-bd" id="wkSummary"></div>
     </div>
     <div class="card">
@@ -1307,6 +1313,15 @@ table.wk td b{white-space:nowrap}
       </div>
       <div class="card-bd" id="wkBuyerSummary"></div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><h3>表 A · 待下单 ≥ <span id="wkThrA">5,000</span></h3><span class="hint">点击行展开该供应商 SKU 明细</span></div>
+    <div class="card-bd" id="wkA"></div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h3>表 B · 待下单 &lt; <span id="wkThrB">5,000</span></h3><span class="hint">点击行展开该供应商 SKU 明细</span></div>
+    <div class="card-bd" id="wkB"></div>
   </div>
 </div>
 
@@ -2579,7 +2594,7 @@ var state = {
   readOnly: true,       // 默认只读：映射表 / 待下单需管理员口令解锁后才能改（防他人误改）
   editUnlocked: false,  // 本次会话是否已解锁编辑
   dirty: false,
-  mapSearch: '', mapBuyer: '', mapSupplier: '', mapPage: 1, mapOnlyConflict: false,
+  mapSearch: '', mapBuyer: '', mapSupplier: '', mapPage: 1, mapOnlyConflict: false, mapOnlyMultiQuote: false,
   apply: { name: '', headers: [], rows: [], colMap: null, records: [] },
   order: { name: '', headers: [], rows: [], colMap: null, records: [] },
   matchResult: null,
@@ -13852,14 +13867,33 @@ function mapColOptions(fieldKey) {
   return colOptionsGeneric(rows, fieldKey, function (m, k) { return mapColValue(m, k); });
 }
 
+/* 该行是否存在多家报价：备选 1～4 中至少有一条带价格 */
+function hasMultiQuote(m) {
+  return (m.alts || []).some(function (a) { return a && a.price !== '' && a.price != null; });
+}
+/* 该行的最低价（仅当 >=2 家报价时返回，否则 null —— 单家报价不高亮，避免整列全亮） */
+function rowMinPrice(m) {
+  var vals = [];
+  if (m.price !== '' && m.price != null && !isNaN(Number(m.price)) && Number(m.price) > 0) vals.push(Number(m.price));
+  (m.alts || []).forEach(function (a) {
+    if (a && a.price !== '' && a.price != null) { var v = Number(a.price); if (v > 0) vals.push(v); }
+  });
+  return vals.length >= 2 ? Math.min.apply(null, vals) : null;
+}
+function isLowestPrice(m, p) {
+  var mn = rowMinPrice(m);
+  return mn !== null && p !== '' && p != null && !isNaN(Number(p)) && Number(p) === mn;
+}
 function visibleMapRows() {
   var q = state.mapSearch.trim().toLowerCase();
   var only = state.mapOnlyConflict ? conflictMinoritySkus() : null;
+  var multiOnly = !!state.mapOnlyMultiQuote;
   var cf = state.mapColFilt || {};
   var cfKeys = Object.keys(cf);
   return state.mapping.filter(function (m) {
     if (m._deleted) return false;
     if (only && !only[Core.normSKU(m.sku)]) return false;
+    if (multiOnly && !hasMultiQuote(m)) return false;
     if (state.mapBuyer && m.buyer !== state.mapBuyer) return false;
     if (state.mapSupplier && m.supplier !== state.mapSupplier) return false;
     for (var i = 0; i < cfKeys.length; i++) {
@@ -14831,7 +14865,7 @@ function renderOneSupplierChart(groups, chartTitle) {
   svg.style.background = '#FFFFFF';
   svg.style.border = '1px solid var(--line)';
   svg.style.borderRadius = '8px';
-  svg.style.boxShadow = '0 1px 3px rgba(15,23,42,.08)';
+  svg.style.boxShadow = '0 1px 3px rgba(22,48,45,.08)';
 
   // 标题 + 图例
   var title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -14839,7 +14873,7 @@ function renderOneSupplierChart(groups, chartTitle) {
   title.setAttribute('font-family', 'var(--serif)');
   title.setAttribute('font-weight', '700');
   title.setAttribute('font-size', '16');
-  title.setAttribute('fill', '#0F172A');
+  title.setAttribute('fill', '#16302D');
   title.textContent = chartTitle + ' · 堆叠柱（按申请量降序）· 单位：件';
   svg.appendChild(title);
 
@@ -14850,16 +14884,16 @@ function renderOneSupplierChart(groups, chartTitle) {
     r.setAttribute('width', 12); r.setAttribute('height', 10);
     r.setAttribute('fill', color);
     if (patternId) r.setAttribute('fill', 'url(#' + patternId + ')');
-    r.setAttribute('stroke', '#e2e8f0');
+    r.setAttribute('stroke', '#E0F0EC');
     svg.appendChild(r);
     var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     t.setAttribute('x', x + 16); t.setAttribute('y', legendY);
-    t.setAttribute('font-family', 'var(--mono)'); t.setAttribute('font-size', '12.5'); t.setAttribute('fill', '#475569');
+    t.setAttribute('font-family', 'var(--mono)'); t.setAttribute('font-size', '12.5'); t.setAttribute('fill', '#4A6B66');
     t.textContent = label;
     svg.appendChild(t);
   }
-  legendItem(W - 220, '#6366f1', null, '已下单');
-  legendItem(W - 130, '#eef2ff', 'diagonal', '剩余');
+  legendItem(W - 220, '#78DCCE', null, '已下单');
+  legendItem(W - 130, '#E8F7F4', 'diagonal', '剩余');
 
   // 斜纹 pattern
   var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -14869,16 +14903,16 @@ function renderOneSupplierChart(groups, chartTitle) {
   pat.setAttribute('patternTransform', 'rotate(45)');
   var ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   ln.setAttribute('x1', 0); ln.setAttribute('y1', 0); ln.setAttribute('x2', 0); ln.setAttribute('y2', 6);
-  ln.setAttribute('stroke', '#a5b4fc'); ln.setAttribute('stroke-width', '2');
+  ln.setAttribute('stroke', '#9EE2D8'); ln.setAttribute('stroke-width', '2');
   pat.appendChild(ln); defs.appendChild(pat);
   // 柱体渐变：靛蓝 → 紫罗兰（Corporate Trust 视觉签名）
   var lg = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
   lg.setAttribute('id', 'barGrad');
   lg.setAttribute('x1', '0'); lg.setAttribute('y1', '1'); lg.setAttribute('x2', '0'); lg.setAttribute('y2', '0');
   var stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-  stop1.setAttribute('offset', '0'); stop1.setAttribute('stop-color', '#4F46E5');
+  stop1.setAttribute('offset', '0'); stop1.setAttribute('stop-color', '#0E9E8E');
   var stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-  stop2.setAttribute('offset', '1'); stop2.setAttribute('stop-color', '#7C3AED');
+  stop2.setAttribute('offset', '1'); stop2.setAttribute('stop-color', '#0E9E8E');
   lg.appendChild(stop1); lg.appendChild(stop2); defs.appendChild(lg);
   svg.appendChild(defs);
 
@@ -14889,14 +14923,14 @@ function renderOneSupplierChart(groups, chartTitle) {
     var grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     grid.setAttribute('x1', padL); grid.setAttribute('x2', W - padR);
     grid.setAttribute('y1', yy); grid.setAttribute('y2', yy);
-    grid.setAttribute('stroke', i === 0 ? '#cbd5e1' : '#e2e8f0');
+    grid.setAttribute('stroke', i === 0 ? '#CEDEDC' : '#E0F0EC');
     grid.setAttribute('stroke-width', i === 0 ? 1 : 1);
     grid.setAttribute('stroke-dasharray', i === 0 ? null : '2,3');
     svg.appendChild(grid);
     var lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     lbl.setAttribute('x', padL - 6); lbl.setAttribute('y', yy + 4);
     lbl.setAttribute('font-family', 'var(--mono)'); lbl.setAttribute('font-size', '12');
-    lbl.setAttribute('fill', '#64748B'); lbl.setAttribute('text-anchor', 'end');
+    lbl.setAttribute('fill', '#5A736F'); lbl.setAttribute('text-anchor', 'end');
     lbl.textContent = fmtInt(v);
     svg.appendChild(lbl);
   }
@@ -14925,7 +14959,7 @@ function renderOneSupplierChart(groups, chartTitle) {
     rr.setAttribute('width', barW);
     rr.setAttribute('height', (padT + innerH) - ordY);
     rr.setAttribute('fill', 'url(#barGrad)');
-    rr.setAttribute('stroke', '#4338CA');
+    rr.setAttribute('stroke', '#0B8878');
     gg.appendChild(rr);
     // 剩余（斜纹）
     if (rem > 0) {
@@ -14935,7 +14969,7 @@ function renderOneSupplierChart(groups, chartTitle) {
       rr2.setAttribute('width', barW);
       rr2.setAttribute('height', ordY - y(total));
       rr2.setAttribute('fill', 'url(#diagonal)');
-      rr2.setAttribute('stroke', '#a5b4fc');
+      rr2.setAttribute('stroke', '#9EE2D8');
       gg.appendChild(rr2);
     }
     // 顶部数字
@@ -14943,20 +14977,20 @@ function renderOneSupplierChart(groups, chartTitle) {
     numLbl.setAttribute('x', cx); numLbl.setAttribute('y', topY - 6);
     numLbl.setAttribute('font-family', 'var(--mono)'); numLbl.setAttribute('font-size', '12.5');
     numLbl.setAttribute('font-weight', '700');
-    numLbl.setAttribute('fill', '#0F172A'); numLbl.setAttribute('text-anchor', 'middle');
+    numLbl.setAttribute('fill', '#16302D'); numLbl.setAttribute('text-anchor', 'middle');
     numLbl.textContent = fmtInt(total);
     gg.appendChild(numLbl);
     // X 轴标签：供应商简称
     var xLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     xLbl.setAttribute('x', cx); xLbl.setAttribute('y', padT + innerH + 16);
     xLbl.setAttribute('font-family', 'var(--mono)'); xLbl.setAttribute('font-size', '13');
-    xLbl.setAttribute('fill', '#475569'); xLbl.setAttribute('text-anchor', 'middle');
+    xLbl.setAttribute('fill', '#4A6B66'); xLbl.setAttribute('text-anchor', 'middle');
     var lblText = g.shortName ? (g.shortName.length > 6 ? g.shortName.slice(0, 6) + '…' : g.shortName) : (g.name.length > 6 ? g.name.slice(0, 6) + '…' : g.name);
     if (snCount[g.shortName || g.name] > 1) {
       /* 简称重复（映射错配）时：主标签仍是简称，只追加全称首 2 字做区分，
          宽度和风格与其它柱保持一致；把映射表修好后后缀会自动消失。 */
       lblText = (g.shortName || g.name.slice(0, 6)) + '·' + g.name.slice(0, 2);
-      xLbl.setAttribute('fill', '#ef4444');
+      xLbl.setAttribute('fill', '#EF4444');
     }
     xLbl.textContent = lblText;
     gg.appendChild(xLbl);
@@ -14964,7 +14998,7 @@ function renderOneSupplierChart(groups, chartTitle) {
     var xSub = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     xSub.setAttribute('x', cx); xSub.setAttribute('y', padT + innerH + 30);
     xSub.setAttribute('font-family', 'var(--mono)'); xSub.setAttribute('font-size', '11.5');
-    xSub.setAttribute('fill', '#64748B'); xSub.setAttribute('text-anchor', 'middle');
+    xSub.setAttribute('fill', '#5A736F'); xSub.setAttribute('text-anchor', 'middle');
     xSub.textContent = g.skuCount + ' SKU';
     gg.appendChild(xSub);
   });
@@ -15314,8 +15348,8 @@ function applyUnmatchPaste(rows, allKeys) {
 /* 渲染批量粘贴 box */
 function renderUnmatchPasteBox(allKeys) {
   var box = el('div', 'rule mb12');
-  box.style.background = '#F0FDF4';
-  box.style.border = '1px solid #86EFAC';
+  box.style.background = '#F2FBF5';
+  box.style.border = '1px solid #93E2AD';
   box.style.padding = '10px 12px';
   var hd = el('div', 'mb8');
   hd.innerHTML = '<b>批量粘贴</b>　<span class="hint">从 Excel 复制 4 列（SKU / 简称 / 全称 / 备注）→ 直接粘贴到下方，识别后覆盖对应行的输入框。</span>';
@@ -15873,7 +15907,7 @@ function renderUnmatchPanel() {
   var brandKeys = keys.filter(isBrandSKU);
   if (brandKeys.length > 0) {
     var brandTip = el('div', 'note warning');
-    brandTip.style.cssText = 'background:#FAEEDA;border-color:#EF9F27;color:#633806;margin-bottom:10px;';
+    brandTip.style.cssText = 'background:#F7EDDD;border-color:#DD9B39;color:#5B370E;margin-bottom:10px;';
     brandTip.innerHTML = '检测到 <b>' + brandKeys.length + '</b> 个品牌形象款 SKU（中间含 C00XX，如 C0008 / C0013），它们不应被归到普通款号。'
       + '<button class="btn" id="btnExportBrandList" style="margin-left:10px">导出清单</button>';
     host.appendChild(brandTip);
@@ -15922,7 +15956,7 @@ function renderUnmatchPanel() {
     tdSku.textContent = k;
     if (isBrandSKU(k)) {
       var brandTag = el('span', 'brand-tag', '品牌形象款');
-      brandTag.style.cssText = 'display:inline-block;margin-left:6px;padding:1px 5px;font-size:11px;line-height:1.3;color:#854F0B;background:#FAEEDA;border-radius:4px;vertical-align:middle;white-space:nowrap;';
+      brandTag.style.cssText = 'display:inline-block;margin-left:6px;padding:1px 5px;font-size:11px;line-height:1.3;color:#7A4E16;background:#F7EDDD;border-radius:4px;vertical-align:middle;white-space:nowrap;';
       tdSku.appendChild(brandTag);
     }
     tr.appendChild(tdSku);
@@ -16276,6 +16310,8 @@ function renderMapTable() {
   renderMapConsistency();
   var oc = $('btnOnlyConflict');
   if (oc) oc.classList.toggle('pri', !!state.mapOnlyConflict);
+  var omq = $('btnOnlyMultiQuote');
+  if (omq) omq.classList.toggle('pri', !!state.mapOnlyMultiQuote);
   var rows = visibleMapRows();
   var total = rows.length;
   var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -16356,7 +16392,15 @@ function renderMapTable() {
       var pNum = formatPrice2(m.price) || String(m.price);
       var psp = el('span', 'mono', (pShort ? pShort + ' ' : '') + pNum);
       psp.title = '主报价 · ' + (m.priceSupplier || m.supplier || '');
-      psp.style.color = '#4f46e5'; psp.style.fontWeight = '600';
+      if (isLowestPrice(m, m.price)) {
+        /* 多家报价中的最低价：加粗 + 浅绿底凸显 */
+        psp.style.color = '#0B7A6E'; psp.style.fontWeight = '800';
+        psp.style.background = 'rgba(16,185,129,.14)';
+        psp.style.padding = '1px 6px'; psp.style.borderRadius = '6px';
+        psp.title += '（最低价）';
+      } else {
+        psp.style.color = '#4A6B66'; psp.style.fontWeight = '500';
+      }
       tdP.appendChild(psp);
     } else {
       var pdash = el('span', null, '—');
@@ -16376,8 +16420,15 @@ function renderMapTable() {
         var aNum = formatPrice2(aa.price) || String(aa.price);
         var asp = el('span', 'mono', (aShort ? aShort + ' ' : '') + aNum);
         asp.style.whiteSpace = 'nowrap';
-        asp.style.color = '#334155';
         asp.title = (aa.supplier || aShort) + ' · ' + aNum + (aa.validFrom ? ' · 生效 ' + aa.validFrom : '');
+        if (isLowestPrice(m, aa.price)) {
+          asp.style.color = '#0B7A6E'; asp.style.fontWeight = '800';
+          asp.style.background = 'rgba(16,185,129,.14)';
+          asp.style.padding = '1px 6px'; asp.style.borderRadius = '6px';
+          asp.title += '（最低价）';
+        } else {
+          asp.style.color = '#5A736F'; asp.style.fontWeight = '500';
+        }
         tdAlt.appendChild(asp);
       } else {
         var adash = el('span', null, '—');
@@ -17629,6 +17680,12 @@ function bindEvents() {
     renderMapTable();
     toast(state.mapOnlyConflict ? ('只看冲突行：' + visibleMapRows().length + ' 行（含示例 SKU，可逐行核对）') : '已显示全部映射行', 'ok');
   };
+  if ($('btnOnlyMultiQuote')) $('btnOnlyMultiQuote').onclick = function () {
+    state.mapOnlyMultiQuote = !state.mapOnlyMultiQuote;
+    state.mapPage = 1;
+    renderMapTable();
+    toast(state.mapOnlyMultiQuote ? ('只看多家报价：' + visibleMapRows().length + ' 个 SKU（最低价已高亮）') : '已显示全部映射行', 'ok');
+  };
   $('btnClearDemo').onclick = function () {
     dialog({
       title: '清空示例数据',
@@ -18223,10 +18280,10 @@ function purgeEmptyMapRows() {
 /* 打开「导入」小窗 */
 function openPasteImport() {
   var html = '' +
-    '<div style="font-size:13px;line-height:1.7;color:#475569">' +
+    '<div style="font-size:13px;line-height:1.7;color:#4A6B66">' +
     '  支持从 Excel 直接复制（Tab 分隔）、CSV 逗号分隔或空格分隔。<b>列顺序不限</b>，有表头时按表头识别。' +
     '</div>' +
-    '<div style="margin:10px 0;padding:10px 12px;background:#EEF2FF;border-left:3px solid #4F46E5;border-radius:6px;font-size:12px;color:#3730A3;line-height:1.7">' +
+    '<div style="margin:10px 0;padding:10px 12px;background:#E8F7F4;border-left:3px solid #0E9E8E;border-radius:6px;font-size:12px;color:#0B6F66;line-height:1.7">' +
     '  示例：<code>VYWB2038LK01M&nbsp;&nbsp;广州格莱尔皮具有限公司&nbsp;&nbsp;84.32</code><br>' +
     '  或带表头：<code>SKU,供应商,简称,采购员,含税单价</code>' +
     '</div>' +
@@ -18270,22 +18327,22 @@ function openPasteImport() {
     function colName(i) { return i >= 0 ? ('第 ' + (i + 1) + ' 列') : '未识别'; }
     var mapTxt = 'SKU ' + colName(c.sku) + ' · 供应商 ' + colName(c.supplier) + ' · 简称 ' + colName(c.shortName) +
       ' · 采购员 ' + colName(c.buyer) + ' · 价格 ' + colName(c.price);
-    var head = '<div style="font-size:12.5px;color:#0F172A;font-weight:600;margin-bottom:6px">识别到 ' +
+    var head = '<div style="font-size:12.5px;color:#16302D;font-weight:600;margin-bottom:6px">识别到 ' +
       parsed.rows.length + ' 条有效记录' + (parsed.hasHeader ? '（含表头）' : '') +
-      (parsed.errors.length ? '，<span style="color:#DC2626">' + parsed.errors.length + ' 条异常</span>' : '') + '</div>' +
-      '<div style="font-size:12px;color:#64748B;margin-bottom:8px">列映射：' + mapTxt + '</div>';
+      (parsed.errors.length ? '，<span style="color:#EF4444">' + parsed.errors.length + ' 条异常</span>' : '') + '</div>' +
+      '<div style="font-size:12px;color:#5A736F;margin-bottom:8px">列映射：' + mapTxt + '</div>';
     var rows = parsed.rows.slice(0, 5).map(function (r) {
       return '<tr><td style="padding:5px 8px;font-family:Consolas,monospace;font-size:11.5px">' + r.sku + '</td>' +
         '<td style="padding:5px 8px;font-size:11.5px">' + (r.supplier || '—') + '</td>' +
         '<td style="padding:5px 8px;font-size:11.5px">' + (r.shortName || '—') + '</td>' +
         '<td style="padding:5px 8px;font-size:11.5px;text-align:right">' + formatPrice2(r.price) + '</td></tr>';
     }).join('');
-    var table = '<table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:8px;overflow:hidden">' +
-      '<thead><tr style="background:#F8FAFC;color:#64748B;font-size:11.5px">' +
+    var table = '<table style="width:100%;border-collapse:collapse;border:1px solid #E0F0EC;border-radius:8px;overflow:hidden">' +
+      '<thead><tr style="background:#F8FCFB;color:#5A736F;font-size:11.5px">' +
       '<th style="padding:6px 8px;text-align:left">SKU</th><th style="padding:6px 8px;text-align:left">供应商</th>' +
       '<th style="padding:6px 8px;text-align:left">简称</th><th style="padding:6px 8px;text-align:right">价格</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table>';
-    var err = parsed.errors.length ? '<div style="margin-top:8px;font-size:12px;color:#DC2626">异常行：' +
+    var err = parsed.errors.length ? '<div style="margin-top:8px;font-size:12px;color:#EF4444">异常行：' +
       parsed.errors.slice(0, 3).map(function (e) { return '第 ' + e.line + ' 行 ' + e.reason; }).join('；') +
       (parsed.errors.length > 3 ? ' 等 ' + parsed.errors.length + ' 条' : '') + '</div>' : '';
     pv.innerHTML = head + table + err;
@@ -18370,7 +18427,7 @@ function importPriceList(rows, supplier) {
     html: '<div>有效报价行：<b>' + rep.total + '</b></div>' +
       '<div class="mt8">主报价写入：<b>' + rep.priceSet + '</b>　备选新增：<b>' + rep.altsAdded + '</b>　替换清除旧值：<b>' + rep.replaced + '</b></div>' +
       '<div class="mt8">价目表新增 SKU（映射表原没有，已建未分配行）：<b>' + rep.newSkus + '</b></div>' +
-      '<div class="mt8" style="color:#b45309">价格无效跳过：<b>' + rep.invalid + '</b>　文件内重复 SKU：<b>' + rep.dup + '</b>　空行跳过：<b>' + rep.skipped + '</b></div>',
+      '<div class="mt8" style="color:#B45309">价格无效跳过：<b>' + rep.invalid + '</b>　文件内重复 SKU：<b>' + rep.dup + '</b>　空行跳过：<b>' + rep.skipped + '</b></div>',
     buttons: [{ label: '完成', cls: 'btn pri' }]
   });
   return rep;
@@ -18477,6 +18534,7 @@ window.__test = {
   var WK_DATE = { from:'', to:'' };   // 创建日期区间（按申请单创建日期）
   var LOCAL_MAP = {};         // { sku: {short, name, buyer} }
   var WK_BUYER_AGG = {};      // 最新一次采购员汇总（供下钻明细）
+  var WKS_Q = '';             // 统计汇总的搜索词（只影响统计汇总表）
   var WK_DETAIL = null;       // 当前打开的详情小窗（供应商下钻刷新用）
   /* ---------- 弹窗定位：顶边对齐点击处水平线，且整体不超出视口 ---------- */
   var LAST_POINTER_Y = null;
@@ -18755,6 +18813,66 @@ window.__test = {
 
   function rowKey(it){ return (it.doc||'') + '|' + (it.sku||''); }
 
+  /* ===== 统一明细表：供应商详情 / 采购员详情共用同一套列定义、字体与间距 =====
+     rows: [{it: item, supName?: '供应商全称'}] 或 [item]
+     opts: { filters:{k:Set}, showSup:bool }  showSup=true 时在「申请单单号」后插入「供应商名称」 */
+  function wkDetailHtml(rows, opts){
+    opts = opts || {};
+    var f = opts.filters || {};
+    var cols = COLS.slice();
+    if(opts.showSup){
+      var di = 0;
+      cols.forEach(function(c,i){ if(c.key === 'doc') di = i; });
+      cols.splice(di + 1, 0, { key:'supName', label:'供应商名称', w:150 });
+    }
+    var h = '<table class="wk wk-items"><colgroup><col style="width:34px">'
+      + cols.map(function(c){ return '<col style="width:'+c.w+'px">'; }).join('')
+      + '<col style="width:56px"></colgroup><thead><tr>'
+      + '<th class="wk-ck"><input type="checkbox" class="wk-ck-all" title="全选本表"></th>';
+    cols.forEach(function(c){
+      var on = !!(f[c.key] && f[c.key].size);
+      h += '<th'+(c.num?' style="text-align:right"':'')+'>'+c.label
+        + (c.key==='qty' ? '' : '<button class="wk-fil'+(on?' on':'')+'" type="button" data-k="'+c.key+'" title="筛选 '+c.label+'">▾</button>')
+        + '</th>';
+    });
+    h += '<th style="text-align:center">操作</th></tr></thead><tbody>';
+    var sum = 0;
+    rows.forEach(function(x){
+      var it = (x && x.it) ? x.it : x;
+      var k = rowKey(it);
+      sum += (it.qty || 0);
+      h += '<tr data-k="'+esc(k)+'">';
+      h += '<td class="wk-ck"><input type="checkbox" class="wk-ck-one"'+(WK_SEL[k]?' checked':'')+'></td>';
+      cols.forEach(function(c){
+        var v = (c.key === 'supName') ? (x.supName || '') : it[c.key];
+        if(c.key === 'qty'){
+          h += '<td style="text-align:right;font-variant-numeric:tabular-nums">'+nf(v||0)+'</td>';
+        }else if(c.key === 'remark'){
+          h += '<td class="td-remark" title="'+esc(v||'')+'">'+esc(cut5(v))+'</td>';
+        }else if(c.key === 'date'){
+          h += '<td class="col-date" style="color:var(--muted);white-space:nowrap">'+esc(v||'—')+'</td>';
+        }else if(c.key === 'spec'){
+          h += '<td class="spec-cell" title="'+esc(v||'')+'">'+esc(v||'')+'</td>';
+        }else if(c.key === 'sku' || c.key === 'spu' || c.key === 'doc' || c.key === 'supName'){
+          h += '<td class="mono" title="'+esc(v||'')+'">'+esc(v||'—')+'</td>';
+        }else if(c.key === 'name'){
+          h += '<td title="'+esc(v||'')+'">'+esc(v||'')+'</td>';
+        }else{
+          h += '<td>'+esc(v||'')+'</td>';
+        }
+      });
+      h += '<td style="text-align:center"><button class="wk-op" data-op="assign">指定</button></td></tr>';
+    });
+    if(!rows.length){
+      h += '<tr><td colspan="'+(cols.length+2)+'" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
+    }else{
+      h += '<tr class="wk-total"><td colspan="'+(cols.length)+'">合计 <span class="muted">'+rows.length+' 行</span></td>'
+        + '<td style="text-align:right">'+nf(sum)+'</td><td></td></tr>';
+    }
+    h += '</tbody></table>';
+    return h;
+  }
+
   function wkItemsHtml(sup){
     var items = (sup.items||[]).slice().sort(function(a,b){ return (b.qty||0)-(a.qty||0); });
     var f = WK_FIELD[sup.short] || {};
@@ -18763,56 +18881,11 @@ window.__test = {
       var set = f[c.key];
       if(set && set.size) items = items.filter(function(it){ return set.has(String(it[c.key]||'')); });
     });
-
-    var h = '<table class="wk wk-items"><colgroup><col style="width:34px">'
-      + COLS.map(function(c){ return '<col style="width:'+c.w+'px">'; }).join('')
-      + '<col style="width:56px"></colgroup><thead><tr>'
-      + '<th class="wk-ck"><input type="checkbox" class="wk-ck-all" title="全选本表"></th>';
-    COLS.forEach(function(c){
-      var on = !!(f[c.key] && f[c.key].size);
-      h += '<th'+(c.num?' style="text-align:right"':'')+'>'+c.label
-        + (c.key==='qty' ? '' : '<button class="wk-fil'+(on?' on':'')+'" type="button" data-k="'+c.key+'" title="筛选 '+c.label+'">▾</button>')
-        + '</th>';
-    });
-    h += '<th style="text-align:center">操作</th></tr></thead><tbody>';
-    items.forEach(function(it){
-      var k = rowKey(it);
-      h += '<tr data-k="'+esc(k)+'">';
-      h += '<td class="wk-ck"><input type="checkbox" class="wk-ck-one"'+(WK_SEL[k]?' checked':'')+'></td>';
-      h += '<td class="mono" title="'+esc(it.sku)+'">'+esc(it.sku)+'</td>';
-      h += '<td class="mono">'+esc(it.spu)+'</td>';
-      h += '<td title="'+esc(it.name)+'">'+esc(it.name)+'</td>';
-      h += '<td class="spec-cell" title="'+esc(it.spec)+'">'+esc(it.spec)+'</td>';
-      h += '<td>'+esc(it.buyer)+'</td>';
-      h += '<td class="mono" title="'+esc(it.doc)+'">'+esc(it.doc||'—')+'</td>';
-      h += '<td class="col-date" style="color:var(--muted);white-space:nowrap">'+esc(it.date||'—')+'</td>';
-      h += '<td>'+esc(it.ling||'—')+'</td>';
-      h += '<td class="td-remark" title="'+esc(it.remark||'')+'">'+esc(cut5(it.remark))+'</td>';
-      h += '<td style="text-align:right;font-variant-numeric:tabular-nums">'+nf(it.qty)+'</td>';
-      h += '<td style="text-align:center"><button class="wk-op" data-op="assign">指定</button></td>';
-      h += '</tr>';
-    });
-    if(!items.length){
-      h += '<tr><td colspan="'+(COLS.length+2)+'" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
-    }else{
-      var sum = items.reduce(function(a,b){ return a + (b.qty||0); }, 0);
-      h += '<tr class="wk-total"><td colspan="'+(COLS.length)+'">合计 <span class="muted">'+items.length+' 行</span></td>'
-        + '<td style="text-align:right">'+nf(sum)+'</td><td></td></tr>';
-    }
-    h += '</tbody></table>';
-    return h;
+    return wkDetailHtml(items, { filters: f });
   }
 
-  function bindItems(sub, sup){
-    sub.querySelectorAll('button.wk-fil').forEach(function(btn){
-      btn.onclick = function(ev){
-        ev.stopPropagation();
-        var k = btn.getAttribute('data-k');
-        var col = COLS.filter(function(c){ return c.key === k; })[0];
-        if(!col) return;
-        if(WK_PANEL) closePanel(); else openPanel(btn, sup, col);
-      };
-    });
+  /* 勾选 / 全选 / 指定 —— 供应商详情与采购员详情共用 */
+  function bindRowActions(sub){
     var all = sub.querySelector('.wk-ck-all');
     if(all){
       all.onclick = function(ev){
@@ -18845,6 +18918,19 @@ window.__test = {
         };
       }
     });
+  }
+
+  function bindItems(sub, sup){
+    sub.querySelectorAll('button.wk-fil').forEach(function(btn){
+      btn.onclick = function(ev){
+        ev.stopPropagation();
+        var k = btn.getAttribute('data-k');
+        var col = COLS.filter(function(c){ return c.key === k; })[0];
+        if(!col) return;
+        if(WK_PANEL) closePanel(); else openPanel(btn, sup, col);
+      };
+    });
+    bindRowActions(sub);
   }
 
   function updateSelBar(){
@@ -19045,6 +19131,7 @@ window.__test = {
         var rows = rowsFiltered();
         tw.innerHTML = buyerItemsHtml(rows, bf);
         bindBuyerFilter(tw, items, bf, render);
+        bindRowActions(tw);
       }
       render();
       /* 导出明细：导出当前筛选后的行（与所见一致） */
@@ -19128,57 +19215,9 @@ window.__test = {
     });
   }
 
-  /* 采购员详情：列集合与「供应商详情」统一，仅多一列「供应商名称」
-     SKU/SPU/物料名称/规格/采购员/申请单号/供应商名称/创建日期/领星创建人/备注/待下单 */
+  /* 采购员详情：与「供应商详情」同一套列定义/字体/间距，仅多一列「供应商名称」 */
   function buyerItemsHtml(rows, bf){
-    var HEAD = [
-      { k:'sku',     l:'SKU',       w:152 },
-      { k:'spu',     l:'SPU',       w:56  },
-      { k:'name',    l:'物料名称',  w:96  },
-      { k:'spec',    l:'规格',      w:0   },
-      { k:'buyer',   l:'采购员',    w:66  },
-      { k:'doc',     l:'申请单号',  w:122 },
-      { k:'supName', l:'供应商名称', w:172 },
-      { k:'date',    l:'创建日期',  w:100 },
-      { k:'ling',    l:'领星创建人', w:84  },
-      { k:'remark',  l:'备注',      w:96  },
-      { k:'qty',     l:'待下单',    w:76, num:true }
-    ];
-    var h = '<table class="wk wk-items"><colgroup>'
-      + HEAD.map(function(c){ return '<col'+(c.w?(' style="width:'+c.w+'px"'):'')+'>'; }).join('')
-      + '</colgroup><thead><tr>';
-    HEAD.forEach(function(c){
-      var on = !!(bf && bf[c.k] && bf[c.k].size);
-      h += '<th'+(c.num?' style="text-align:right"':'')+'>'+c.l
-        + (c.k === 'qty' ? '' : '<button class="wk-fil'+(on?' on':'')+'" type="button" data-k="'+c.k+'" title="筛选 '+c.l+'">▾</button>')
-        + '</th>';
-    });
-    h += '</tr></thead><tbody>';
-    var sum = 0;
-    rows.forEach(function(x){
-      var it = x.it;
-      sum += (it.qty || 0);
-      h += '<tr>'
-        + '<td class="mono" title="'+esc(it.sku||'')+'" style="font-family:Consolas,monospace;font-weight:700">'+esc(it.sku||'')+'</td>'
-        + '<td style="color:var(--muted)">'+esc(it.spu||'')+'</td>'
-        + '<td title="'+esc(it.name||'')+'">'+esc(it.name||'')+'</td>'
-        + '<td class="spec-cell" title="'+esc(it.spec||'')+'">'+esc(cut5(it.spec))+'</td>'
-        + '<td>'+esc(it.buyer||'—')+'</td>'
-        + '<td class="mono" style="color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(it.doc||'')+'">'+esc(it.doc||'—')+'</td>'
-        + '<td title="'+esc(x.supName||'')+'" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(x.supName||'—')+'</td>'
-        + '<td style="color:var(--muted);white-space:nowrap">'+esc(it.date||'—')+'</td>'
-        + '<td style="color:var(--muted)">'+esc(it.ling||'')+'</td>'
-        + '<td class="td-remark" title="'+esc(it.remark||'')+'">'+esc(cut5(it.remark))+'</td>'
-        + '<td style="text-align:right">'+nf(it.qty||0)+'</td></tr>';
-    });
-    if(!rows.length){
-      h += '<tr><td colspan="'+HEAD.length+'" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
-    } else {
-      h += '<tr class="wk-total"><td colspan="'+(HEAD.length-1)+'">合计 <span class="muted">'+rows.length+' 行</span></td>'
-        + '<td style="text-align:right">'+nf(sum)+'</td></tr>';
-    }
-    h += '</tbody></table>';
-    return h;
+    return wkDetailHtml(rows, { filters: bf, showSup: true });
   }
 
   /* ---------- 导出 Excel（明细 + 供应商透视，双 sheet） ---------- */
@@ -19191,7 +19230,7 @@ window.__test = {
       var t = document.createElement('div');
       t.textContent = msg;
       t.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:99999;'
-        + 'background:'+(kind==='err'?'#DC2626':'#0F6E56')+';color:#fff;padding:8px 16px;border-radius:8px;'
+        + 'background:'+(kind==='err'?'#EF4444':'#0F6E56')+';color:#fff;padding:8px 16px;border-radius:8px;'
         + 'font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.18)';
       document.body.appendChild(t);
       setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 2600);
@@ -19383,7 +19422,7 @@ window.__test = {
         '<div class="stat"><div class="s-l">全部供应商待下单</div><div class="s-v"><b>'+nf(total)+'</b> 件</div></div>'
         +'<div class="stat"><div class="s-l">供应商</div><div class="s-v"><b>'+(WK.supplier_count||0)+'</b> 家 <span style="font-size:12px;color:var(--muted)">核心 '+(WK.core_count||0)+'</span></div></div>'
         +'<div class="stat"><div class="s-l">采购员待下单</div><div class="s-v"><b>'+nf(scopeTotal)+'</b> 件 <span style="font-size:12px;color:var(--muted)">'+buyerCount+' 人</span></div></div>'
-        +'<div class="stat"><div class="s-l">待填写（未映射）</div><div class="s-v" style="color:#B91C1C"><b>'+nf(pending.qty)+'</b> 件 <span style="font-size:12px;color:var(--muted)">'+pending.rows+' 行</span></div></div>'
+        +'<div class="stat"><div class="s-l">待填写（未映射）</div><div class="s-v" style="color:#DC2626"><b>'+nf(pending.qty)+'</b> 件 <span style="font-size:12px;color:var(--muted)">'+pending.rows+' 行</span></div></div>'
         +'<div class="stat"><div class="s-l">当前筛选</div><div class="s-v"><b>'+nf(scopeTotal)+'</b> 件 <span style="font-size:12px;color:var(--muted)">'+list.length+' 家</span></div></div>';
     }
     wkTable(document.getElementById('wkA'), list.filter(function(x){ return x.plan >= thr; }), max, total);
@@ -19411,24 +19450,48 @@ window.__test = {
 
     var sum = document.getElementById('wkSummary');
     if(sum){
-      var acc = 0;
-      sum.innerHTML = '<table class="wk"><thead><tr><th>供应商</th><th style="text-align:right;width:110px">待下单总数</th>'
-        + '<th style="text-align:right;width:70px">占比</th><th style="text-align:right;width:80px">累计占比</th><th style="text-align:right;width:70px">单据</th><th>采购员</th></tr></thead><tbody>'
-        + list.map(function(x){
-            acc += x.plan;
-            var d = scopeTotal>0 ? (acc/scopeTotal*100) : 0;
-            return '<tr><td><b>'+x.short+'</b> '+(x.pending?'<span class="tag pending">待填写</span> ':(x.core?'<span class="tag core">核心</span> ':''))
-              + '<span style="color:var(--muted)">'+x.name+'</span></td>'
+      var q = String(WKS_Q||'').trim().toLowerCase();
+      var sl = q ? list.filter(function(x){
+        return String(x.short||'').toLowerCase().indexOf(q) >= 0
+            || String(x.name||'').toLowerCase().indexOf(q) >= 0;
+      }) : list;
+      var sPlan = sl.reduce(function(s,x){ return s + x.plan; }, 0);
+      var sSku = sl.reduce(function(s,x){ return s + (x.skus||0); }, 0);
+      var sSpu = sl.reduce(function(s,x){ return s + (x.spus||0); }, 0);
+      var sDoc = sl.reduce(function(s,x){ return s + (x.docs||0); }, 0);
+      sum.innerHTML = '<table class="wk"><thead><tr><th>供应商</th>'
+        + '<th style="text-align:right;width:96px">待下单总数</th>'
+        + '<th style="text-align:right;width:60px">占比</th>'
+        + '<th style="text-align:right;width:56px">SKU 数</th>'
+        + '<th style="text-align:right;width:56px">SPU 数</th>'
+        + '<th style="text-align:right;width:52px">单据</th>'
+        + '<th style="width:112px">采购员</th><th style="width:22px"></th></tr></thead><tbody>'
+        + (sl.length ? sl.map(function(x){
+            var bl = (x.buyers||[]).join('、');
+            return '<tr class="wk-row'+(x.pending?' wk-pending':'')+'" data-short="'+esc(x.short)+'" title="点击查看 SKU 明细">'
+              + '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(x.name||x.short)+'">'
+              + '<b>'+esc(x.short)+'</b> '+(x.pending?'<span class="tag pending">待填写</span> ':(x.core?'<span class="tag core">核心</span> ':''))
+              + '<span style="color:var(--muted)">'+esc(x.name)+'</span></td>'
               + '<td style="text-align:right">'+nf(x.plan)+'</td>'
               + '<td style="text-align:right">'+(scopeTotal>0?(x.plan/scopeTotal*100).toFixed(1):'0.0')+'%</td>'
-              + '<td style="text-align:right;color:var(--muted)">'+d.toFixed(1)+'%</td>'
+              + '<td style="text-align:right;color:var(--muted)">'+(x.skus||0)+'</td>'
+              + '<td style="text-align:right;color:var(--muted)">'+(x.spus||0)+'</td>'
               + '<td style="text-align:right;color:var(--muted)">'+(x.docs||0)+'</td>'
-              + '<td style="color:var(--muted)">'+(x.buyers||[]).join('、')+'</td></tr>';
+              + '<td style="color:var(--muted);max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(bl)+'">'+(bl?esc(bl):'—')+'</td>'
+              + '<td class="wk-arrow">▸</td></tr>';
           }).join('')
-        + '<tr class="wk-total"><td>全部供应商合计 <span class="muted">'+list.length+' 家</span></td>'
-        + '<td style="text-align:right">'+nf(scopeTotal)+'</td><td style="text-align:right">100.0%</td>'
-        + '<td style="text-align:right">—</td><td></td><td></td></tr>'
+          : '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:14px">没有匹配「'+esc(WKS_Q)+'」的供应商</td></tr>')
+        + '<tr class="wk-total"><td>合计 <span class="muted">'+sl.length+' 家</span></td>'
+        + '<td style="text-align:right">'+nf(sPlan)+'</td>'
+        + '<td style="text-align:right">'+(scopeTotal>0?(sPlan/scopeTotal*100).toFixed(1):'0.0')+'%</td>'
+        + '<td style="text-align:right">'+sSku+'</td>'
+        + '<td style="text-align:right">'+sSpu+'</td>'
+        + '<td style="text-align:right">'+sDoc+'</td>'
+        + '<td colspan="2"></td></tr>'
         + '</tbody></table>';
+      sum.querySelectorAll('tr.wk-row').forEach(function(tr){ tr.onclick = function(){ wkToggle(tr); }; });
+      var scb = document.getElementById('wkSumSearchClear');
+      if(scb) scb.style.display = q ? '' : 'none';
     }
     var bs = document.getElementById('wkBuyerSummary');
     if(bs){
@@ -19499,6 +19562,17 @@ window.__test = {
       if(inp){ inp.oninput = wkRender; }
       var eb = document.getElementById('wkExportExcel');
       if(eb){ eb.onclick = wkExportExcel; }
+      /* 统计汇总搜索（只作用于统计汇总表，不影响表 A / 表 B） */
+      var ss = document.getElementById('wkSumSearch');
+      var ssb = document.getElementById('wkSumSearchBtn');
+      var ssc = document.getElementById('wkSumSearchClear');
+      function applySumSearch(){ WKS_Q = ss ? String(ss.value||'') : ''; wkRender(); }
+      if(ssb) ssb.onclick = applySumSearch;
+      if(ss) ss.onkeydown = function(ev){
+        if(ev.key === 'Enter'){ ev.preventDefault(); applySumSearch(); }
+        else if(ev.key === 'Escape'){ ss.value = ''; applySumSearch(); }
+      };
+      if(ssc) ssc.onclick = function(){ if(ss) ss.value = ''; applySumSearch(); };
       var df=document.getElementById('wkDateFrom'), dt2=document.getElementById('wkDateTo');
       function applyDate(){ WK_DATE.from=df?df.value:''; WK_DATE.to=dt2?dt2.value:''; rebuild(); WK_SEL={}; wkRender(); fillAssignSelect(); }
       if(df) df.onchange=applyDate;
