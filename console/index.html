@@ -879,7 +879,7 @@ table.wk td b{white-space:nowrap}
 
 <!-- 云端域名受限提示（由 showCloudBanner 控制显隐） -->
 <div id="cloudBanner" class="cloud-banner hidden">
-  <span>此页所在域名<b>不在云端允许列表</b>，这里的改动<b>只存本机浏览器</b>，不会上传云端。</span>
+  <span>此页<b>连不上云数据库</b>（域名不在云端允许列表，或网络不通），这里的改动<b>只存本机浏览器</b>，不会上传云端。</span>
   <a id="cloudBannerLink" href="https://supply-console.app.workbuddy.host/console/" target="_blank" rel="noopener">打开云端管理台编辑 Mapping / 报价 →</a>
   <span class="cb-close" id="cloudBannerClose" title="关闭">×</span>
 </div>
@@ -13736,7 +13736,7 @@ function initMapping() {
       state.remoteMap = !!(remoteRows && remoteRows.length);
       saveLocalMap();
       setSync('local', state.cloudBlocked
-        ? ('域名受限 · 改动只存本机（已加载发布映射 ' + mapping.length + ' 条）')
+        ? ('云端不可达 · 改动只存本机（已加载发布映射 ' + mapping.length + ' 条）')
         : (state.remoteMap ? ('已加载发布映射 ' + mapping.length + ' 条（本地可编辑）') : '本地模式 · 数据存于本机浏览器（可导出 JSON 备份）'));
       return Promise.resolve();
     });
@@ -13786,11 +13786,16 @@ function initMapping() {
     setSync('cloud', '已同步 ' + state.mapping.length + ' 条 · 报价 ' + res.quoteCount + ' 条' +
       (rescued ? '（找回本机未保存补录 ' + rescued + ' 条，记得保存）' : ''));
   }).catch(function (err) {
-    /* 域名不在云端允许列表（GitHub Pages 就是这种）：退回本机发布件，并亮提示条 */
-    if (err && err.code === 'origin') {
+    /* 云端连不上：域名不在允许列表（GitHub Pages 就是这样）时，服务端返回 403 access_denied，
+       而浏览器先被 CORS 拦掉，SDK 抛的是 TypeError: Failed to fetch —— 两种都要按「只读本机」处理 */
+    var emsg = (err && err.message) || '';
+    var isOriginBlock = (err && err.code === 'origin') ||
+      /Failed to fetch|NetworkError|Load failed|fetch failed|network error/i.test(emsg);
+    if (isOriginBlock) {
       state.cloudBlocked = true;
+      cloudErr = (err && err.code === 'origin') ? '域名不在云端允许列表' : '无法连接云端（域名受限或网络不通）';
       showCloudBanner(true);
-      setSync('local', '域名受限 · 改动只存本机');
+      setSync('local', '云端不可达 · 改动只存本机');
       return initFromPublished(local);
     }
     state.cloudOK = false;
@@ -13817,9 +13822,9 @@ function saveMapping(silent) {
     state.mapping.forEach(function (m) { m._new = false; m._dirty = false; });
     saveLocalMap();
     state.dirty = false;
-    setSync('local', state.cloudBlocked ? '域名受限 · 改动只存本机' : ('仅本机 · ' + cloudReason()));
+    setSync('local', state.cloudBlocked ? '云端不可达 · 改动只存本机' : ('仅本机 · ' + cloudReason()));
     toast(state.cloudBlocked
-      ? '此域名不允许写云端：改动只存本机浏览器，未上传云端。请到云端管理台编辑'
+      ? '本页写不了云端：改动只存本机浏览器，未上传云端。请到云端管理台编辑'
       : ('只保存到本机浏览器（' + cloudReason() + '），未上传云端'), 'err');
     if (state.cloudBlocked) showCloudBanner(true);
     refreshAll();
