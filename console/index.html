@@ -72,6 +72,12 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--text)}
 .sync.local .dot{background:var(--danger)}
 .sync.busy .dot{background:var(--accent);animation:blink .8s infinite}
 .sync.err .dot{background:var(--danger)}
+/* 云端不可用提示条：只在「域名不被云端允许」时出现，避免用户以为改动已上云 */
+.cloud-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px auto 0;max-width:1480px;
+  padding:10px 16px;border:1px solid #E9C08A;background:#FDF6E8;color:#8A5A12;font-size:12.5px;line-height:1.7}
+.cloud-banner b{color:#7A4A05}
+.cloud-banner a{color:#1E6FD9;text-decoration:underline;font-weight:600}
+.cloud-banner .cb-close{margin-left:auto;cursor:pointer;color:#A98550;font-size:16px;line-height:1;padding:0 4px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 
 /* ---------- 待处理横幅（要闻区） ---------- */
@@ -871,6 +877,13 @@ table.wk td b{white-space:nowrap}
 
 <div class="wrap">
 
+<!-- 云端域名受限提示（由 showCloudBanner 控制显隐） -->
+<div id="cloudBanner" class="cloud-banner hidden">
+  <span>此页所在域名<b>不在云端允许列表</b>，这里的改动<b>只存本机浏览器</b>，不会上传云端。</span>
+  <a id="cloudBannerLink" href="https://supply-console.app.workbuddy.host/console/" target="_blank" rel="noopener">打开云端管理台编辑 Mapping / 报价 →</a>
+  <span class="cb-close" id="cloudBannerClose" title="关闭">×</span>
+</div>
+
   <!-- ============ 概览（SaaS 仪表盘首页） ============ -->
   <section id="tab-overview" class="hidden">
     <div class="stat-grid">
@@ -1377,7 +1390,8 @@ table.wk td b{white-space:nowrap}
 
   <div style="height:8px"></div>
   <div style="text-align:center;color:var(--muted);font-size:12px;padding:8px 0 20px;line-height:1.8">
-    公开链接为<b>本地模式</b>：数据存于本机浏览器，建议定期用「导出 JSON」备份；如需多设备同步，请在 IDE 预览中打开并点「保存到云端」。
+    映射表与报价已接<b>云数据库</b>：点「保存到云端」即真实上传，换电脑/清缓存后打开仍是同一份数据。<br>
+    云端不可用时页面自动退回本机模式并明确提示「未上传云端」，改动仍可用「导出 JSON」备份。
   </div>
 </div>
 
@@ -1386,6 +1400,8 @@ table.wk td b{white-space:nowrap}
 <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none">
 <input type="file" id="priceFileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none">
 
+<!-- WorkBuddy 云服务 SDK（本地 vendor，避免依赖 CDN；缺失时页面自动退回本地模式） -->
+<script src="../vendor/workbuddy-cloud.js"></script>
 <script>
 /* =============================================================
  * 核心逻辑层（无 DOM 依赖，可 node 单测）
@@ -2221,15 +2237,18 @@ table.wk td b{white-space:nowrap}
    *              （填错前缀绝不会把 A 货错配成 B 货，最坏只是没匹配上）
    *   ③ 款级兜底：编码内数字前四位 = 款号，同款同供应商
    *              （天然免疫 SP 之类不含数字的前缀）
-   * 返回 {hit, key, via}
+   * 返回 {hit, key, kind, via}
    *   via: 'exact' | 'PFX:前缀' | 'KIND:款号'
+   * 注意：key 永远是"整条 SKU 的归一键"，绝不返回款号。
+   *   款级兜底只是"借同款的映射来定供应商"，SKU 本身仍要独立成行；
+   *   款号另放 kind 字段，给按款聚合的逻辑（如买家频次）单独使用。
    */
   function lookupSKU(rawSku, mapIndex, prefixes) {
     var key = normSKU(rawSku);
-    if (!key) return { hit: null, key: '', via: '' };
+    if (!key) return { hit: null, key: '', kind: '', via: '' };
 
     var m = mapGetExact(mapIndex, key);
-    if (m) return { hit: m, key: key, via: 'exact' };
+    if (m) return { hit: m, key: key, kind: kindOf(key), via: 'exact' };
 
     if (prefixes && prefixes.length) {
       for (var i = 0; i < prefixes.length; i++) {
@@ -2237,7 +2256,8 @@ table.wk td b{white-space:nowrap}
         if (p && key.length > p.length && key.slice(0, p.length) === p) {
           var rest = key.slice(p.length);
           var m2 = mapGetExact(mapIndex, rest);
-          if (m2) return { hit: m2, key: rest, via: 'PFX:' + p };   // 只认命中
+          /* 只认命中；key 仍保留原编码（带前缀），否则会让 SP/非 SP 两条不同 SKU 撞成一行 */
+          if (m2) return { hit: m2, key: key, kind: kindOf(key), via: 'PFX:' + p };
         }
       }
     }
@@ -2245,10 +2265,11 @@ table.wk td b{white-space:nowrap}
     var kd = kindOf(key);
     if (kd) {
       var m3 = mapGetKind(mapIndex, kd);
-      if (m3) return { hit: m3, key: kd, via: 'KIND:' + kd };
+      /* 关键：key 不换成 kd，SKU 才能独立成行；款号放 kind */
+      if (m3) return { hit: m3, key: key, kind: kd, via: 'KIND:' + kd };
     }
 
-    return { hit: null, key: key, via: '' };
+    return { hit: null, key: key, kind: kd, via: '' };
   }
 
   /* 申请单 → 匹配映射表
@@ -2290,13 +2311,14 @@ table.wk td b{white-space:nowrap}
       var m = res.hit;
       /* 款级兜底命中时：用款号下所有 SKU 申请单 buyer 历史最高频 覆盖 映射表录入 buyer */
       var buyerFinal = m ? normText(m.buyer) : normText(a.buyer);
-      if (m && res.via && res.via.indexOf('KIND:') === 0 && res.key) {
-        buyerFinal = pickBuyerByKind(res.key, buyerFinal);
+      if (m && res.via && res.via.indexOf('KIND:') === 0 && res.kind) {
+        buyerFinal = pickBuyerByKind(res.kind, buyerFinal);
       }
       var row = {
         idx: i,
         sku: normText(a.sku),
-        key: res.key,              // 归一键：命中时为映射表里的编码，便于与订单表对齐
+        key: res.key,              // 归一键：整条 SKU 的归一编码，一行一个 SKU，绝不按款合并
+        kind: res.kind || kindOf(normSKU(a.sku)),  // 款号（前 4 位数字），仅用于按款聚合/统计
         rawKey: normSKU(a.sku),    // 原始归一键（保留前缀），用于溯源
         via: res.via,              // 'exact' 或剥掉的前缀
         qty: toNum(a.qty),
@@ -2576,9 +2598,16 @@ table.wk td b{white-space:nowrap}
 (function () {
 'use strict';
 
-/* 云端映射表（完整编码 10397 行）因单库上限 10000 行，拆成 11 张分片表，启动时全部加载并合并 */
-var DB_IDS = ['BCoYHRqTroDKwo8VQwydUl','4K48ZJfCz4dPmd48L5L5kX','F1B6eZb4VE79vrE7GZnP2O','MOdk8TirnM8vexMQcFnka0','y1M9QHFJyxqtn0LTkIXh7f','lrQG1RFI1LCJwSX9P3DysU','ECDIwDvkC9m2yXr0BsOqzk','xPLyB9i9RyFJMzXwfaw7RL','mgaktlZIZ3SH9st6YnKCnG','re051kOgDt8bYZVjk1GKH5','As5UUxxLncnEwRWH0FyOyh'];
-var DB_ID = DB_IDS[0]; /* 兼容旧引用（默认主库，新增/保存落到此库） */
+/* 云端映射表 / 报价：WorkBuddy 云服务（PostgreSQL + PostgREST）
+ * 两张表：sku_map（一行一个 SKU，sku 唯一）、sku_quote（SKU × 供应商 报价，联合唯一）
+ * 之前用 window.__SMART_PAGE__.database（仅 IDE 预览注入），线上恒为 null，
+ * 「保存到云端」只写了 localStorage —— 现改为真后端，换设备/清缓存都能读到。
+ */
+var CLOUD_CFG = {
+  endpoint: 'https://supply-console.app.workbuddy.host',
+  publishableKey: 'wbpk_a22cOD3FSFvV9Nmu87W6nc_R1yfBGa7Od00YqyTjkWA4Bvxyk55PdV1'
+};
+var T_MAP = 'sku_map', T_QUOTE = 'sku_quote';
 var LS_PREFIX = 'wb_purch_map_';
 var LS_MAP = LS_PREFIX + 'mapping';
 var LS_OPT = LS_PREFIX + 'opts';
@@ -2591,6 +2620,7 @@ var state = {
   mapLoaded: false,
   syncMode: 'init',     // init | cloud | local
   cloudOK: false,
+  cloudBlocked: false,  // true = 云端按域名拒绝，本页只读写本机（不再尝试请求，避免每次保存都失败）
   readOnly: true,       // 默认只读：映射表 / 待下单需管理员口令解锁后才能改（防他人误改）
   editUnlocked: false,  // 本次会话是否已解锁编辑
   dirty: false,
@@ -2709,9 +2739,58 @@ function fileStamp() {
     Core.pad2(d.getHours()) + Core.pad2(d.getMinutes());
 }
 
-/* ---------------- 数据层：资料库 SDK ---------------- */
+/* ---------------- 数据层：WorkBuddy 云服务 SDK ---------------- */
+var cloudClient = null, cloudErr = '';
+function cloudSDK() {
+  if (cloudClient) return cloudClient;
+  var WB = window.WorkBuddyCloud;
+  if (!WB || typeof WB.createWorkBuddyCloud !== 'function') { cloudErr = 'SDK 未加载'; return null; }
+  try {
+    cloudClient = WB.createWorkBuddyCloud({
+      endpoint: CLOUD_CFG.endpoint,
+      publishableKey: CLOUD_CFG.publishableKey
+    });
+  } catch (e) {
+    cloudErr = (e && e.message) || 'SDK 初始化失败';
+    cloudClient = null;
+  }
+  return cloudClient;
+}
+/* 云数据库：PostgREST 风格 from(表).select()/insert()/update()/delete()；不可用返回 null */
 function db() {
-  return (window.__SMART_PAGE__ && window.__SMART_PAGE__.database) ? window.__SMART_PAGE__.database : null;
+  var c = cloudSDK();
+  return (c && c.database) ? c.database : null;
+}
+function cloudReason() { return cloudErr || '云端不可用'; }
+/* 云端按发布域名校验来源：GitHub Pages 域名会被拒，这里给出明确提示 + 云端管理台入口 */
+function showCloudBanner(on) {
+  var b = $('cloudBanner');
+  if (!b) return;
+  if (on) b.classList.remove('hidden'); else b.classList.add('hidden');
+  var x = $('cloudBannerClose');
+  if (x && !x._bound) {
+    x._bound = 1;
+    x.onclick = function () { showCloudBanner(false); };
+  }
+  var a = $('cloudBannerLink');
+  if (a && !a._bound) {
+    a._bound = 1;
+    try { if (window.top !== window.self) a.target = '_top'; } catch (e) { a.target = '_blank'; }
+  }
+}
+/* 云端返回的错误统一成可读中文：{error:'access_denied', error_description:'origin ...'} 是最常见的一种
+   —— 云服务按「发布域名」校验来源，GitHub Pages 域名不在允许列表，只能读本地发布件 */
+function normCloudErr(e) {
+  var o = e || {};
+  if (o.error === 'access_denied' || o.code === 'access_denied') {
+    var err = new Error('当前域名不在云端允许列表（' + (o.error_description || 'origin not allowed') + '）');
+    err.code = 'origin';
+    return err;
+  }
+  var msg = o.message || o.error_description || o.error || o.details || '云端返回异常';
+  var e2 = new Error(msg);
+  e2.code = o.code || o.error || '';
+  return e2;
 }
 function setSync(mode, txt) {
   state.syncMode = mode;
@@ -13433,42 +13512,57 @@ function saveLocalMap() {
   } catch (e) { /* 容量超限忽略 */ }
 }
 
-/* 从云端拉全量（多张分片表合并） */
+/* 分页拉全表：PostgREST 单次默认上限有限，按 id 排序 + range 翻页，直到取到不足一页 */
+function fetchAllRows(d, table, cols, pageSize) {
+  var out = [], from = 0, size = pageSize || 1000;
+  function step() {
+    return d.from(table).select(cols).order('id', { ascending: true }).range(from, from + size - 1)
+      .then(function (res) {
+        if (res && res.error) throw normCloudErr(res.error);
+        var list = (res && res.data) || [];
+        for (var i = 0; i < list.length; i++) out.push(list[i]);
+        if (list.length < size) return out;
+        from += size;
+        return step();
+      });
+  }
+  return step();
+}
+
+/* 从云端拉全量：映射表 + 报价，报价拼成 price.json 同构结构供 applyPriceJson 复用 */
 function fetchCloudMap() {
   var d = db();
   if (!d) return Promise.reject(new Error('no-sdk'));
-  function fetchOne(dbid) {
-    var all = [], cursor = null;
-    function step() {
-      var p = { databaseId: dbid, pageSize: 200 };
-      if (cursor) p.startCursor = cursor;
-      return d.query(p).then(function (res) {
-        var list = (res && res.results) || [];
-        for (var i = 0; i < list.length; i++) { list[i]._srcDb = dbid; all.push(list[i]); }
-        if (res && res.hasMore && res.nextCursor) { cursor = res.nextCursor; return step(); }
-        return all;
-      });
-    }
-    return step();
-  }
-  return Promise.all(DB_IDS.map(fetchOne)).then(function (arrs) {
-    var out = [];
-    for (var i = 0; i < arrs.length; i++) out = out.concat(arrs[i]);
-    return out;
+  return Promise.all([
+    fetchAllRows(d, T_MAP, 'id,sku,supplier,buyer,short_name,note,updated_at'),
+    fetchAllRows(d, T_QUOTE, 'id,sku,supplier,buyer,short_name,price,currency,valid_from,valid_to')
+  ]).then(function (rs) {
+    var mapRows = rs[0], quoteRows = rs[1];
+    var pj = {};
+    quoteRows.forEach(function (q) {
+      var sku = Core.normText(q.sku);
+      var sup = Core.normText(q.supplier);
+      if (!sku || !sup || q.price === null || q.price === undefined) return;
+      if (!pj[sku]) pj[sku] = {};
+      pj[sku][sup] = {
+        price: String(q.price), currency: q.currency || '',
+        validFrom: q.valid_from || '', validTo: q.valid_to || ''
+      };
+    });
+    return { rows: mapRows, prices: pj, quoteCount: quoteRows.length };
   });
 }
 
 function cloudRowsToMap(rows) {
   return rows.map(function (r) {
     return {
-      rid: r._id || r.id || '',
-      sku: Core.normText(r['SKU']),
-      supplier: Core.normText(r['供应商']),
-      buyer: Core.normText(r['采购员']),
-      shortName: Core.normText(r['简称']),
-      note: Core.normText(r['备注']),
-      updated: Core.normText(r['更新时间']),
-      _db: r._srcDb || DB_ID,
+      rid: r.id === null || r.id === undefined ? '' : String(r.id),
+      sku: Core.normText(r.sku),
+      supplier: Core.normText(r.supplier),
+      buyer: Core.normText(r.buyer),
+      shortName: Core.normText(r.short_name),
+      note: Core.normText(r.note),
+      updated: Core.normText(r.updated_at),
       _new: false, _dirty: false, _deleted: false, _sel: false
     };
   }).filter(function (m) { return m.sku || m.supplier || m.buyer; });
@@ -13521,7 +13615,8 @@ function applyPriceJson(mapping, pj) {
     if (m && m.supplier && m.shortName && !shortMap[m.supplier]) shortMap[m.supplier] = m.shortName;
   });
   (mapping || []).forEach(function (m) {
-    var entry = pj[m.sku];
+    /* 云端/发布价目表的键是归一编码（大写去空格），映射行的 sku 可能是原样，两路都查 */
+    var entry = pj[m.sku] || pj[Core.normSKU(m.sku)];
     if (!entry || typeof entry !== 'object') return;
     ensureRowShape(m);
     if (m._localPrice) return;            // 本机手动改价优先，发布数据不覆盖
@@ -13585,9 +13680,9 @@ function initMapping() {
     }
   } catch (e) { /* ignore */ }
 
-  var d = db();
-  if (!d) {
-    // 公开链接（无 SDK）→ 同域发布映射优先，回退 BUNDLED_MAP；本地可编辑叠加不变。
+  /* 本机模式：同域发布映射（map.json / price.json）优先，回退 BUNDLED_MAP，本地改动叠加。
+     两种情况会走到这里：① 页面没有云端 SDK；② 云端按域名拒绝（GitHub Pages 就属于②）。 */
+  function initFromPublished(local) {
     state.cloudOK = false;
     setSync('busy', '加载中…');
     var localBySku = {};
@@ -13640,12 +13735,19 @@ function initMapping() {
       state.mapping = mapping;
       state.remoteMap = !!(remoteRows && remoteRows.length);
       saveLocalMap();
-      setSync('local', state.remoteMap ? ('已加载发布映射 ' + mapping.length + ' 条（本地可编辑）') : '本地模式 · 数据存于本机浏览器（可导出 JSON 备份）');
+      setSync('local', state.cloudBlocked
+        ? ('域名受限 · 改动只存本机（已加载发布映射 ' + mapping.length + ' 条）')
+        : (state.remoteMap ? ('已加载发布映射 ' + mapping.length + ' 条（本地可编辑）') : '本地模式 · 数据存于本机浏览器（可导出 JSON 备份）'));
       return Promise.resolve();
     });
   }
-  return fetchCloudMap().then(function (rows) {
+
+  var d = db();
+  if (!d) return initFromPublished(local);
+
+  return fetchCloudMap().then(function (res) {
     state.cloudOK = true;
+    var rows = res.rows;
     if (!rows.length) {
       if (!state.mapping.length) {
         state.mapping = DEMO_MAP.map(function (m) {
@@ -13675,10 +13777,22 @@ function initMapping() {
       });
       cloudSkus[lk] = 1; rescued++;
     });
+    /* 报价同样以云端为准：cloud.quote 拼成 price.json 同构后复用既有合并逻辑 */
+    state.mapping.forEach(ensureRowShape);
+    applyPriceJson(state.mapping, res.prices);
+    state.quoteCount = res.quoteCount;
     state.dirty = rescued > 0;
     saveLocalMap();
-    setSync('cloud', '已同步 ' + state.mapping.length + ' 条' + (rescued ? '（找回本机未保存补录 ' + rescued + ' 条，记得保存）' : ''));
+    setSync('cloud', '已同步 ' + state.mapping.length + ' 条 · 报价 ' + res.quoteCount + ' 条' +
+      (rescued ? '（找回本机未保存补录 ' + rescued + ' 条，记得保存）' : ''));
   }).catch(function (err) {
+    /* 域名不在云端允许列表（GitHub Pages 就是这种）：退回本机发布件，并亮提示条 */
+    if (err && err.code === 'origin') {
+      state.cloudBlocked = true;
+      showCloudBanner(true);
+      setSync('local', '域名受限 · 改动只存本机');
+      return initFromPublished(local);
+    }
     state.cloudOK = false;
     if (!state.mapping.length) {
       state.mapping = DEMO_MAP.map(function (m) {
@@ -13686,24 +13800,28 @@ function initMapping() {
       });
       state.dirty = true;
     }
-    setSync('local', '离线模式（云端不可用）');
+    setSync('local', '离线模式（' + ((err && err.message) || '云端不可用') + '）');
   });
 }
 
 /* 保存：把脏记录提交云端（silent=true 供补录自动保存用：不弹进度框、文案区分） */
 function saveMapping(silent) {
   purgeEmptyMapRows();   // 同步前自动剔除没有任何数据的空行
-  var d = db();
+  var d = state.cloudBlocked ? null : db();
   var pending = state.mapping.filter(function (m) {
     return (m._deleted && m.rid) || (m._new && !m._deleted && m.sku) || (m._dirty && m.rid && !m._deleted);
   });
-  // 先在本地清理已删除项，并落盘
+  // 云端不可用：只落本地，并明确告知「没有上传云端」，不再用「已保存」含糊过去
   if (!d) {
     state.mapping = state.mapping.filter(function (m) { return !m._deleted; });
     state.mapping.forEach(function (m) { m._new = false; m._dirty = false; });
     saveLocalMap();
     state.dirty = false;
-    toast('已保存到本地（云端不可用）', 'ok');
+    setSync('local', state.cloudBlocked ? '域名受限 · 改动只存本机' : ('仅本机 · ' + cloudReason()));
+    toast(state.cloudBlocked
+      ? '此域名不允许写云端：改动只存本机浏览器，未上传云端。请到云端管理台编辑'
+      : ('只保存到本机浏览器（' + cloudReason() + '），未上传云端'), 'err');
+    if (state.cloudBlocked) showCloudBanner(true);
     refreshAll();
     return Promise.resolve();
   }
@@ -13727,21 +13845,75 @@ function saveMapping(silent) {
   }
   function runOne(op) {
     var m = op.m;
+    var sku = Core.normSKU(m.sku);
     if (op.type === 'delete') {
-      return d.deleteRecord({ databaseId: m._db || DB_ID, recordId: m.rid }).then(function () { m._gone = true; });
-    }
-    var props = {
-      'SKU': { text: m.sku }, '供应商': { text: m.supplier },
-      '采购员': { text: m.buyer }, '简称': { text: m.shortName || '' },
-      '备注': { text: m.note }, '更新时间': { text: nowStr() }
-    };
-    if (op.type === 'add') {
-      return d.addRecord({ databaseId: m._db || DB_ID, properties: props }).then(function (r) {
-        m.rid = (r && (r.id || r.recordId)) || ''; m._new = false; m._dirty = false; m.updated = nowStr();
+      /* 先删报价再删映射（报价表按 sku 关联，不删会留下孤儿报价） */
+      return d.from(T_QUOTE).delete().eq('sku', sku).then(function () {
+        return d.from(T_MAP).delete().eq('sku', sku);
+      }).then(function (res) {
+        if (res && res.error) throw normCloudErr(res.error);
+        m._gone = true;
       });
     }
-    return d.updateRecord({ databaseId: m._db || DB_ID, recordId: m.rid, properties: props }).then(function () {
-      m._dirty = false; m.updated = nowStr();
+    var row = {
+      sku: sku,
+      supplier: Core.normText(m.supplier),
+      buyer: Core.normText(m.buyer),
+      short_name: Core.normText(m.shortName || ''),
+      note: Core.normText(m.note || ''),
+      updated_at: nowStr()
+    };
+    /* 以 sku 唯一键 upsert：新增与修改同一条路径，重复补录不会产生重复行 */
+    return d.from(T_MAP).upsert(row, { onConflict: 'sku' }).select('id').then(function (res) {
+      if (res && res.error) {
+        /* 兼容 upsert 不被支持的环境：先 update，0 行再 insert */
+        return d.from(T_MAP).update(row).eq('sku', sku).select('id').then(function (up) {
+          if (up && up.error) throw normCloudErr(up.error);
+          if (up && up.data && up.data.length) return up.data[0].id;
+          return d.from(T_MAP).insert(row).select('id').then(function (ins) {
+            if (ins && ins.error) throw normCloudErr(ins.error);
+            return ins && ins.data && ins.data[0] ? ins.data[0].id : '';
+          });
+        });
+      }
+      var rec = res && res.data && res.data[0];
+      return rec ? rec.id : '';
+    }).then(function (id) {
+      if (id !== '' && id !== null && id !== undefined) m.rid = String(id);
+      m._new = false; m._dirty = false; m.updated = nowStr();
+      return syncQuotesForSku(d, sku, m);
+    });
+  }
+
+  /* 报价按 SKU 整体对账：主报价 + 备选即该 SKU 在云端的全部报价
+     （脏行数量不大，删除后重插最稳，不会残留旧价目表覆盖新价） */
+  function syncQuotesForSku(dd, sku, m) {
+    var want = [], seen = {};
+    function add(sup, price, buyer, shortName, currency, validFrom, validTo) {
+      var s = Core.normText(sup);
+      if (!s || seen[s]) return;
+      var n = Number(String(price == null ? '' : price).replace(/[^\d.\-]/g, ''));
+      if (!isFinite(n) || n <= 0) return;
+      seen[s] = 1;
+      want.push({
+        sku: sku, supplier: s,
+        buyer: Core.normText(buyer || ''), short_name: Core.normText(shortName || ''),
+        price: n, currency: Core.normText(currency || ''),
+        valid_from: Core.normText(validFrom || ''), valid_to: Core.normText(validTo || ''),
+        updated_at: nowStr()
+      });
+    }
+    if (m.priceSupplier && m.price) add(m.priceSupplier, m.price, m.buyer, m.shortName, '', '', '');
+    (m.alts || []).forEach(function (a) {
+      add(a.supplier, a.price, a.buyer, a.shortName, a.currency, a.validFrom, a.validTo);
+    });
+    return dd.from(T_QUOTE).delete().eq('sku', sku).then(function (res) {
+      if (res && res.error) throw normCloudErr(res.error);
+      if (!want.length) return null;
+      return dd.from(T_QUOTE).insert(want).then(function (res2) {
+        if (res2 && res2.error) throw normCloudErr(res2.error);
+        return null;
+      });
     });
   }
   var ops = pending.map(function (m) {
@@ -18473,6 +18645,11 @@ else boot();
 /* 冒烟测试钩子：只读暴露最小内部接口，不参与业务流程 */
 window.__test = {
   state: function () { return state; },
+  saveMapping: saveMapping,
+  fetchCloudMap: fetchCloudMap,
+  db: db,
+  cloudSDK: cloudSDK,
+  cloudReason: cloudReason,
   buildMapIndex: buildMapIndex,
   parseFileBuffer: parseFileBuffer,
   onFileChanged: onFileChanged,
