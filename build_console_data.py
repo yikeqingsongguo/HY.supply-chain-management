@@ -6,6 +6,9 @@
   - 数据源：`src/otd_apply.xlsx`（金蝶「采购申请单列表 → 周计划（含备注）」方案，每日 09:15/14:30/17:45 同步）
   - 待下单数量 = 采购申请单「剩余数量」（= 批准数量 − 已下单数量）
   - 只取「剩余数量 > 0」的行
+  - **并且必须仍是有效单据**：关闭状态不是「未关闭」、或数据状态含 作废/取消/关闭 → 一律不计
+    （2026-11-04 补：金蝶方案本身会过滤已关闭申请单，但快照与实时之间被关闭的单据
+      若只剩「剩余数量>0」这一道闸，会一直挂在待下单里）
   - 供应商：① console/map.json（物料编码 → 供应商全称/简称/采购员）
             ② 采购订单历史（物料编码 → 供应商）兜底
             ③ 都没有 → 归入「待填写」分组，等人工指定
@@ -216,8 +219,30 @@ def build():
     skipped_zero = 0
     skipped_bad = 0
     skipped_vytk = 0
+    skipped_closed = 0
+    closed_docs = []
+
+    def _invalid_doc(r):
+        """关闭/作废的申请单不算待下单。返回原因串，空串=有效。
+        关闭状态用白名单：只有「未关闭」（或该列缺失）才算有效，
+        避免 已关闭/部分关闭 等新枚举值被漏掉。"""
+        cs = str(g(r, "关闭状态") or "").strip()
+        ds = str(g(r, "数据状态") or "").strip()
+        if cs and cs != "未关闭":
+            return "关闭状态=" + cs
+        for kw in ("作废", "取消", "关闭", "已删除"):
+            if kw in ds:
+                return "数据状态=" + ds
+        return ""
 
     for r in rows[1:]:
+        _why = _invalid_doc(r)
+        if _why:
+            skipped_closed += 1
+            doc = str(g(r, "单据编号") or "").strip()
+            if doc and len(closed_docs) < 20:
+                closed_docs.append(doc + "(" + _why + ")")
+            continue
         remain = num(g(r, "剩余数量"))
         if remain <= 0:
             skipped_zero += 1
@@ -326,7 +351,7 @@ def build():
                          sorted(pending_skus.items(), key=lambda x: -x[1])],
         "apply_match": {"by_map": hit_map, "by_po": hit_po, "pending": miss, "via": via_count,
                         "skipped_zero": skipped_zero, "skipped_bad": skipped_bad,
-                        "skipped_vytk": skipped_vytk},
+                        "skipped_vytk": skipped_vytk, "skipped_closed": skipped_closed},
         "suppliers": suppliers,
     }
     with open(os.path.join(CONSOLE, "weekly.json"), "w", encoding="utf-8") as f:
@@ -346,6 +371,10 @@ def build():
     print("待下单（申请单驱动）：%d 行 / %s 件 ｜ 供应商 %d 家 + 待填写 %s 件（%d 行）｜ 映射 map %d / PO %d / 未映射 %d"
           % (out["rows"], out["total_plan"], out["supplier_count"], out["pending"]["qty"],
              out["pending"]["rows"], hit_map, hit_po, miss))
+    print("  跳过：剩余=0 %d 行 / 已关闭或作废 %d 行 / 空行 %d / VYTK %d"
+          % (skipped_zero, skipped_closed, skipped_bad, skipped_vytk))
+    if closed_docs:
+        print("  被排除的关闭单据示例：" + "、".join(closed_docs[:10]))
 
 
 if __name__ == "__main__":
