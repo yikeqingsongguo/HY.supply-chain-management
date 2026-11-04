@@ -72,6 +72,14 @@ def git(git_exe, *args):
                           capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
+def mtime(p):
+    """源表导出时间：判断数据新旧只看这个，不看构建时间。"""
+    try:
+        return datetime.fromtimestamp(os.path.getmtime(p)).strftime("%m-%d %H:%M")
+    except OSError:
+        return "-"
+
+
 def print_summary():
     """回显本次口径，让人一眼看出数据截止时间和待下单规模。"""
     try:
@@ -84,7 +92,10 @@ def print_summary():
         return
 
     am = w.get("apply_match") or {}
-    print("  数据截止    : %s" % w.get("updated_at", "-"))
+    src = os.path.join(DASH, "src")
+    print("  申请单源表  : %s（待下单数据截止）" % mtime(os.path.join(src, "otd_apply.xlsx")))
+    print("  采购订单源表: %s（在途数据截止）" % mtime(os.path.join(src, "采购订单.xlsx")))
+    print("  本次构建    : %s" % w.get("updated_at", "-"))
     print("  在途订单    : %s 行 / 剩余 %s 件" % (
         format(meta.get("order_count", 0), ","), format(int(meta.get("sum_remain", 0) or 0), ",")))
     print("  待下单      : %s 行 / %s 件" % (
