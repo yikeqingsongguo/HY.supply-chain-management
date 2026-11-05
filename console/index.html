@@ -16622,6 +16622,32 @@ function fixMapConsistency(direction) {
   return fixed;
 }
 
+/* 映射表选择：筛选/搜索条件一变，旧选择就失效。
+   否则会出现「列表只剩 18 行，却显示已选 32 行」，批量设置/删除还会改到看不见的行。 */
+function clearMapSel(reason) {
+  var n = 0;
+  state.mapping.forEach(function (m) { if (m._sel) { m._sel = false; n++; } });
+  if (n && reason) toast('筛选条件已变化，已清空 ' + n + ' 行选择', 'ok');
+  return n;
+}
+/* 选中行只在「当前筛选结果」里算（含各分页），与列表口径保持一致 */
+function visibleMapSel() {
+  return visibleMapRows().filter(function (m) { return m._sel && !m._deleted; });
+}
+function updateMapSelHint() {
+  var n = visibleMapSel().length;
+  var hint = $('mapSelHint');
+  if (hint) hint.textContent = n ? '已选 ' + n + ' 行' : '';
+  var all = $('mapChkAll');
+  if (all) {
+    var rows = visibleMapRows();
+    var selAll = rows.length > 0;
+    for (var i = 0; i < rows.length; i++) { if (!rows[i]._sel) { selAll = false; break; } }
+    all.checked = selAll;
+    all.indeterminate = !selAll && n > 0;
+  }
+}
+
 function renderMapTable() {
   renderMapFilters();
   renderMapConsistency();
@@ -16651,7 +16677,13 @@ function renderMapTable() {
     var tdC = el('td', 'ctr');
     var cb = document.createElement('input');
     cb.type = 'checkbox'; cb.checked = !!m._sel; cb.style.width = '16px'; cb.style.height = '16px';
-    cb.onchange = function () { m._sel = cb.checked; var n = state.mapping.filter(function (x) { return x._sel && !x._deleted; }).length; $('mapSelHint').textContent = n ? '已选 ' + n + ' 行' : ''; };
+    cb.onchange = function () {
+      m._sel = cb.checked;
+      var n = visibleMapSel().length;
+      $('mapSelHint').textContent = n ? '已选 ' + n + ' 行' : '';
+      var ca = $('mapChkAll');
+      if (ca) { ca.checked = false; ca.indeterminate = n > 0; }
+    };
     tdC.appendChild(cb); tr.appendChild(tdC);
 
     [['sku', 'SKU'], ['shortName', '简称'], ['supplier', '供应商'], ['buyer', '采购员']].forEach(function (fld) {
@@ -16791,8 +16823,13 @@ function renderMapTable() {
   });
   tb.appendChild(frag);
 
-  var nSel = state.mapping.filter(function (x) { return x._sel && !x._deleted; }).length;
+  var nSel = rows.filter(function (x) { return x._sel && !x._deleted; }).length;
   $('mapSelHint').textContent = nSel ? '已选 ' + nSel + ' 行' : '';
+  var chkAll = $('mapChkAll');
+  if (chkAll) {
+    chkAll.checked = total > 0 && nSel >= total;
+    chkAll.indeterminate = !chkAll.checked && nSel > 0;
+  }
 
   var totalAll = state.mapping.filter(function (m) { return !m._deleted; }).length;
   $('mapCountHint').textContent = '共 ' + totalAll + ' 条' + (total !== totalAll ? '，筛选后 ' + total + ' 条' : '');
@@ -17714,7 +17751,7 @@ function bindBatchShortSuggest(inp, body, ids) {
 
 function batchSet() {
   if (state.readOnly) { toast('当前为只读模式，请点右上角「只读模式」输入管理员口令解锁', 'err'); return; }
-  var sel = state.mapping.filter(function (m) { return m._sel && !m._deleted; });
+  var sel = visibleMapSel();
   if (!sel.length) { toast('请先勾选要修改的行'); return; }
   var bd = dialog({
     title: '批量设置（' + sel.length + ' 行）',
@@ -17872,7 +17909,7 @@ function updateSupSelHint() {
   if (hint) hint.textContent = n ? '已选 ' + n + ' 个 SKU' : '';
 }
 function batchDelete() {
-  var sel = state.mapping.filter(function (m) { return m._sel && !m._deleted; });
+  var sel = visibleMapSel();
   if (!sel.length) { toast('请先勾选要删除的行'); return; }
   dialog({
     title: '确认删除',
@@ -18022,12 +18059,14 @@ function bindEvents() {
   if ($('btnOnlyConflict')) $('btnOnlyConflict').onclick = function () {
     state.mapOnlyConflict = !state.mapOnlyConflict;
     state.mapPage = 1;
+    clearMapSel(true);
     renderMapTable();
     toast(state.mapOnlyConflict ? ('只看冲突行：' + visibleMapRows().length + ' 行（含示例 SKU，可逐行核对）') : '已显示全部映射行', 'ok');
   };
   if ($('btnOnlyMultiQuote')) $('btnOnlyMultiQuote').onclick = function () {
     state.mapOnlyMultiQuote = !state.mapOnlyMultiQuote;
     state.mapPage = 1;
+    clearMapSel(true);
     renderMapTable();
     toast(state.mapOnlyMultiQuote ? ('只看多家报价：' + visibleMapRows().length + ' 个 SKU（最低价已高亮）') : '已显示全部映射行', 'ok');
   };
@@ -18054,16 +18093,19 @@ function bindEvents() {
   $('mapSearch').oninput = function () {
     clearTimeout(msTimer);
     var v = this.value;
-    msTimer = setTimeout(function () { state.mapSearch = v; state.mapPage = 1; renderMapTable(); }, 220);
+    msTimer = setTimeout(function () {
+      state.mapSearch = v; state.mapPage = 1;
+      clearMapSel(true);                 // 搜索结果变了，旧的勾选不再对应当前列表
+      renderMapTable();
+    }, 220);
   };
-  $('mapFilterBuyer').onchange = function () { state.mapBuyer = this.value; state.mapPage = 1; renderMapTable(); };
-  $('mapFilterSupplier').onchange = function () { state.mapSupplier = this.value; state.mapPage = 1; renderMapTable(); };
+  $('mapFilterBuyer').onchange = function () { state.mapBuyer = this.value; state.mapPage = 1; clearMapSel(true); renderMapTable(); };
+  $('mapFilterSupplier').onchange = function () { state.mapSupplier = this.value; state.mapPage = 1; clearMapSel(true); renderMapTable(); };
   $('mapChkAll').onchange = function () {
     var on = this.checked;
     visibleMapRows().forEach(function (m) { m._sel = on; });
     renderMapTable();
   };
-
   // 申请单
   setupDrop('dropApply', 'apply');
   $('btnDemoApply').onclick = demoApply;
@@ -18092,7 +18134,7 @@ function bindEvents() {
 
   // 映射表列筛选（SKU / 简称 / 供应商 / 采购员 / 价格）
   bindThFilters('#mapTable', mapColOptions, 'mapColFilt', function () {
-    state.mapPage = 1; renderMapTable();
+    state.mapPage = 1; clearMapSel(true); renderMapTable();
   });
 
   // matchTable 列名点击排序（点 th 内列名 span，非 ▾ 按钮）
@@ -18852,6 +18894,11 @@ window.__test = {
   applyPriceJson: applyPriceJson,
   ensureRowShape: ensureRowShape,
   allUnmatchKeys: allUnmatchKeys,
+  /* 选择状态（_test_sel.js 用）：筛选变化必须清空选择，计数只算当前筛选内 */
+  clearMapSel: clearMapSel,
+  visibleMapSel: visibleMapSel,
+  updateMapSelHint: updateMapSelHint,
+  renderMapTable: renderMapTable,
   saveUnmatchRowByKey: saveUnmatchRowByKey,
   batchSetUnmatchColumn: batchSetUnmatchColumn,
   renderMapTable: renderMapTable,
