@@ -13626,7 +13626,9 @@ function applyPriceJson(mapping, pj) {
     sups.forEach(function (sup) {
       var q = entry[sup];
       if (!q || !q.price) return;
-      if (m.supplier && sup === m.supplier) {
+      /* 用「是否同一家」比较，而不是字符串全等：全称里多一个空格/「广州」前缀
+         会导致主报价匹配不上，全部掉进备选，价格列变空。 */
+      if (m.supplier && sameSupplier(sup, m.supplier)) {
         mainPrice = String(q.price);
         mainSup = sup;
       } else {
@@ -13641,7 +13643,7 @@ function applyPriceJson(mapping, pj) {
     if (mainPrice !== m.price || mainSup !== m.priceSupplier) changed = true;
     m.price = mainPrice;
     m.priceSupplier = mainSup;
-    m.alts = alts;
+    m.alts = dedupeAlts(alts, mainSup);
     n++;
   });
   return n;
@@ -13653,6 +13655,9 @@ function ensureRowShape(m) {
   if (typeof m.price !== 'string') m.price = (m.price == null ? '' : String(m.price));
   if (typeof m.priceSupplier !== 'string') m.priceSupplier = (m.priceSupplier == null ? '' : String(m.priceSupplier));
   if (!Array.isArray(m.alts)) m.alts = [];
+  /* 历史数据自愈：同一条报价可能既存在主价又有同名备选（改供应商时留下的），
+     界面上就会两列一模一样。这里统一去重，幂等。 */
+  m.alts = dedupeAlts(m.alts, m.priceSupplier);
   return m;
 }
 
@@ -13908,9 +13913,15 @@ function saveMapping(silent) {
         updated_at: nowStr()
       });
     }
-    if (m.priceSupplier && m.price) add(m.priceSupplier, m.price, m.buyer, m.shortName, '', '', '');
+    /* 主报价的简称/采购员必须按 priceSupplier（真正报价的那家）取，
+       不能写 m.shortName —— 那是「行的简称」，供应商一改就会把别家的报价标成本家的简称。 */
+    if (m.priceSupplier && m.price) {
+      var _si = supplierInfoOf(m.priceSupplier);
+      add(m.priceSupplier, m.price, _si.buyer, _si.short, '', '', '');
+    }
     (m.alts || []).forEach(function (a) {
-      add(a.supplier, a.price, a.buyer, a.shortName, a.currency, a.validFrom, a.validTo);
+      var _ai = supplierInfoOf(a.supplier);
+      add(a.supplier, a.price, a.buyer || _ai.buyer, _ai.short || a.shortName, a.currency, a.validFrom, a.validTo);
     });
     return dd.from(T_QUOTE).delete().eq('sku', sku).then(function (res) {
       if (res && res.error) throw normCloudErr(res.error);
@@ -14014,8 +14025,111 @@ function shortNameOfSupplier(sup) {
   for (var i = 0; i < hits.length; i++) { if (hits[i] && hits[i].short) return hits[i].short; }
   return '';
 }
+/* 供应商信息（简称 + 采购员）：报价按供应商查，不再借用「行的简称」 */
+function supplierInfoOf(sup) {
+  var out = { short: '', buyer: '' };
+  if (!sup) return out;
+  if (!state.supplierIndex) buildSupplierIndex();
+  var idx = state.supplierIndex && state.supplierIndex.byName;
+  var hits = idx ? (idx[normLower(sup)] || []) : [];
+  for (var i = 0; i < hits.length; i++) {
+    var h = hits[i];
+    if (!h) continue;
+    if (!out.short && h.short) out.short = h.short;
+    if (!out.buyer && h.buyer) out.buyer = h.buyer;
+    if (out.short && out.buyer) break;
+  }
+  return out;
+}
+/* 两个供应商是否同一家：忽略空白、全半角括号差异，以及「广州/广州市」前缀与公司后缀 */
+function sameSupplier(a, b) {
+  var na = suppKey(a), nb = suppKey(b);
+  return !!na && na === nb;
+}
+function suppKey(s) {
+  var x = String(s || '').replace(/\s+/g, '').toLowerCase();
+  if (!x) return '';
+  x = x.replace(/^(广州市?|深圳市?|东莞市?|佛山市?|惠州市?)/, '');
+  x = x.replace(/(有限责任公司|股份有限公司|有限公司|公司)$/,'');
+  return x;
+}
+/* 「价格」列/主报价徽标取谁：必须按 priceSupplier（谁报的价）取简称。
+   历史写法用 m.shortName，供应商一改，旧价就挂到新家名下，看起来像「同一家两种报价」。 */
+function quoteOwnerShort(m) {
+  var sup = String((m && m.priceSupplier) || '').trim();
+  if (sup) return shortNameOfSupplier(sup) || sup;
+  return (m && (m.shortName || shortNameOfSupplier(m.supplier))) || '';
+}
+/* 备选去重：同一家只留一条（取最低价），并去掉与主报价同一家的那条
+   （同一条报价不能既算主价又算备选，否则界面上两列一模一样） */
+function dedupeAlts(alts, mainSup) {
+  var out = [], pos = {}, tail = [];
+  (alts || []).forEach(function (a) {
+    if (!a) return;
+    if (a.price === '' || a.price == null) { tail.push(a); return; }   // 无价的关联先留着，不动
+    var k = suppKey(a.supplier) || ('#' + (a.supplier || ''));
+    if (!k) return;
+    if (mainSup && k === suppKey(mainSup)) return;      // 与主报价同家 → 丢弃
+    var p = Number(String(a.price).replace(/[^\d.\-]/g, ''));
+    if (pos[k] === undefined) { pos[k] = out.length; out.push(a); }
+    else {
+      var prev = Number(String(out[pos[k]].price).replace(/[^\d.\-]/g, ''));
+      if (isFinite(p) && isFinite(prev) && p < prev) out[pos[k]] = a;   // 同家取低价
+    }
+  });
+  return out.concat(tail);
+}
 /* 映射表备选固定列数（当前数据最多 4 家备选） */
 var ALT_COLS = 4;
+
+/* 供应商变更后对齐报价（口径：旧价降为备选，新家报价升为主价）
+   - 新供应商在备选里有报价 → 升为主价，并从备选移除
+   - 新供应商没有报价 → 主价清空（绝不把别家的价挂在新家名下）
+   - 原主价 → 降为备选，价格与所属供应商原样保留
+   返回是否发生变化。oldOwner 传变更前的供应商全称。 */
+function reconcileQuotesForRow(m, oldOwner) {
+  if (!m) return false;
+  ensureRowShape(m);
+  var newSup = String(m.supplier || '').trim();
+  var oldSup = String(oldOwner || m.priceSupplier || '').trim();
+  if (!newSup || sameSupplier(oldSup, newSup)) return false;
+  var changed = false;
+  var oldPrice = String(m.price || '').trim();
+  var oldPriceSup = String(m.priceSupplier || oldSup).trim();
+
+  var hit = -1;
+  for (var i = 0; i < m.alts.length; i++) {
+    if (sameSupplier(m.alts[i].supplier, newSup)) { hit = i; break; }
+  }
+  if (hit >= 0) {
+    var a = m.alts.splice(hit, 1)[0];
+    m.price = String(a.price);
+    m.priceSupplier = String(a.supplier || newSup);
+    changed = true;
+  } else if (!sameSupplier(oldPriceSup, newSup)) {
+    m.price = '';
+    m.priceSupplier = '';
+    changed = true;
+  }
+
+  if (oldPrice && oldPriceSup && !sameSupplier(oldPriceSup, newSup)) {
+    var info = supplierInfoOf(oldPriceSup);
+    var j = -1;
+    for (var k2 = 0; k2 < m.alts.length; k2++) {
+      if (sameSupplier(m.alts[k2].supplier, oldPriceSup)) { j = k2; break; }
+    }
+    if (j >= 0) {
+      if (String(m.alts[j].price || '') !== oldPrice) { m.alts[j].price = oldPrice; changed = true; }
+    } else {
+      m.alts.push({ supplier: oldPriceSup, buyer: info.buyer || '', shortName: info.short || '', price: oldPrice });
+      changed = true;
+    }
+  }
+
+  m.alts = dedupeAlts(m.alts, m.priceSupplier);
+  if (changed) { m._dirty = true; m.updated = nowStr(); }
+  return changed;
+}
 
 /* 「价格」列 = 主报价「简称 + 含税单价(2 位)」；「备选N」列 = 第 N 家备选「简称 + 含税单价」 */
 function mapColValue(m, k) {
@@ -14025,7 +14139,7 @@ function mapColValue(m, k) {
   if (k === 'buyer') return m.buyer || '';
   if (k === 'price') {
     if (!m.price) return '—';
-    var ps = m.shortName || shortNameOfSupplier(m.supplier) || m.priceSupplier || '';
+    var ps = quoteOwnerShort(m);
     return (ps ? ps + ' ' : '') + (formatPrice2(m.price) || String(m.price));
   }
   var am = /^alt(\d)$/.exec(k);
@@ -14033,7 +14147,8 @@ function mapColValue(m, k) {
     var list = (m.alts || []).filter(function (a) { return a && a.price !== '' && a.price != null; });
     var a = list[Number(am[1]) - 1];
     if (!a) return '—';
-    var s = a.shortName || shortNameOfSupplier(a.supplier) || a.supplier || '';
+    /* 备选简称优先查映射索引（权威），查不到才用报价记录自带的简称 */
+    var s = shortNameOfSupplier(a.supplier) || a.shortName || a.supplier || '';
     var p = formatPrice2(a.price) || String(a.price);
     return (s ? s + ' ' : '') + p;
   }
@@ -16051,7 +16166,14 @@ function wkPendingKeys() {
   return arr.map(function (x) { return String((x && x.sku) || ''); }).filter(Boolean);
 }
 function allUnmatchKeys() {
-  var base = (state.matchResult && state.matchResult.unmatchedKeys) || [];
+  var base = ((state.matchResult && state.matchResult.unmatchedKeys) || []).slice();
+  /* 价目表导入会为映射表里没有的 SKU 建「有价无供应商」行（口径：不自动联想）。
+     这些行必须进补录清单，否则它们只有价格、永远没人填供应商。 */
+  state.mapping.forEach(function (m) {
+    if (!m || m._deleted || !m.sku) return;
+    if (String(m.supplier || '').trim()) return;
+    base.push(m.sku);
+  });
   var seen = {}, out = [];
   base.concat(wkPendingKeys()).forEach(function (k) {
     if (!k) return;
@@ -16526,6 +16648,7 @@ function renderMapTable() {
       inp.onchange = function () {
         if ((m[fld[0]] || '') === inp.value) return;
         var nv = String(inp.value || '').trim();
+        var _oldSup = m.supplier || '';
         m[fld[0]] = inp.value;
         /* 简称是「供应商 ↔ 采购员」的业务主键（1:1）。
            若单独改简称却不同步供应商，会产生「全称=浩川 + 简称=佳俊」这类错配，
@@ -16549,6 +16672,14 @@ function renderMapTable() {
             toast('简称「' + nv + '」已绑定「' + auth.sup + '」，本行供应商/采购员已自动同步', 'ok');
           }
         }
+        /* 供应商被改（直接改全称，或改简称后按索引带出全称）→ 报价跟着迁移 */
+        if ((fld[0] === 'supplier' || fld[0] === 'shortName') && !sameSupplier(_oldSup, m.supplier)) {
+          if (reconcileQuotesForRow(m, _oldSup)) {
+            toast('供应商已改为「' + (m.shortName || m.supplier) + '」，原报价降为备选'
+              + (m.price ? '，新供应商报价 ' + formatPrice2(m.price) : '，新供应商暂无报价'), 'ok');
+            setTimeout(function () { renderMapTable(); }, 0);
+          }
+        }
         m._dirty = true; m.updated = nowStr();
         state.dirty = true;
         $('dirtyBadge').classList.remove('hidden');
@@ -16565,10 +16696,16 @@ function renderMapTable() {
     var tdP = el('td');
     tdP.style.fontSize = '12px';
     if (m.price) {
-      var pShort = m.shortName || shortNameOfSupplier(m.supplier) || m.priceSupplier || '';
+      var pShort = quoteOwnerShort(m);
       var pNum = formatPrice2(m.price) || String(m.price);
+      /* 报价所属供应商与当前行供应商不一致时，必须能看出来：
+         否则「改了供应商但价还是别家的」会被误读成同一家报了两种价。 */
+      var misOwner = !!(m.priceSupplier && m.supplier && !sameSupplier(m.priceSupplier, m.supplier));
       var psp = el('span', 'mono', (pShort ? pShort + ' ' : '') + pNum);
       psp.title = '主报价 · ' + (m.priceSupplier || m.supplier || '');
+      if (misOwner) {
+        psp.title += '\n⚠ 这是「' + m.priceSupplier + '」的报价，与当前供应商「' + m.supplier + '」不一致';
+      }
       if (isLowestPrice(m, m.price)) {
         /* 多家报价中的最低价：加粗 + 浅绿底凸显 */
         psp.style.color = '#0B7A6E'; psp.style.fontWeight = '800';
@@ -16579,6 +16716,12 @@ function renderMapTable() {
         psp.style.color = '#4A6B66'; psp.style.fontWeight = '500';
       }
       tdP.appendChild(psp);
+      if (misOwner) {
+        var bad = el('span', null, '!');
+        bad.style.cssText = 'margin-left:3px;color:#C2410C;font-weight:800;font-size:11px;cursor:help';
+        bad.title = psp.title;
+        tdP.appendChild(bad);
+      }
     } else {
       var pdash = el('span', null, '—');
       pdash.style.color = 'var(--muted)';
@@ -16593,7 +16736,7 @@ function renderMapTable() {
       tdAlt.style.fontSize = '12px';
       var aa = altRows[ai];
       if (aa) {
-        var aShort = aa.shortName || shortNameOfSupplier(aa.supplier) || aa.supplier || '';
+        var aShort = shortNameOfSupplier(aa.supplier) || aa.shortName || aa.supplier || '';
         var aNum = formatPrice2(aa.price) || String(aa.price);
         var asp = el('span', 'mono', (aShort ? aShort + ' ' : '') + aNum);
         asp.style.whiteSpace = 'nowrap';
@@ -17583,9 +17726,10 @@ function batchSet() {
           if (short && sup && trS && trS.sup !== sup) {
             toast('简称「' + short + '」对应「' + trS.sup + '」，已按简称统一全称', 'ok');
           }
-          var priceChanged = 0;
+          var priceChanged = 0, ownerChanged = 0;
           sel.forEach(function (m) {
             var touchedOwner = false;
+            var _oldSup = m.supplier || '';
             if (short) {
               m.shortName = short;
               if (trS) { m.supplier = trS.sup; if (trS.buy) m.buyer = trS.buy; }
@@ -17600,6 +17744,11 @@ function batchSet() {
               if (sup) m.supplier = sup;
               if (buy) m.buyer = buy;
               touchedOwner = true;
+            }
+            /* 供应商换了：旧价降为备选、新家的报价升为主价（先于「统一价」执行，
+               否则统一价会被这一步重置） */
+            if (touchedOwner && !sameSupplier(_oldSup, m.supplier)) {
+              if (reconcileQuotesForRow(m, _oldSup)) ownerChanged++;
             }
             /* 价格：逐 SKU 定价优先于统一价；写 _localPrice 以便持久化（不随 map.json 发布覆盖） */
             var np = priceMap[Core.normSKU(m.sku)] || price1;
@@ -17616,7 +17765,8 @@ function batchSet() {
           buildSupplierIndex();
           runMatch(); runCheck();
           refreshAll();
-          toast('已更新 ' + sel.length + ' 行' + (priceChanged ? '（含 ' + priceChanged + ' 行价格）' : ''), 'ok');
+          toast('已更新 ' + sel.length + ' 行' + (priceChanged ? '（含 ' + priceChanged + ' 行价格）' : '')
+            + (ownerChanged ? '，' + ownerChanged + ' 行报价已按新供应商重排' : ''), 'ok');
           return false;
         }
       }
@@ -18568,7 +18718,9 @@ function applyPriceRows(rows, supplier, cm) {
     };
     var m = byKey[key];
     if (!m) {
-      m = { rid: '', sku: sku, supplier: '', buyer: '', shortName: '', note: '', updated: nowStr(), price: '', priceSupplier: '', alts: [], _new: true, _dirty: true, _deleted: false, _sel: false };
+      /* 映射表里没有这个 SKU：按用户口径「不自动联想」，建行但供应商留空，
+         备注标明来源，让它出现在「未匹配补录」清单里等人工指定。 */
+      m = { rid: '', sku: sku, supplier: '', buyer: '', shortName: '', note: '价目表导入·待指定供应商', updated: nowStr(), price: '', priceSupplier: '', alts: [], _new: true, _dirty: true, _deleted: false, _sel: false };
       state.mapping.push(m); byKey[key] = m; rep.newSkus++;
     }
     if (m.supplier && m.supplier === supplier) {
@@ -18603,7 +18755,8 @@ function importPriceList(rows, supplier) {
     title: '价目表导入完成 · ' + (rep.supplier || ''),
     html: '<div>有效报价行：<b>' + rep.total + '</b></div>' +
       '<div class="mt8">主报价写入：<b>' + rep.priceSet + '</b>　备选新增：<b>' + rep.altsAdded + '</b>　替换清除旧值：<b>' + rep.replaced + '</b></div>' +
-      '<div class="mt8">价目表新增 SKU（映射表原没有，已建未分配行）：<b>' + rep.newSkus + '</b></div>' +
+      '<div class="mt8">价目表新增 SKU（映射表原没有，已建「待指定供应商」行）：<b>' + rep.newSkus + '</b>'
+        + (rep.newSkus ? '　<span style="color:#B45309">→ 已进入「未匹配补录」页，可按 SPU 批量指定供应商</span>' : '') + '</div>' +
       '<div class="mt8" style="color:#B45309">价格无效跳过：<b>' + rep.invalid + '</b>　文件内重复 SKU：<b>' + rep.dup + '</b>　空行跳过：<b>' + rep.skipped + '</b></div>',
     buttons: [{ label: '完成', cls: 'btn pri' }]
   });
@@ -18671,6 +18824,16 @@ window.__test = {
   alignTripleFrom: alignTripleFrom,
   conflictMinoritySkus: conflictMinoritySkus,
   visibleMapRows: visibleMapRows,
+  /* 报价一致性相关（_test_quote.js 用）：价格归属、供应商比较、备选去重、改供应商联动 */
+  mapColValue: mapColValue,
+  quoteOwnerShort: quoteOwnerShort,
+  sameSupplier: sameSupplier,
+  dedupeAlts: dedupeAlts,
+  reconcileQuotesForRow: reconcileQuotesForRow,
+  supplierInfoOf: supplierInfoOf,
+  applyPriceJson: applyPriceJson,
+  ensureRowShape: ensureRowShape,
+  allUnmatchKeys: allUnmatchKeys,
   saveUnmatchRowByKey: saveUnmatchRowByKey,
   batchSetUnmatchColumn: batchSetUnmatchColumn,
   renderMapTable: renderMapTable,

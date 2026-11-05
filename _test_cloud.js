@@ -43,7 +43,8 @@ function boot() {
   A(!!t1 && !!t1.db && !!t1.db(), 'db() 拿到云数据库客户端（非 null）');
   const st1 = t1.state();
   for (let i = 0; i < 60 && (!st1.mapping || st1.mapping.length < 1000); i++) await sleep(250);
-  A(st1.mapping.length === 10677, '云端拉到映射 ' + st1.mapping.length + ' 条（期望 10677）');
+  // 行数会随日常维护增长（10,677 → 10,682），断言只校验「拉到了全量」，不写死绝对值
+  A(st1.mapping.length > 10000, '云端拉到映射 ' + st1.mapping.length + ' 条');
   const priced = st1.mapping.filter((m) => m.price || (m.alts && m.alts.length)).length;
   A(priced > 10000, '带报价的映射行 ' + priced + ' 条');
   A(!!st1.cloudOK, 'state.cloudOK = true');
@@ -51,6 +52,7 @@ function boot() {
   A(/已同步/.test(syncTxt), '状态条显示已同步：' + syncTxt);
 
   /* ---------- 改一条已有行 ---------- */
+  const TOTAL0 = st1.mapping.length;   // 基线：本次会话开始时云端行数
   const target = st1.mapping[0];
   const skuT = target.sku, oldBuyer = target.buyer;
   const newBuyer = oldBuyer === '张洁' ? '测试采购员A' : '张洁';
@@ -87,7 +89,7 @@ function boot() {
     const alt = (got2.alts || []).find((a) => a.supplier === '广州思哲箱包有限公司');
     A(!!alt && Number(alt.price) === 13, '备选报价正确：' + (alt ? alt.price : '(缺失)'));
   }
-  A(st2.mapping.length <= 10678, '总行数没有膨胀：' + st2.mapping.length);
+  A(st2.mapping.length <= TOTAL0 + 1, '总行数没有膨胀：' + st2.mapping.length + '（基线 ' + TOTAL0 + '）');
 
   /* ---------- 清理：删掉测试 SKU，恢复被改的行 ---------- */
   const del = st2.mapping.find((m) => m.sku === TEST_SKU);
