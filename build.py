@@ -48,6 +48,10 @@ def inject_weekly(data):
                 "spec": it.get("spec") or "",
                 "buyer": it.get("buyer") or "",
                 "plan_qty": qty,
+                "qty": qty,                       # 剩余数量（待下单）—— 波动折线表用
+                "apply_qty": float(it.get("apply_qty") or 0),  # 申请数量
+                "date": it.get("date") or "",      # 创建日期 —— 波动折线表按日聚合
+                "ling": it.get("ling") or "",      # 领星创建人
                 "month": mlab,          # 归入的预计月份
                 "doc": it.get("doc") or "",
             })
@@ -92,6 +96,13 @@ def main():
     with open(data_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     inject_weekly(data)
+    # 写回 data.json：保证仓库内的数据文件与 index.html 内联数据一致
+    # （clean.py 写 data.json 时 weekly 仍取自旧「周计划」表，无创建日期；build 注入后回写避免口径漂移）
+    try:
+        with open(data_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+    except Exception as e:
+        print("⚠️ 写回 data.json 失败:", e)
     data_json = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
 
     echarts_tag = "<script>\n" + echarts_src + "\n</script>"

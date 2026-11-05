@@ -687,7 +687,39 @@
     <span class="lab" style="margin-left:10px">管理台数据与交互与原网页一致；原图表视图保留在途剩余+待下单堆叠对比</span>
   </div>
   <div id="wk_console_box">
-    <iframe id="wk_console" src="console/index.html" title="采购申请单与订单分配管理台" style="width:100%;height:1500px;border:0;border-radius:24px;background:#fff;display:block;overflow:hidden"></iframe>
+    <style>
+      .wk-trend-legend{display:flex;gap:18px;font-size:13px;color:#5A736F;margin:6px 0 2px;flex-wrap:wrap}
+      .wk-trend-legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-2px}
+      .wk-trend-pop{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center}
+      .wk-trend-pop.show{display:flex}
+      .wk-tp-mask{position:absolute;inset:0;background:rgba(20,40,80,.28)}
+      .wk-tp-card{position:relative;width:min(760px,94vw);max-height:80vh;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(20,40,80,.3);display:flex;flex-direction:column;overflow:hidden}
+      .wk-tp-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #eef2f7;font-weight:700;color:#16302D;font-size:14px}
+      .wk-tp-x{cursor:pointer;color:#6b7686;font-weight:700;font-size:16px;line-height:1}
+      .wk-tp-body{padding:6px 18px 18px;overflow:auto}
+      .wk-tp-body table{width:100%;border-collapse:collapse;font-size:12.5px}
+      .wk-tp-body th,.wk-tp-body td{border-bottom:1px solid #f0f3f7;padding:6px 8px;text-align:left;vertical-align:top}
+      .wk-tp-body th{color:#6b7686;font-weight:600;position:sticky;top:0;background:#fff}
+      .wk-tp-body td.q{text-align:right;font-variant-numeric:tabular-nums}
+    </style>
+    <div class="panel" id="wk_trend_panel" style="margin-bottom:16px">
+      <h3>待下单波动 · 创建日期每日新增</h3>
+      <div class="ph-sub">按申请单「创建日期」每日聚合；蓝=申请数、橙=剩余数量(待下单)、绿虚线=申请数量。点击任意数据点弹出当日明细小窗。数据源：采购申请单（含本机补录行）。</div>
+      <div class="wk-trend-legend">
+        <span><i style="background:#1E8FD0"></i>申请数（左轴）</span>
+        <span><i style="background:#F59E0B"></i>剩余数量 件（右轴）</span>
+        <span><i style="background:#10B981"></i>申请数量 件（右轴）</span>
+      </div>
+      <div class="chart" id="wk_trend_chart" style="height:380px"></div>
+      <div class="wk-trend-pop" id="wk_trend_pop">
+        <div class="wk-tp-mask"></div>
+        <div class="wk-tp-card">
+          <div class="wk-tp-head"><span class="wk-tp-title"></span><span class="wk-tp-x">✕</span></div>
+          <div class="wk-tp-body"></div>
+        </div>
+      </div>
+    </div>
+    <iframe id="wk_console" src="console/index.html?sharecode=TXN5CQCX35" title="采购申请单与订单分配管理台" style="width:100%;height:1500px;border:0;border-radius:24px;background:#fff;display:block;overflow:hidden"></iframe>
   </div>
   <div id="wk_charts_box" style="display:none">
   <div class="ctl-inline">
@@ -2274,6 +2306,104 @@
     bindScopeSeg('wk_scope_seg','weekScope',function(){renderWeekly();});
   }
 
+  // ================= 周计划 · 待下单波动折线表 =================
+  // 按申请单「创建日期」每日聚合：申请数(蓝/左轴) + 剩余数量(橙/右轴) + 申请数量(绿虚线/右轴)
+  // 数据源 WEEKLY 已含本机补录行：server 数据嵌套于 suppliers[].items，import 为扁平行，两种形态都处理。
+  function wkTrendAgg(){
+    var scope = state.weekScope || 'all';
+    var byDate = {};
+    function push(date, short, core, item){
+      if(scope==='core' && !core) return;
+      if(scope==='normal' && core) return;
+      var d = date || '未填';
+      if(!byDate[d]) byDate[d] = {cnt:0, qty:0, apply:0, items:[]};
+      var b = byDate[d];
+      b.cnt += 1;
+      b.qty += num(item.qty!=null ? item.qty : (item.plan_qty!=null ? item.plan_qty : 0));
+      b.apply += num(item.apply_qty!=null ? item.apply_qty : 0);
+      b.items.push(Object.assign({}, item, {_sup: short}));
+    }
+    WEEKLY.forEach(function(w){
+      if(w && w.items){
+        var sh = w.short, core = CORE.has(sh);
+        (w.items||[]).forEach(function(it){ push(it.date, sh, core, it); });
+      } else if(w){
+        var sh2 = w.supplier_short || w.supplier || w.short || '—';
+        push(w.date, sh2, CORE.has(sh2), w);
+      }
+    });
+    var dates = Object.keys(byDate).filter(function(d){ return d!=='未填'; }).sort();
+    if(byDate['未填']) dates.push('未填');
+    return {dates:dates, data:byDate};
+  }
+  function wkEsc(s){ return String(s==null?'':s).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function renderWkTrend(){
+    var box = document.getElementById('wk_console_box');
+    if(!box || box.style.display==='none') return;   // 仅「采购管理台」视图可见时渲染
+    var el = document.getElementById('wk_trend_chart');
+    if(!el) return;
+    var agg = wkTrendAgg();
+    var dates = agg.dates;
+    var counts = dates.map(function(d){ return agg.data[d].cnt; });
+    var qtys = dates.map(function(d){ return Math.round(agg.data[d].qty); });
+    var apps = dates.map(function(d){ return Math.round(agg.data[d].apply); });
+    var xLabels = dates.map(function(d){ return d==='未填' ? '未填' : d.slice(5); });
+    var c = getChart('wk_trend_chart');
+    c.setOption({
+      tooltip: Object.assign({trigger:'axis', formatter:function(ps){
+        var d = dates[ps[0].dataIndex]; var b = agg.data[d]; if(!b) return '';
+        return '<b>'+(d==='未填'?'未填日期':d)+'</b><br/>申请 '+b.cnt+' 行 ｜ 剩余 '+fmt(b.qty)+' 件 ｜ 申请量 '+fmt(b.apply)+' 件<br/><span style="color:#6b7686">点击数据点查看当日明细</span>';
+      }}, TT),
+      legend:{show:true, top:0, right:8, icon:'roundRect', itemWidth:14, itemHeight:10, textStyle:{color:'#5A736F', fontSize:11}},
+      grid:{left:50, right:56, top:42, bottom:46},
+      xAxis: Object.assign({}, AX, {type:'category', data:xLabels, boundaryGap:false, axisLabel:{color:'#16302D', fontSize:11}}),
+      yAxis:[
+        Object.assign({}, AX, {type:'value', name:'申请数', position:'left', nameTextStyle:{color:'#1E8FD0', fontSize:11}, axisLabel:{color:'#16302D', fontSize:10}, splitLine:{lineStyle:{color:'rgba(14,158,142,0.10)'}}}),
+        Object.assign({}, AX, {type:'value', name:'数量(件)', position:'right', nameTextStyle:{color:'#F59E0B', fontSize:11}, axisLabel:{color:'#16302D', fontSize:10, formatter:function(v){ return v>=10000 ? (v/10000)+'万' : v; }}, splitLine:{show:false}})
+      ],
+      series:[
+        {name:'申请数', type:'line', yAxisIndex:0, smooth:true, symbol:'circle', symbolSize:7, data:counts,
+          lineStyle:{width:2.5, color:'#1E8FD0'}, itemStyle:{color:'#1E8FD0'}, areaStyle:{color:'rgba(30,143,208,0.08)'}},
+        {name:'剩余数量', type:'line', yAxisIndex:1, smooth:true, symbol:'circle', symbolSize:7, data:qtys,
+          lineStyle:{width:2.5, color:'#F59E0B'}, itemStyle:{color:'#F59E0B'}},
+        {name:'申请数量', type:'line', yAxisIndex:1, smooth:true, symbol:'circle', symbolSize:6, data:apps,
+          lineStyle:{width:2, color:'#10B981', type:'dashed'}, itemStyle:{color:'#10B981'}}
+      ]
+    }, true);
+    c.off('click');
+    c.on('click', function(p){ var d = dates[p.dataIndex]; if(d) wkTrendPop(d, agg.data[d]); });
+  }
+  function wkTrendPopClose(){ var pop=document.getElementById('wk_trend_pop'); if(pop) pop.classList.remove('show'); }
+  function wkTrendPop(date, b){
+    var items = b.items.slice().sort(function(a,c){ return num(c.qty!=null?c.qty:c.plan_qty) - num(a.qty!=null?a.qty:a.plan_qty); });
+    var cap = 120;
+    var rows = items.slice(0, cap).map(function(it){
+      var sup = it._sup || it.supplier_short || it.supplier || '—';
+      var nm = it.name || it.material_name || '—';
+      var sp = it.spec || '—';
+      var qty = num(it.qty!=null?it.qty:it.plan_qty);
+      var app = it.apply_qty!=null ? fmt(it.apply_qty) : '—';
+      var doc = it.doc || '—', by = it.buyer || '—', ling = it.ling || '—';
+      return '<tr><td>'+wkEsc(it.sku||'—')+'</td><td>'+wkEsc(nm)+'</td><td>'+wkEsc(sp)+'</td>'
+        +'<td>'+wkEsc(sup)+'</td><td class="q">'+fmt(qty)+'</td><td class="q">'+app+'</td>'
+        +'<td>'+wkEsc(doc)+'</td><td>'+wkEsc(by)+'</td><td>'+wkEsc(ling)+'</td></tr>';
+    }).join('');
+    var pop = document.getElementById('wk_trend_pop'); if(!pop) return;
+    pop.querySelector('.wk-tp-title').innerHTML = (date==='未填'?'未填日期':date)+' · 新增 '+b.cnt+' 行 ｜ 剩余 '+fmt(b.qty)+' 件 ｜ 申请量 '+fmt(b.apply)+' 件';
+    pop.querySelector('.wk-tp-body').innerHTML =
+      '<table><thead><tr><th>SKU</th><th>名称</th><th>规格</th><th>供应商</th><th class="q">剩余</th><th class="q">申请量</th><th>单据</th><th>采购员</th><th>创建人</th></tr></thead><tbody>'
+      + rows + '</tbody></table>'
+      + (items.length>cap ? '<div style="font-size:11px;color:#6b7686;margin-top:6px">仅显示前 '+cap+' / 共 '+items.length+' 行</div>' : '');
+    pop.classList.add('show');
+  }
+  (function(){
+    var pop = document.getElementById('wk_trend_pop');
+    if(pop && !pop._bound){ pop._bound = true;
+      var m = pop.querySelector('.wk-tp-mask'); if(m) m.addEventListener('click', wkTrendPopClose);
+      var x = pop.querySelector('.wk-tp-x'); if(x) x.addEventListener('click', wkTrendPopClose);
+    }
+  })();
+
   // ================= 页6 逾期分析 =================
   function renderOverdue(){
     var rows=filteredOrders();
@@ -2709,7 +2839,7 @@
     else if(state.page==='supplier') renderSupplier();
     else if(state.page==='capacity') renderCapacity();
     else if(state.page==='cross') renderCross();
-    else if(state.page==='weekly') renderWeekly();
+    else if(state.page==='weekly'){ renderWeekly(); if(state.wkView!=='charts') renderWkTrend(); }
     else if(state.page==='overdue') renderOverdue();
     else if(state.page==='otd') renderOTD();
     // resize 当前页图表
@@ -2815,7 +2945,7 @@
     state.wkView=s.getAttribute('data-v');
     this.querySelectorAll('span').forEach(function(x){ x.classList.toggle('on',x===s); });
     syncWkView();
-    if(state.wkView==='charts'){ renderWeekly(); }
+    if(state.wkView==='charts'){ renderWeekly(); } else { renderWkTrend(); }
   });
   document.getElementById('wk_thr').addEventListener('input',function(e){ state.wkThr=num(e.target.value)||0; renderWeekly(); });
   /* ================= 手动补录待下单（Excel / CSV 自动识别列） =================
