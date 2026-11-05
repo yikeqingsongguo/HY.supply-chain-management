@@ -950,7 +950,7 @@ table.wk td b{white-space:nowrap}
       <table class="wk-td-table">
         <thead><tr>
           <th>SKU</th><th>SPU</th><th>物料名称</th><th>规格</th><th>采购员</th>
-          <th>申请单单号</th><th>供应商名称</th><th>创建日期</th><th>剩余数量</th><th>申请数量</th>
+          <th>申请单单号</th><th>供应商名称</th><th>领星创建人</th><th>剩余数量</th><th>申请数量</th>
         </tr></thead>
         <tbody id="wkTrendDrawerBody"></tbody>
       </table>
@@ -19334,7 +19334,7 @@ window.__test = {
             + '<td class="wk-clip" title="'+esc(it.buyer)+'">'+(it.buyer ? esc(it.buyer) : '—')+'</td>'
             + '<td class="wk-clip" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
             + '<td class="wk-clip" title="'+esc(s.name)+'">'+esc(s.short || s.name)+'</td>'
-            + '<td>'+esc(it.date)+'</td>'
+            + '<td class="wk-clip" title="'+esc(it.ling)+'">'+(it.ling ? esc(it.ling) : '—')+'</td>'
             + '<td class="wk-num">'+nf(it.qty||0)+'</td>'
             + '<td class="wk-num">'+nf(it.apply_qty||0)+'</td>'
             + '</tr>';
