@@ -13737,6 +13737,7 @@ function initMapping() {
       });
       // 发布价目表合并：只给已有行加价/加备选；本地录入过（_localPrice）的行以本地为准
       if (remotePrices) applyPriceJson(mapping, remotePrices);
+      normalizeQuoteOwnership(mapping);
       state.mapping = mapping;
       state.remoteMap = !!(remoteRows && remoteRows.length);
       saveLocalMap();
@@ -13785,8 +13786,10 @@ function initMapping() {
     /* 报价同样以云端为准：cloud.quote 拼成 price.json 同构后复用既有合并逻辑 */
     state.mapping.forEach(ensureRowShape);
     applyPriceJson(state.mapping, res.prices);
+    /* 历史脏数据的自愈：主价还挂在原供应商名下的行，按「旧价降备选」重排 */
+    var _reOwn = normalizeQuoteOwnership(state.mapping);
     state.quoteCount = res.quoteCount;
-    state.dirty = rescued > 0;
+    state.dirty = rescued > 0 || _reOwn > 0;
     saveLocalMap();
     setSync('cloud', '已同步 ' + state.mapping.length + ' 条 · 报价 ' + res.quoteCount + ' 条' +
       (rescued ? '（找回本机未保存补录 ' + rescued + ' 条，记得保存）' : ''));
@@ -14129,6 +14132,21 @@ function reconcileQuotesForRow(m, oldOwner) {
   m.alts = dedupeAlts(m.alts, m.priceSupplier);
   if (changed) { m._dirty = true; m.updated = nowStr(); }
   return changed;
+}
+
+/* 载入后自愈：历史数据里「主价属于别家」的行（改过供应商但没重排），
+   按同一口径重排一次（旧价降备选、新家报价升主价）。只处理真正不一致的行。
+   会标脏，保存后固化到云端。返回处理行数。 */
+function normalizeQuoteOwnership(list) {
+  var n = 0;
+  (list || state.mapping || []).forEach(function (m) {
+    if (!m || m._deleted || !m.sku) return;
+    ensureRowShape(m);
+    if (!m.priceSupplier || !m.supplier) return;
+    if (sameSupplier(m.priceSupplier, m.supplier)) return;
+    if (reconcileQuotesForRow(m, m.priceSupplier)) n++;
+  });
+  return n;
 }
 
 /* 「价格」列 = 主报价「简称 + 含税单价(2 位)」；「备选N」列 = 第 N 家备选「简称 + 含税单价」 */
