@@ -904,7 +904,58 @@ table.wk td b{white-space:nowrap}
         </div>
       </div>
     </div>
+    <div class="card wk-trend-card">
+      <div class="card-hd"><h3>待下单趋势（按创建日期）</h3><span class="hint">蓝柱=申请单数 · 橙线=剩余数量 · 绿虚线=申请数量</span></div>
+      <div class="card-bd">
+        <div class="wk-trend-hint">点击任意日期，右侧滑出当日明细（SKU / 供应商 / 单据 / 数量）</div>
+        <div id="wk_trend_chart"></div>
+      </div>
+    </div>
   </section>
+
+  <style>
+    .wk-trend-card .card-bd{ padding:14px 16px 10px; }
+    #wk_trend_chart{ width:100%; height:320px; }
+    .wk-trend-hint{ font-size:12px; color:#8a94a6; margin:2px 0 8px; }
+    /* 待下单明细右侧抽屉 */
+    #wkTrendDrawerMask{ position:fixed; inset:0; background:rgba(15,23,42,.35); opacity:0; visibility:hidden; transition:opacity .2s; z-index:60; }
+    #wkTrendDrawerMask.open{ opacity:1; visibility:visible; }
+    #wk_trend_drawer{ position:fixed; top:0; right:0; height:100%; width:min(94vw,1120px); background:#fff; box-shadow:-8px 0 30px rgba(0,0,0,.18); transform:translateX(100%); transition:transform .25s ease; z-index:61; display:flex; flex-direction:column; }
+    #wk_trend_drawer.open{ transform:translateX(0); }
+    .wk-td-hd{ display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #eef1f6; }
+    .wk-td-hd h3{ font-size:16px; margin:0; color:#1f2a44; flex:1; }
+    .wk-td-close{ cursor:pointer; font-size:22px; line-height:1; color:#9aa3b2; border:none; background:none; padding:0 4px; }
+    .wk-td-close:hover{ color:#e2554f; }
+    .wk-td-stat{ display:flex; gap:10px; flex-wrap:wrap; padding:12px 20px; background:#f6f8fc; border-bottom:1px solid #eef1f6; }
+    .wk-td-stat span{ font-size:12.5px; color:#5b6577; background:#fff; border:1px solid #e6ebf3; border-radius:8px; padding:6px 12px; }
+    .wk-td-stat b{ color:#1f2a44; font-weight:700; margin-right:2px; }
+    .wk-td-body{ flex:1; overflow:auto; padding:0; }
+    .wk-td-table{ width:100%; border-collapse:collapse; font-size:13px; }
+    .wk-td-table thead th{ position:sticky; top:0; background:#eef3fb; color:#41506b; text-align:left; padding:10px 12px; font-weight:600; white-space:nowrap; border-bottom:1px solid #dde5f1; }
+    .wk-td-table tbody td{ padding:9px 12px; border-bottom:1px solid #f0f3f8; color:#2b3548; white-space:nowrap; }
+    .wk-td-table tbody tr:nth-child(even){ background:#fafbfe; }
+    .wk-clip{ max-width:200px; overflow:hidden; text-overflow:ellipsis; }
+    .wk-num{ text-align:right; font-variant-numeric:tabular-nums; }
+    .wk-td-empty{ padding:40px; text-align:center; color:#9aa3b2; }
+  </style>
+
+  <div id="wkTrendDrawerMask"></div>
+  <aside id="wk_trend_drawer" aria-hidden="true">
+    <div class="wk-td-hd">
+      <h3 id="wkTrendDrawerHead">待下单明细</h3>
+      <button class="wk-td-close" id="wkTrendDrawerClose" title="关闭">×</button>
+    </div>
+    <div class="wk-td-stat" id="wkTrendDrawerStat"></div>
+    <div class="wk-td-body">
+      <table class="wk-td-table">
+        <thead><tr>
+          <th>SKU</th><th>SPU</th><th>物料名称</th><th>规格</th><th>采购员</th>
+          <th>申请单单号</th><th>供应商名称</th><th>创建日期</th><th>剩余数量</th><th>申请数量</th>
+        </tr></thead>
+        <tbody id="wkTrendDrawerBody"></tbody>
+      </table>
+    </div>
+  </aside>
 
   <!-- 待处理横幅（置顶） -->
   <div class="todo" id="todoBar">
@@ -17458,6 +17509,7 @@ function switchTab(tab) {
   });
   renderStats();
   refreshAll();
+  if (isOverview && window.__wkRenderTrend) window.__wkRenderTrend();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function scrollToId(id) {
@@ -18933,6 +18985,7 @@ window.__test = {
   <div class="bn-item" data-tab="check"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>核查</div>
 </nav>
 <script src="../vendor/xlsx.full.min.js"></script>
+<script src="../vendor/echarts.min.js"></script>
 <script id="dash-auto-js">
 (function(){
   var WK = null;
@@ -19168,6 +19221,146 @@ window.__test = {
     if(WK_SCOPE === 'normal') return list.filter(function(x){ return !x.core && !x.pending; });
     return list;
   }
+
+  /* ============ 待下单趋势（按创建日期）+ 日期明细抽屉 ============ */
+  var wkTrendChart = null;
+  function wkTrendInRange(d){
+    if(!WK_DATE.from && !WK_DATE.to) return true;
+    var v = String(d||'');
+    if(!v) return false;
+    if(WK_DATE.from && v < WK_DATE.from) return false;
+    if(WK_DATE.to && v > WK_DATE.to) return false;
+    return true;
+  }
+  /* 按创建日期聚合：申请单数(去重单据) / 剩余数量 / 申请数量，并保留当日明细行 */
+  function wkTrendAgg(){
+    var map = {};
+    scopeList().forEach(function(s){
+      (s.items||[]).forEach(function(it){
+        if(!wkTrendInRange(it.date)) return;
+        var d = it.date || '未标注';
+        var g = map[d];
+        if(!g){ g = map[d] = {date:d, docs:{}, skus:{}, sup:{}, qty:0, apply:0, rows:[]}; }
+        if(it.doc) g.docs[it.doc]=1;
+        if(it.sku) g.skus[it.sku]=1;
+        if(s.short) g.sup[s.short]=1;
+        g.qty += (it.qty||0);
+        g.apply += (it.apply_qty||0);
+        g.rows.push({it:it, sup:s});
+      });
+    });
+    var dates = Object.keys(map).filter(function(d){ return d !== '未标注'; }).sort();
+    if(map['未标注'] && map['未标注'].rows.length) dates.push('未标注');
+    return dates.map(function(d){
+      var g = map[d];
+      return {date:d, docs:Object.keys(g.docs).length, skus:Object.keys(g.skus).length,
+        sup:Object.keys(g.sup).length, qty:Math.round(g.qty*10)/10, apply:Math.round(g.apply*10)/10, rows:g.rows};
+    });
+  }
+  function renderWkTrend(){
+    var ov = document.getElementById('tab-overview');
+    if(!ov || ov.classList.contains('hidden')) return;   // 仅首页可见时渲染（隐藏时容器宽高为 0）
+    if(typeof echarts === 'undefined') return;
+    if(!WK || !WK.suppliers) return;
+    var agg = wkTrendAgg();
+    var dates = agg.map(function(x){ return x.date; });
+    var docArr  = agg.map(function(x){ return x.docs; });
+    var qtyArr  = agg.map(function(x){ return x.qty; });
+    var applyArr= agg.map(function(x){ return x.apply; });
+    var box = document.getElementById('wk_trend_chart');
+    if(!box) return;
+    if(!wkTrendChart){ wkTrendChart = echarts.init(box); }
+    wkTrendChart.setOption({
+      tooltip:{ trigger:'axis',
+        formatter:function(ps){
+          var s = ps[0].axisValue + '<br/>';
+          ps.forEach(function(p){
+            var unit = (p.seriesName === '申请单数') ? ' 单' : ' 件';
+            s += p.marker + p.seriesName + '：' + nf(p.value) + unit + '<br/>';
+          });
+          s += '<span style="color:#888">点击查看当日明细 →</span>';
+          return s;
+        }
+      },
+      legend:{ data:['申请单数','剩余数量','申请数量'], top:2, textStyle:{fontSize:12} },
+      grid:{ left:6, right:10, top:40, bottom:24, containLabel:true },
+      xAxis:{ type:'category', data:dates, axisLabel:{ fontSize:11, rotate: dates.length>8 ? 30 : 0 } },
+      yAxis:[
+        { type:'value', name:'申请单数', position:'left', splitLine:{lineStyle:{type:'dashed', color:'#eef1f6'}}, axisLabel:{fontSize:11} },
+        { type:'value', name:'数量(件)', position:'right', splitLine:{show:false}, axisLabel:{fontSize:11} }
+      ],
+      series:[
+        { name:'申请单数', type:'bar', yAxisIndex:0, data:docArr, itemStyle:{color:'#3b82f6'}, barMaxWidth:28 },
+        { name:'剩余数量', type:'line', yAxisIndex:1, smooth:true, data:qtyArr, itemStyle:{color:'#f59e0b'}, lineStyle:{width:2}, symbolSize:6 },
+        { name:'申请数量', type:'line', yAxisIndex:1, smooth:true, data:applyArr, itemStyle:{color:'#22c55e'}, lineStyle:{width:2, type:'dashed'}, symbolSize:6 }
+      ]
+    }, true);
+    wkTrendChart.resize();
+    wkTrendChart.off('click');
+    wkTrendChart.on('click', function(params){
+      if(params.componentType === 'series'){ openWkTrendDrawer(params.name); }
+    });
+  }
+  /* 右侧抽屉：某日待下单明细（图2 风格 + 数量列） */
+  function openWkTrendDrawer(date){
+    var agg = wkTrendAgg();
+    var rec = null;
+    for(var i=0;i<agg.length;i++){ if(agg[i].date === date){ rec = agg[i]; break; } }
+    if(!rec) return;
+    var rows = rec.rows;
+    var skuSet={}, docSet={}, supSet={};
+    rows.forEach(function(r){
+      var it=r.it, s=r.sup;
+      if(it.sku) skuSet[it.sku]=1;
+      if(it.doc) docSet[it.doc]=1;
+      if(s.short) supSet[s.short]=1;
+    });
+    var bar = document.getElementById('wkTrendDrawerStat');
+    if(bar) bar.innerHTML = '<span><b>'+Object.keys(skuSet).length+'</b> SKU</span>'
+      + '<span><b>'+nf(rec.qty)+'</b> 待下单量</span>'
+      + '<span><b>'+Object.keys(supSet).length+'</b> 供应商</span>'
+      + '<span><b>'+Object.keys(docSet).length+'</b> 单据</span>';
+    var tb = document.getElementById('wkTrendDrawerBody');
+    if(tb){
+      if(!rows.length){ tb.innerHTML = '<tr><td colspan="10" class="wk-td-empty">当日无明细</td></tr>'; }
+      else {
+        tb.innerHTML = rows.map(function(r){
+          var it=r.it, s=r.sup;
+          return '<tr>'
+            + '<td class="wk-clip" title="'+esc(it.sku)+'">'+esc(it.sku)+'</td>'
+            + '<td class="wk-clip" title="'+esc(it.spu)+'">'+esc(it.spu)+'</td>'
+            + '<td class="wk-clip" title="'+esc(it.name)+'">'+esc(it.name)+'</td>'
+            + '<td class="wk-clip" title="'+esc(it.spec)+'">'+esc(it.spec)+'</td>'
+            + '<td class="wk-clip" title="'+esc(it.buyer)+'">'+(it.buyer ? esc(it.buyer) : '—')+'</td>'
+            + '<td class="wk-clip" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
+            + '<td class="wk-clip" title="'+esc(s.name)+'">'+esc(s.short || s.name)+'</td>'
+            + '<td>'+esc(it.date)+'</td>'
+            + '<td class="wk-num">'+nf(it.qty||0)+'</td>'
+            + '<td class="wk-num">'+nf(it.apply_qty||0)+'</td>'
+            + '</tr>';
+        }).join('');
+      }
+    }
+    var dh = document.getElementById('wkTrendDrawerHead');
+    if(dh) dh.textContent = '待下单明细 · ' + date;
+    var dr = document.getElementById('wk_trend_drawer');
+    var mask = document.getElementById('wkTrendDrawerMask');
+    if(dr) dr.classList.add('open');
+    if(mask) mask.classList.add('open');
+  }
+  function closeWkTrendDrawer(){
+    var dr = document.getElementById('wk_trend_drawer');
+    var mask = document.getElementById('wkTrendDrawerMask');
+    if(dr) dr.classList.remove('open');
+    if(mask) mask.classList.remove('open');
+  }
+  window.__wkRenderTrend = renderWkTrend;
+  (function bindWkTrendDrawer(){
+    var c = document.getElementById('wkTrendDrawerClose'); if(c) c.onclick = closeWkTrendDrawer;
+    var m = document.getElementById('wkTrendDrawerMask'); if(m) m.onclick = closeWkTrendDrawer;
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeWkTrendDrawer(); });
+    window.addEventListener('resize', function(){ if(wkTrendChart) wkTrendChart.resize(); });
+  })();
 
   function closePanel(){
     if(WK_PANEL && WK_PANEL.parentNode) WK_PANEL.parentNode.removeChild(WK_PANEL);
@@ -20051,6 +20244,7 @@ window.__test = {
         };
       }
       document.addEventListener('click', function(){ if(WK_PANEL) closePanel(); });
+      try{ if(window.__wkRenderTrend) window.__wkRenderTrend(); }catch(e){}
     }).catch(function(){});
   }
 
