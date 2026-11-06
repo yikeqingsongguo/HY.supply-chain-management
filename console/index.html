@@ -937,6 +937,9 @@ table.wk td b{white-space:nowrap}
     .wk-clip{ max-width:200px; overflow:hidden; text-overflow:ellipsis; }
     .wk-num{ text-align:right; font-variant-numeric:tabular-nums; }
     .wk-td-empty{ padding:40px; text-align:center; color:#9aa3b2; }
+    .wk-td-table thead tr.wk-td-filters th{ position:sticky; top:38px; background:#f3f6fb; padding:6px 8px; z-index:1; border-bottom:1px solid #dde5f1; }
+    .wk-f{ width:100%; box-sizing:border-box; font-size:12px; padding:4px 6px; border:1px solid #d6deea; border-radius:6px; background:#fff; }
+    .wk-f:focus{ outline:none; border-color:#3b82f6; }
   </style>
 
   <div id="wkTrendDrawerMask"></div>
@@ -948,10 +951,24 @@ table.wk td b{white-space:nowrap}
     <div class="wk-td-stat" id="wkTrendDrawerStat"></div>
     <div class="wk-td-body">
       <table class="wk-td-table">
-        <thead><tr>
-          <th>SKU</th><th>SPU</th><th>物料名称</th><th>规格</th><th>采购员</th>
-          <th>申请单单号</th><th>供应商名称</th><th>领星创建人</th><th>剩余数量</th><th>申请数量</th>
-        </tr></thead>
+        <thead>
+          <tr>
+            <th>SKU</th><th>SPU</th><th>物料名称</th><th>规格</th><th>采购员</th>
+            <th>申请单单号</th><th>供应商名称</th><th>领星创建人</th><th>剩余数量</th><th>申请数量</th>
+          </tr>
+          <tr class="wk-td-filters">
+            <th><input type="text" class="wk-f" data-f="sku" placeholder="筛选"></th>
+            <th><input type="text" class="wk-f" data-f="spu" placeholder="筛选"></th>
+            <th><input type="text" class="wk-f" data-f="name" placeholder="筛选"></th>
+            <th><input type="text" class="wk-f" data-f="spec" placeholder="筛选"></th>
+            <th><input type="text" class="wk-f" data-f="buyer" placeholder="筛选"></th>
+            <th><input type="text" class="wk-f" data-f="doc" placeholder="筛选"></th>
+            <th><input type="text" class="wk-f" data-f="sup" placeholder="筛选"></th>
+            <th><input type="text" class="wk-f" data-f="ling" placeholder="筛选"></th>
+            <th><input type="text" class="wk-f" data-f="qty" placeholder="筛选"></th>
+            <th><input type="text" class="wk-f" data-f="apply" placeholder="筛选"></th>
+          </tr>
+        </thead>
         <tbody id="wkTrendDrawerBody"></tbody>
       </table>
     </div>
@@ -19296,17 +19313,70 @@ window.__test = {
       ]
     }, true);
     wkTrendChart.resize();
+    requestAnimationFrame(function(){ if(wkTrendChart) wkTrendChart.resize(); });
     wkTrendChart.off('click');
     wkTrendChart.on('click', function(params){
       if(params.componentType === 'series'){ openWkTrendDrawer(params.name); }
     });
   }
-  /* 右侧抽屉：某日待下单明细（图2 风格 + 数量列） */
+  /* 右侧抽屉：某日待下单明细（图2 风格 + 数量列 + 表头筛选） */
+  var wkTrendCurDate = null;
+  var wkTrendFilter = {};
+  function clearWkTrendFilters(){
+    wkTrendFilter = {};
+    Array.prototype.forEach.call(document.querySelectorAll('#wk_trend_drawer .wk-f'), function(inp){ try{ inp.value=''; }catch(e){} });
+  }
+  function renderWkTrendDrawerBody(){
+    var rows = [];
+    if(wkTrendCurDate){
+      var agg = wkTrendAgg();
+      var rec = null;
+      for(var i=0;i<agg.length;i++){ if(agg[i].date === wkTrendCurDate){ rec = agg[i]; break; } }
+      if(rec) rows = rec.rows;
+    }
+    var keys = Object.keys(wkTrendFilter);
+    if(keys.length){
+      rows = rows.filter(function(r){
+        var it=r.it, s=r.sup;
+        for(var k=0;k<keys.length;k++){
+          var f = wkTrendFilter[keys[k]];
+          if(!f) continue;
+          var v='';
+          if(keys[k]==='sku') v=it.sku; else if(keys[k]==='spu') v=it.spu; else if(keys[k]==='name') v=it.name;
+          else if(keys[k]==='spec') v=it.spec; else if(keys[k]==='buyer') v=it.buyer; else if(keys[k]==='doc') v=it.doc;
+          else if(keys[k]==='sup') v=s.short||s.name; else if(keys[k]==='ling') v=it.ling;
+          else if(keys[k]==='qty') v=String(it.qty||0); else if(keys[k]==='apply') v=String(it.apply_qty||0);
+          if(String(v==null?'':v).toLowerCase().indexOf(f.toLowerCase()) < 0) return false;
+        }
+        return true;
+      });
+    }
+    var tb = document.getElementById('wkTrendDrawerBody');
+    if(!tb) return;
+    if(!rows.length){ tb.innerHTML = '<tr><td colspan="10" class="wk-td-empty">无匹配明细</td></tr>'; return; }
+    tb.innerHTML = rows.map(function(r){
+      var it=r.it, s=r.sup;
+      return '<tr>'
+        + '<td class="wk-clip" title="'+esc(it.sku)+'">'+esc(it.sku)+'</td>'
+        + '<td class="wk-clip" title="'+esc(it.spu)+'">'+esc(it.spu)+'</td>'
+        + '<td class="wk-clip" title="'+esc(it.name)+'">'+esc(it.name)+'</td>'
+        + '<td class="wk-clip" title="'+esc(it.spec)+'">'+esc(it.spec)+'</td>'
+        + '<td class="wk-clip" title="'+esc(it.buyer)+'">'+(it.buyer ? esc(it.buyer) : '—')+'</td>'
+        + '<td class="wk-clip" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
+        + '<td class="wk-clip" title="'+esc(s.name)+'">'+esc(s.short || s.name)+'</td>'
+        + '<td class="wk-clip" title="'+esc(it.ling)+'">'+(it.ling ? esc(it.ling) : '—')+'</td>'
+        + '<td class="wk-num">'+nf(it.qty||0)+'</td>'
+        + '<td class="wk-num">'+nf(it.apply_qty||0)+'</td>'
+        + '</tr>';
+    }).join('');
+  }
   function openWkTrendDrawer(date){
     var agg = wkTrendAgg();
     var rec = null;
     for(var i=0;i<agg.length;i++){ if(agg[i].date === date){ rec = agg[i]; break; } }
-    if(!rec) return;
+    if(!rec){ return; }
+    wkTrendCurDate = date;
+    clearWkTrendFilters();
     var rows = rec.rows;
     var skuSet={}, docSet={}, supSet={};
     rows.forEach(function(r){
@@ -19320,29 +19390,9 @@ window.__test = {
       + '<span><b>'+nf(rec.qty)+'</b> 待下单量</span>'
       + '<span><b>'+Object.keys(supSet).length+'</b> 供应商</span>'
       + '<span><b>'+Object.keys(docSet).length+'</b> 单据</span>';
-    var tb = document.getElementById('wkTrendDrawerBody');
-    if(tb){
-      if(!rows.length){ tb.innerHTML = '<tr><td colspan="10" class="wk-td-empty">当日无明细</td></tr>'; }
-      else {
-        tb.innerHTML = rows.map(function(r){
-          var it=r.it, s=r.sup;
-          return '<tr>'
-            + '<td class="wk-clip" title="'+esc(it.sku)+'">'+esc(it.sku)+'</td>'
-            + '<td class="wk-clip" title="'+esc(it.spu)+'">'+esc(it.spu)+'</td>'
-            + '<td class="wk-clip" title="'+esc(it.name)+'">'+esc(it.name)+'</td>'
-            + '<td class="wk-clip" title="'+esc(it.spec)+'">'+esc(it.spec)+'</td>'
-            + '<td class="wk-clip" title="'+esc(it.buyer)+'">'+(it.buyer ? esc(it.buyer) : '—')+'</td>'
-            + '<td class="wk-clip" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
-            + '<td class="wk-clip" title="'+esc(s.name)+'">'+esc(s.short || s.name)+'</td>'
-            + '<td class="wk-clip" title="'+esc(it.ling)+'">'+(it.ling ? esc(it.ling) : '—')+'</td>'
-            + '<td class="wk-num">'+nf(it.qty||0)+'</td>'
-            + '<td class="wk-num">'+nf(it.apply_qty||0)+'</td>'
-            + '</tr>';
-        }).join('');
-      }
-    }
     var dh = document.getElementById('wkTrendDrawerHead');
     if(dh) dh.textContent = '待下单明细 · ' + date;
+    renderWkTrendDrawerBody();
     var dr = document.getElementById('wk_trend_drawer');
     var mask = document.getElementById('wkTrendDrawerMask');
     if(dr) dr.classList.add('open');
@@ -19360,6 +19410,13 @@ window.__test = {
     var m = document.getElementById('wkTrendDrawerMask'); if(m) m.onclick = closeWkTrendDrawer;
     document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeWkTrendDrawer(); });
     window.addEventListener('resize', function(){ if(wkTrendChart) wkTrendChart.resize(); });
+    Array.prototype.forEach.call(document.querySelectorAll('#wk_trend_drawer .wk-f'), function(inp){
+      inp.addEventListener('input', function(){
+        var k = inp.getAttribute('data-f');
+        wkTrendFilter[k] = inp.value.trim();
+        renderWkTrendDrawerBody();
+      });
+    });
   })();
 
   function closePanel(){
