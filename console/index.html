@@ -700,6 +700,9 @@ td.sku-big,th.sku-big{font-family:var(--mono)}
 .search{font-size:15px}
 .np-item{font-size:14px}
 .stat-card .sc-label,.stat-card .sc-sub{font-size:13px}
+.stat-card{padding:16px 18px}
+.stat-card .sc-num{font-size:26px;line-height:1.12;letter-spacing:-.01em}
+.stat-card .sc-sub{margin-top:6px}
 .quick-btn .qb-t{font-size:14px}
 .quick-btn .qb-d{font-size:12.5px}
 </style>
@@ -778,7 +781,7 @@ table.wk-items td.wk-ck input{width:15px;height:15px;cursor:pointer}
 .wk-duo>.card>.card-hd{flex:none}
 .wk-duo>.card>.card-bd{flex:1 1 auto;min-height:0;overflow:auto}
 .wk-duo>.card>.card-bd>table.wk{margin:0}
-.wk-duo>.card>.card-bd>table.wk thead th{position:sticky;top:0;z-index:2;background:#FFFFFF}
+.wk-duo>.card>.card-bd>table.wk thead th{position:sticky;top:0;z-index:3;background:#DCF1EC;color:#0B5E57;border-bottom:1px solid #BFE6DF;box-shadow:inset 0 -1px 0 #BFE6DF}
 @media (max-width:1180px){.wk-duo{grid-template-columns:1fr}.wk-duo>.card{max-height:none}}
 .wk-assign{position:absolute;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(41,79,74,.28);width:380px;padding:20px 22px}
 /* 指定供应商：简称联想候选 */
@@ -889,8 +892,8 @@ table.wk td b{white-space:nowrap}
     <div class="stat-grid">
       <div class="stat-card"><p class="sc-label">已同步映射数</p><p class="sc-num" id="statMap">—</p><p class="sc-sub muted" id="statMapSub">SKU → 采购员 / 供应商</p></div>
       <div class="stat-card"><p class="sc-label">待补录数</p><p class="sc-num" id="statUnmatch">—</p><p class="sc-sub down" id="statUnmatchSub">未匹配 SKU</p></div>
-      <div class="stat-card"><p class="sc-label">已下单率</p><p class="sc-num" id="statOrder">—</p><p class="sc-sub up" id="statOrderSub">申请量已覆盖</p></div>
-      <div class="stat-card"><p class="sc-label">超量率</p><p class="sc-num" id="statOver">—</p><p class="sc-sub down" id="statOverSub">超出已下单量</p></div>
+      <div class="stat-card"><p class="sc-label">今日申请数量</p><p class="sc-num" id="statOrder">—</p><p class="sc-sub muted" id="statOrderSub">今日新增申请量</p></div>
+      <div class="stat-card"><p class="sc-label">待下单汇总数量</p><p class="sc-num" id="statOver">—</p><p class="sc-sub muted" id="statOverSub">当前待下单总量</p></div>
     </div>
     <div class="card">
       <div class="card-hd"><h3>快速入口</h3><span class="hint">点击进入对应工作步骤</span></div>
@@ -937,9 +940,112 @@ table.wk td b{white-space:nowrap}
     .wk-clip{ max-width:200px; overflow:hidden; text-overflow:ellipsis; }
     .wk-num{ text-align:right; font-variant-numeric:tabular-nums; }
     .wk-td-empty{ padding:40px; text-align:center; color:#9aa3b2; }
-    .wk-td-table thead tr.wk-td-filters th{ position:sticky; top:38px; background:#f3f6fb; padding:6px 8px; z-index:1; border-bottom:1px solid #dde5f1; }
-    .wk-f{ width:100%; box-sizing:border-box; font-size:12px; padding:4px 6px; border:1px solid #d6deea; border-radius:6px; background:#fff; }
-    .wk-f:focus{ outline:none; border-color:#3b82f6; }
+    .wk-td-table thead th{ padding:0; }
+    .wk-facet-btn{ display:inline-flex; align-items:center; gap:4px; width:100%; background:none; border:0; cursor:pointer; padding:10px 12px; font:inherit; font-size:12px; font-weight:600; color:#41506b; text-align:left; }
+    .wk-facet-btn:hover{ background:#e6eefb; }
+    .wk-facet-btn .wk-caret{ font-size:11px; color:#185FA5; font-weight:500; }
+    .wk-facet-pop{ position:fixed; z-index:80; width:248px; max-height:320px; background:#fff; border:1px solid #dbe3ef; border-radius:10px; box-shadow:0 16px 40px -12px rgba(22,48,45,.35); display:flex; flex-direction:column; }
+    .wk-facet-hd{ padding:10px 12px 6px; font-size:12px; font-weight:600; color:#1f2a44; border-bottom:1px solid #eef1f6; }
+    .wk-facet-list{ overflow:auto; max-height:220px; padding:4px 0; }
+    .wk-facet-item{ display:flex; align-items:center; gap:8px; padding:5px 12px; font-size:12px; color:#3b4759; cursor:pointer; }
+    .wk-facet-item:hover{ background:#f3f7fd; }
+    .wk-facet-item input{ margin:0; accent-color:#0E9E8E; width:14px; height:14px; }
+    .wk-facet-txt{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .wk-facet-n{ color:#9aa3b2; font-size:11px; }
+    .wk-facet-acts{ display:flex; gap:8px; padding:8px 12px; border-top:1px solid #eef1f6; }
+    .wk-facet-a{ flex:1; border:1px solid #dfe6f0; background:#f7f9fc; border-radius:7px; padding:6px 0; font-size:12px; color:#41506b; cursor:pointer; }
+    .wk-facet-a:hover{ background:#eef4fc; }
+    .wk-facet-a.pri{ background:#0E9E8E; border-color:#0E9E8E; color:#fff; }
+    .wk-facet-a.pri:hover{ background:#0B8878; }
+    .wk-zone-hd td{ background:#f2f6fb; color:#41506b; font-weight:600; font-size:12px; padding:8px 12px; }
+    .wk-zone-hd.un td{ background:#fff6e9; color:#8a5a00; }
+    .wk-td-table td.wk-sku{ font-weight:700; font-size:13.5px; color:#16302D; }
+    .wk-spu-wrap{ padding:16px 20px 24px; border-top:1px solid #eef1f6; }
+    .wk-spu-hd{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:12.5px; font-weight:600; color:#41506b; }
+    .wk-spu-back{ border:1px solid #dfe6f0; background:#f7f9fc; border-radius:7px; padding:4px 10px; font-size:12px; color:#41506b; cursor:pointer; }
+    .wk-spu-back:hover{ background:#eef4fc; }
+    .wk-spu-chart{ display:flex; flex-direction:column; gap:8px; }
+    .wk-spu-bar{ display:flex; align-items:center; gap:10px; background:none; border:0; padding:2px 4px; border-radius:6px; cursor:pointer; text-align:left; }
+    .wk-spu-bar:hover{ background:#f3f7fd; }
+    .wk-spu-bar.on{ background:#eaf7f5; box-shadow:inset 0 0 0 1px #0E9E8E; }
+    .wk-spu-code{ width:64px; flex:none; font-family:var(--mono,monospace); font-size:12px; color:#41506b; }
+    .wk-spu-track{ flex:1; height:16px; background:#eef2f8; border-radius:4px; overflow:hidden; }
+    .wk-spu-fill{ display:block; height:100%; background:#3b82f6; border-radius:4px; }
+    .wk-spu-bar.on .wk-spu-fill{ background:#0E9E8E; }
+    .wk-spu-val{ width:64px; flex:none; text-align:right; font-size:12px; color:#41506b; }
+    .wk-spu-empty{ font-size:12px; color:#9aa3b2; padding:8px 0; }
+    button:focus-visible, a:focus-visible, [tabindex]:focus-visible{ outline:2px solid #0E9E8E; outline-offset:2px; }
+    /* 表格美化：去粉红边框；未匹配用琥珀左侧标记；斑马纹 + 悬停提亮 */
+    tbody tr.unm td{ background:var(--card) !important; border-top:1px solid var(--line) !important; border-bottom:1px solid var(--line) !important; }
+    tr.grp-hd-row.has-unm td{ background:#F8FCFB !important; border-top:2px solid var(--line) !important; }
+    tr.grp-row.unm td{ background:#FFFDF7 !important; border-top:1px solid var(--line) !important; border-bottom:1px solid var(--line) !important; }
+    tr.grp-row.unm td:first-child{ box-shadow:inset 3px 0 0 #EF9F27; }
+    #matchTable tbody tr:nth-child(even) td, #checkTable tbody tr:nth-child(even) td{ background:#FAFCFC; }
+    #matchTable tbody tr:hover td, #checkTable tbody tr:hover td{ background:#F5FAFA; }
+    td.sku-big{ font-weight:700; }
+    /* ===== 全局：薄荷表头 + 表头粘性 + 斑马纹（按在途概览参考） ===== */
+    #wkA, #wkB{ max-height:64vh; overflow:auto; }
+    #wkA table.wk thead th, #wkB table.wk thead th{ position:sticky; top:0; z-index:6; background:#DCF1EC; color:#0B5E57; font-weight:600; border-bottom:1px solid #BFE6DF; box-shadow:inset 0 -1px 0 #BFE6DF; }
+    table.wk thead th{ background:#DCF1EC; color:#0B5E57; font-weight:600; border-bottom:1px solid #BFE6DF; }
+    table.wk tbody tr:nth-child(even) td{ background:#FAFDFC; }
+    table.wk tbody tr:hover td{ background:#F1FAF8; }
+    table.wk td{ border-bottom:1px solid #EDF3F1; }
+    .tw{ max-height:68vh; overflow:auto; }
+    .tw thead th{ position:sticky; top:0; z-index:6; background:#DCF1EC; color:#0B5E57; border-bottom:1px solid #BFE6DF; box-shadow:inset 0 -1px 0 #BFE6DF; }
+    /* ===== 青绿替换蓝色点缀（贴近参考图） ===== */
+    .wk-facet-btn:hover{ background:#E4F4F1; }
+    .wk-facet-btn .wk-caret{ color:#0E9E8E; }
+    .wk-spu-fill{ background:linear-gradient(90deg,#2BB3A3,#0E9E8E); }
+    .wk-spu-bar.on .wk-spu-fill{ background:linear-gradient(90deg,#0E9E8E,#0B8878); }
+    .wk-spu-track{ background:#E7F3F1; }
+    .wk-td-table thead th{ background:#E3F4F1; color:#0B5E57; border-bottom:1px solid #BFE6DF; }
+    .wk-td-stat{ background:#F4FBFA; }
+    .wk-td-stat span{ background:#F0F9F7; border-color:#D8EFEA; }
+    .wk-zone-hd td{ background:#EDF7F5; color:#0B5E57; }
+    .wk-facet-pop{ border-color:#D8EFEA; }
+    /* ===== 毛玻璃 + 适度透明（保留薄荷/青绿配色） ===== */
+    body{
+      background:
+        radial-gradient(1200px 600px at 8% -10%, rgba(43,179,163,.20), transparent 60%),
+        radial-gradient(1000px 520px at 100% 0%, rgba(88,160,230,.14), transparent 55%),
+        linear-gradient(160deg,#E7F6F3 0%,#EFF8FB 45%,#F7FCFB 100%) !important;
+      background-attachment: fixed;
+    }
+    .card{
+      background: rgba(255,255,255,.72) !important;
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      border-color: rgba(255,255,255,.55);
+    }
+    .sidebar{ background: rgba(255,255,255,.72) !important; backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%); }
+    .header{ background: rgba(255,255,255,.66) !important; backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); }
+    td{ background: rgba(255,255,255,.80); }
+    table.wk tbody tr:nth-child(even) td{ background: rgba(255,255,255,.58); }
+    #matchTable tbody tr:nth-child(even) td, #checkTable tbody tr:nth-child(even) td{ background: rgba(255,255,255,.58); }
+    tbody tr:hover td{ background: rgba(14,158,142,.07); }
+    /* ===== 第二阶段：字体分层 / 动效 / 投影 / 说明精简 ===== */
+    @font-face{ font-family:'WB Title'; src:url('fonts/wb-title.woff2') format('woff2'); font-weight:400 700; font-style:normal; font-display:swap; }
+    :root{ --serif:"WB Title","Noto Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",sans-serif; }
+    .card-hd h3, .wk-td-hd h3, .dlg-hd, .grp-hd, .wk-duo>.card>.card-hd h3{ font-family:var(--serif) !important; letter-spacing:.01em; }
+    .card-hd h3{ font-weight:600; }
+    .dlg-hd{ font-weight:600; }
+    /* 卡片柔投影，统一向下光源（普通内容克制） */
+    .card, .quick-btn, .todo, .grp{ box-shadow:var(--shadow-soft); transition:box-shadow .22s ease-out; }
+    .quick-btn:hover{ box-shadow:var(--shadow-hover); }
+    /* 行 / 控件 hover 渐进过渡 */
+    tbody tr td, .sb-item, .bn-item, .btn, .th-fil-btn, .wk-spu-bar, .wk-facet-item{ transition:background-color .16s ease-out, color .16s ease-out, box-shadow .16s ease-out; }
+    /* 弹窗回弹 + 浮层淡入 */
+    @keyframes wbSpringIn{ 0%{ opacity:0; transform:translateY(10px) scale(.97); } 60%{ opacity:1; transform:translateY(-3px) scale(1.008); } 100%{ opacity:1; transform:translateY(0) scale(1); } }
+    @keyframes wbFadeIn{ from{ opacity:0; } to{ opacity:1; } }
+    .dlg{ animation:wbSpringIn .34s cubic-bezier(.34,1.56,.64,1) both; }
+    .mask{ animation:wbFadeIn .18s ease-out both; }
+    .th-pop, .wk-facet-pop, .suggest, .nav-pop, .wk-sug{ animation:wbFadeIn .16s ease-out both; }
+    /* 说明字段精简（保留功能文案） */
+    .card-hd .hint{ display:none; }
+    .tbl-tools .hint{ display:none; }
+    /* SKU 再放大加粗 */
+    td.sku-big{ font-size:18px; font-weight:700; }
+    .wk-td-table td.wk-sku{ font-size:14px; font-weight:700; }
   </style>
 
   <div id="wkTrendDrawerMask"></div>
@@ -953,26 +1059,30 @@ table.wk td b{white-space:nowrap}
       <table class="wk-td-table">
         <thead>
           <tr>
-            <th>SKU</th><th>SPU</th><th>物料名称</th><th>规格</th><th>采购员</th>
-            <th>申请单单号</th><th>供应商名称</th><th>领星创建人</th><th>剩余数量</th><th>申请数量</th>
-          </tr>
-          <tr class="wk-td-filters">
-            <th><input type="text" class="wk-f" data-f="sku" placeholder="筛选"></th>
-            <th><input type="text" class="wk-f" data-f="spu" placeholder="筛选"></th>
-            <th><input type="text" class="wk-f" data-f="name" placeholder="筛选"></th>
-            <th><input type="text" class="wk-f" data-f="spec" placeholder="筛选"></th>
-            <th><input type="text" class="wk-f" data-f="buyer" placeholder="筛选"></th>
-            <th><input type="text" class="wk-f" data-f="doc" placeholder="筛选"></th>
-            <th><input type="text" class="wk-f" data-f="sup" placeholder="筛选"></th>
-            <th><input type="text" class="wk-f" data-f="ling" placeholder="筛选"></th>
-            <th><input type="text" class="wk-f" data-f="qty" placeholder="筛选"></th>
-            <th><input type="text" class="wk-f" data-f="apply" placeholder="筛选"></th>
+            <th><button type="button" class="wk-facet-btn" data-f="sku">SKU<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="name">物料名称<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="spec">规格<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="buyer">采购员<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="doc">申请单单号<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="sup">供应商名称<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="ling">领星创建人<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="qty">剩余数量<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="apply">申请数量<b class="wk-caret">▾</b></button></th>
           </tr>
         </thead>
         <tbody id="wkTrendDrawerBody"></tbody>
       </table>
+      <div class="wk-spu-wrap">
+        <div class="wk-spu-hd">
+          <span>按 SPU 数量（点柱子下钻到该 SPU 的 SKU）</span>
+          <button type="button" class="wk-spu-back" id="wkSpuBack" hidden>← 返回全部 SPU</button>
+        </div>
+        <div class="wk-spu-chart" id="wkTrendSpuChart"></div>
+      </div>
     </div>
   </aside>
+  <div class="wk-facet-pop" id="wkFacetPop" hidden></div>
 
   <!-- 待处理横幅（置顶） -->
   <div class="todo" id="todoBar">
@@ -17270,20 +17380,30 @@ function renderCheckGroups() {
   row.style.gap = '8px';
   groups.forEach(function (g) {
     var chip = document.createElement('div');
-    chip.style.padding = '6px 10px';
+    chip.style.padding = '10px 14px';
     chip.style.border = '1px solid var(--line)';
-    chip.style.borderRadius = '6px';
+    chip.style.borderRadius = '10px';
     chip.style.background = state.checkBuyerFilter === g.buyer ? 'var(--accent)' : '#FFF';
     chip.style.color = state.checkBuyerFilter === g.buyer ? '#FFF' : 'var(--text)';
     chip.style.cursor = 'pointer';
-    chip.style.fontSize = '12px';
+    chip.style.fontSize = '14px';
     chip.style.whiteSpace = 'nowrap';
+    chip.style.boxShadow = 'var(--shadow-soft)';
+    chip.style.transition = 'box-shadow .2s ease-out, transform .2s ease-out';
+    chip.tabIndex = 0;
+    chip.setAttribute('role', 'button');
+    chip.onmouseenter = function () { chip.style.boxShadow = 'var(--shadow-hover)'; chip.style.transform = 'translateY(-2px)'; };
+    chip.onmouseleave = function () { chip.style.boxShadow = 'var(--shadow-soft)'; chip.style.transform = 'none'; };
+    chip.onkeydown = function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); chip.click(); } };
     var b = document.createElement('b');
     b.textContent = g.buyer;
+    b.style.fontSize = '15px';
     chip.appendChild(b);
     var s = document.createElement('span');
     s.textContent = '　' + fmtInt(g.count) + ' SKU · 差异 ' + fmtNum(g.qty);
     s.style.opacity = '0.9';
+    s.style.fontSize = '13px';
+    s.style.marginLeft = '6px';
     chip.appendChild(s);
     chip.onclick = function () {
       state.checkBuyerFilter = (state.checkBuyerFilter === g.buyer) ? '' : g.buyer;
@@ -17459,18 +17579,17 @@ function renderStats() {
   var mapN = 0;
   (state.mapping || []).forEach(function (m) { if (!m._deleted && m.sku) mapN++; });
   var unN = state.matchResult ? state.matchResult.unmatchedKeys.length : 0;
-  var s = state.checkResult ? state.checkResult.summary : null;
-  var orderRate = '—', overRate = '—';
-  if (s && s.skuTotal) {
-    var ordered = s.skuTotal - (s.diffSku || 0);
-    orderRate = (ordered / s.skuTotal * 100).toFixed(1) + '%';
-    overRate = ((s.overSku || 0) / s.skuTotal * 100).toFixed(1) + '%';
-  }
+  /* 「今日申请数量」「待下单汇总数量」取 WK（IIFE 重建后写入 window.__wkStat） */
+  var st = window.__wkStat || {};
+  var todayApply = (st.todayApply == null) ? '—' : fmtInt(st.todayApply);
+  var pendingTotal = (st.total == null) ? '—' : fmtInt(st.total);
   var el;
   el = $('statMap'); if (el) el.textContent = fmtInt(mapN);
   el = $('statUnmatch'); if (el) el.textContent = fmtInt(unN);
-  el = $('statOrder'); if (el) el.textContent = orderRate;
-  el = $('statOver'); if (el) el.textContent = overRate;
+  el = $('statOrder'); if (el) el.textContent = todayApply;
+  el = $('statOver'); if (el) el.textContent = pendingTotal;
+  el = $('statOrderSub'); if (el) el.textContent = st.todayIsToday ? '今日新增申请量' : ('最近申请日 ' + (st.latestDate || '—'));
+  el = $('statOverSub'); if (el) el.textContent = '当前待下单总量';
 }
 
 function initShell() {
@@ -19307,7 +19426,7 @@ window.__test = {
         { type:'value', name:'数量(件)', position:'right', splitLine:{show:false}, axisLabel:{fontSize:11} }
       ],
       series:[
-        { name:'申请单数', type:'bar', yAxisIndex:0, data:docArr, itemStyle:{color:'#3b82f6'}, barMaxWidth:28 },
+        { name:'申请单数', type:'bar', yAxisIndex:0, data:docArr, itemStyle:{color:'#0E9E8E'}, barMaxWidth:28 },
         { name:'剩余数量', type:'line', yAxisIndex:1, smooth:true, data:qtyArr, itemStyle:{color:'#f59e0b'}, lineStyle:{width:2}, symbolSize:6 },
         { name:'申请数量', type:'line', yAxisIndex:1, smooth:true, data:applyArr, itemStyle:{color:'#22c55e'}, lineStyle:{width:2, type:'dashed'}, symbolSize:6 }
       ]
@@ -19319,34 +19438,83 @@ window.__test = {
       if(params.componentType === 'series'){ openWkTrendDrawer(params.name); }
     });
   }
-  /* 右侧抽屉：某日待下单明细（图2 风格 + 数量列 + 表头筛选） */
+  /* 右侧抽屉：某日待下单明细（▾多选筛选 + 匹配/未匹配两区 + SPU 下钻） */
   var wkTrendCurDate = null;
   var wkTrendFilter = {};
+  var wkTrendSpu = '';
   function clearWkTrendFilters(){
     wkTrendFilter = {};
-    Array.prototype.forEach.call(document.querySelectorAll('#wk_trend_drawer .wk-f'), function(inp){ try{ inp.value=''; }catch(e){} });
+    wkTrendSpu = '';
+  }
+  function wkFacetValue(col, r){
+    var it=r.it, s=r.sup;
+    if(col==='sku') return String(it.sku||'');
+    if(col==='spu') return String(it.spu||'');
+    if(col==='name') return String(it.name||'');
+    if(col==='spec') return String(it.spec||'');
+    if(col==='buyer') return String(it.buyer||'');
+    if(col==='doc') return String(it.doc||'');
+    if(col==='sup') return String(s.short||s.name||'');
+    if(col==='ling') return String(it.ling||'');
+    if(col==='qty') return String(it.qty||0);
+    if(col==='apply') return String(it.apply_qty||0);
+    return '';
+  }
+  function wkTrendDateRows(){
+    if(!wkTrendCurDate) return [];
+    var agg = wkTrendAgg(), rec = null;
+    for(var i=0;i<agg.length;i++){ if(agg[i].date === wkTrendCurDate){ rec = agg[i]; break; } }
+    return rec ? rec.rows : [];
+  }
+  function wkFacetLabel(col){
+    var map = {sku:'SKU',spu:'SPU',name:'物料名称',spec:'规格',buyer:'采购员',doc:'申请单单号',sup:'供应商名称',ling:'领星创建人',qty:'剩余数量',apply:'申请数量'};
+    return map[col] || col;
+  }
+  function renderWkTrendSpuChart(){
+    var box = document.getElementById('wkTrendSpuChart');
+    if(!box) return;
+    var rows = wkTrendDateRows();
+    var m = {};
+    rows.forEach(function(r){
+      var spu = String(r.it.spu||'未标注');
+      if(!m[spu]) m[spu] = {spu:spu, qty:0};
+      m[spu].qty += (r.it.qty||0);
+    });
+    var arr = Object.keys(m).map(function(k){ return m[k]; }).sort(function(a,b){ return b.qty-a.qty; }).slice(0,8);
+    if(!arr.length){ box.innerHTML = '<div class="wk-spu-empty">当日无 SPU 数据</div>'; return; }
+    var max = arr[0].qty || 1;
+    box.innerHTML = arr.map(function(x){
+      var w = Math.max(3, Math.round(x.qty/max*100));
+      var on = (wkTrendSpu === x.spu);
+      return '<button type="button" class="wk-spu-bar' + (on?' on':'') + '" data-spu="' + esc(x.spu) + '" title="下钻到 SPU ' + esc(x.spu) + '">'
+        + '<span class="wk-spu-code">' + esc(x.spu) + '</span>'
+        + '<span class="wk-spu-track"><span class="wk-spu-fill" style="width:' + w + '%"></span></span>'
+        + '<span class="wk-spu-val">' + nf(x.qty) + '</span>'
+        + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('.wk-spu-bar'), function(btn){
+      btn.onclick = function(){
+        var spu = btn.getAttribute('data-spu');
+        wkTrendSpu = (wkTrendSpu === spu) ? '' : spu;
+        renderWkTrendSpuChart();
+        renderWkTrendDrawerBody();
+      };
+    });
+    var back = document.getElementById('wkSpuBack');
+    if(back) back.hidden = !wkTrendSpu;
   }
   function renderWkTrendDrawerBody(){
-    var rows = [];
-    if(wkTrendCurDate){
-      var agg = wkTrendAgg();
-      var rec = null;
-      for(var i=0;i<agg.length;i++){ if(agg[i].date === wkTrendCurDate){ rec = agg[i]; break; } }
-      if(rec) rows = rec.rows;
+    var rows = wkTrendDateRows();
+    if(wkTrendSpu){
+      rows = rows.filter(function(r){ return String(r.it.spu||'未标注') === wkTrendSpu; });
     }
     var keys = Object.keys(wkTrendFilter);
     if(keys.length){
       rows = rows.filter(function(r){
-        var it=r.it, s=r.sup;
         for(var k=0;k<keys.length;k++){
-          var f = wkTrendFilter[keys[k]];
-          if(!f) continue;
-          var v='';
-          if(keys[k]==='sku') v=it.sku; else if(keys[k]==='spu') v=it.spu; else if(keys[k]==='name') v=it.name;
-          else if(keys[k]==='spec') v=it.spec; else if(keys[k]==='buyer') v=it.buyer; else if(keys[k]==='doc') v=it.doc;
-          else if(keys[k]==='sup') v=s.short||s.name; else if(keys[k]==='ling') v=it.ling;
-          else if(keys[k]==='qty') v=String(it.qty||0); else if(keys[k]==='apply') v=String(it.apply_qty||0);
-          if(String(v==null?'':v).toLowerCase().indexOf(f.toLowerCase()) < 0) return false;
+          var col = keys[k], set = wkTrendFilter[col];
+          if(!set || !set.size) continue;
+          if(!set.has(wkFacetValue(col, r))) return false;
         }
         return true;
       });
@@ -19354,21 +19522,85 @@ window.__test = {
     var tb = document.getElementById('wkTrendDrawerBody');
     if(!tb) return;
     if(!rows.length){ tb.innerHTML = '<tr><td colspan="10" class="wk-td-empty">无匹配明细</td></tr>'; return; }
-    tb.innerHTML = rows.map(function(r){
+    var un = [], ok = [];
+    rows.forEach(function(r){
+      var it=r.it, s=r.sup;
+      var matched = !(s.short === '待填写' || s.pending || it.mapped === false);
+      (matched ? ok : un).push(r);
+    });
+    function rowHtml(r){
       var it=r.it, s=r.sup;
       return '<tr>'
-        + '<td class="wk-clip" title="'+esc(it.sku)+'">'+esc(it.sku)+'</td>'
-        + '<td class="wk-clip" title="'+esc(it.spu)+'">'+esc(it.spu)+'</td>'
-        + '<td class="wk-clip" title="'+esc(it.name)+'">'+esc(it.name)+'</td>'
-        + '<td class="wk-clip" title="'+esc(it.spec)+'">'+esc(it.spec)+'</td>'
-        + '<td class="wk-clip" title="'+esc(it.buyer)+'">'+(it.buyer ? esc(it.buyer) : '—')+'</td>'
-        + '<td class="wk-clip" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
-        + '<td class="wk-clip" title="'+esc(s.name)+'">'+esc(s.short || s.name)+'</td>'
-        + '<td class="wk-clip" title="'+esc(it.ling)+'">'+(it.ling ? esc(it.ling) : '—')+'</td>'
-        + '<td class="wk-num">'+nf(it.qty||0)+'</td>'
-        + '<td class="wk-num">'+nf(it.apply_qty||0)+'</td>'
+        + '<td class="wk-clip wk-sku" title="' + esc(it.sku) + '">' + esc(it.sku) + '</td>'
+        + '<td class="wk-clip" title="' + esc(it.spu) + '">' + esc(it.spu) + '</td>'
+        + '<td class="wk-clip" title="' + esc(it.name) + '">' + esc(it.name) + '</td>'
+        + '<td class="wk-clip" title="' + esc(it.spec) + '">' + esc(it.spec) + '</td>'
+        + '<td class="wk-clip" title="' + esc(it.buyer) + '">' + (it.buyer ? esc(it.buyer) : '—') + '</td>'
+        + '<td class="wk-clip" title="' + esc(it.doc) + '">' + esc(it.doc) + '</td>'
+        + '<td class="wk-clip" title="' + esc(s.name) + '">' + esc(s.short || s.name) + '</td>'
+        + '<td class="wk-clip" title="' + esc(it.ling) + '">' + (it.ling ? esc(it.ling) : '—') + '</td>'
+        + '<td class="wk-num">' + nf(it.qty||0) + '</td>'
+        + '<td class="wk-num">' + nf(it.apply_qty||0) + '</td>'
         + '</tr>';
+    }
+    var html = '';
+    if(un.length){
+      html += '<tr class="wk-zone-hd un"><td colspan="10">未匹配（待填写）· ' + un.length + ' 行</td></tr>' + un.map(rowHtml).join('');
+    }
+    if(ok.length){
+      html += '<tr class="wk-zone-hd"><td colspan="10">已匹配 · ' + ok.length + ' 行</td></tr>' + ok.map(rowHtml).join('');
+    }
+    tb.innerHTML = html;
+  }
+  var wkFacetCol = null;
+  function closeWkFacet(){
+    var pop = document.getElementById('wkFacetPop');
+    if(pop){ pop.hidden = true; pop.innerHTML = ''; }
+    wkFacetCol = null;
+  }
+  function openWkFacet(col, btn){
+    var pop = document.getElementById('wkFacetPop');
+    if(!pop) return;
+    wkFacetCol = col;
+    var rows = wkTrendDateRows();
+    var vals = {}, order = [];
+    rows.forEach(function(r){
+      var v = wkFacetValue(col, r);
+      if(!vals[v]){ vals[v] = 0; order.push(v); }
+      vals[v]++;
+    });
+    order.sort(function(a,b){ return String(a).localeCompare(String(b),'zh'); });
+    var cur = wkTrendFilter[col];
+    var allOn = !cur || !cur.size;
+    var body = order.map(function(v){
+      var checked = allOn || cur.has(v);
+      return '<label class="wk-facet-item"><input type="checkbox" class="wk-facet-ck" value="' + esc(v) + '"' + (checked?' checked':'') + '>'
+        + '<span class="wk-facet-txt">' + esc(v || '（空）') + '</span><span class="wk-facet-n">' + vals[v] + '</span></label>';
     }).join('');
+    pop.innerHTML = '<div class="wk-facet-hd">' + esc(wkFacetLabel(col)) + '</div>'
+      + '<div class="wk-facet-list">' + body + '</div>'
+      + '<div class="wk-facet-acts">'
+      + '<button type="button" class="wk-facet-a" data-a="all">全选</button>'
+      + '<button type="button" class="wk-facet-a" data-a="none">清空</button>'
+      + '<button type="button" class="wk-facet-a pri" data-a="ok">确定</button></div>';
+    var rc = btn.getBoundingClientRect();
+    pop.hidden = false;
+    pop.style.left = Math.max(8, Math.min(rc.left, (window.innerWidth||1200) - 268)) + 'px';
+    pop.style.top = (rc.bottom + 4) + 'px';
+    pop.querySelector('.wk-facet-a[data-a="all"]').onclick = function(){
+      Array.prototype.forEach.call(pop.querySelectorAll('.wk-facet-ck'), function(c){ c.checked = true; });
+    };
+    pop.querySelector('.wk-facet-a[data-a="none"]').onclick = function(){
+      Array.prototype.forEach.call(pop.querySelectorAll('.wk-facet-ck'), function(c){ c.checked = false; });
+    };
+    pop.querySelector('.wk-facet-a[data-a="ok"]').onclick = function(){
+      var cks = pop.querySelectorAll('.wk-facet-ck'), set = new Set(), n = 0;
+      Array.prototype.forEach.call(cks, function(c){ if(c.checked) set.add(c.value); n++; });
+      if(set.size === n) delete wkTrendFilter[col];
+      else wkTrendFilter[col] = set;
+      closeWkFacet();
+      renderWkTrendDrawerBody();
+    };
   }
   function openWkTrendDrawer(date){
     var agg = wkTrendAgg();
@@ -19386,12 +19618,13 @@ window.__test = {
       if(s.short) supSet[s.short]=1;
     });
     var bar = document.getElementById('wkTrendDrawerStat');
-    if(bar) bar.innerHTML = '<span><b>'+Object.keys(skuSet).length+'</b> SKU</span>'
-      + '<span><b>'+nf(rec.qty)+'</b> 待下单量</span>'
-      + '<span><b>'+Object.keys(supSet).length+'</b> 供应商</span>'
-      + '<span><b>'+Object.keys(docSet).length+'</b> 单据</span>';
+    if(bar) bar.innerHTML = '<span><b>' + Object.keys(skuSet).length + '</b> SKU</span>'
+      + '<span><b>' + nf(rec.qty) + '</b> 待下单量</span>'
+      + '<span><b>' + Object.keys(supSet).length + '</b> 供应商</span>'
+      + '<span><b>' + Object.keys(docSet).length + '</b> 单据</span>';
     var dh = document.getElementById('wkTrendDrawerHead');
     if(dh) dh.textContent = '待下单明细 · ' + date;
+    renderWkTrendSpuChart();
     renderWkTrendDrawerBody();
     var dr = document.getElementById('wk_trend_drawer');
     var mask = document.getElementById('wkTrendDrawerMask');
@@ -19399,23 +19632,59 @@ window.__test = {
     if(mask) mask.classList.add('open');
   }
   function closeWkTrendDrawer(){
+    closeWkFacet();
     var dr = document.getElementById('wk_trend_drawer');
     var mask = document.getElementById('wkTrendDrawerMask');
     if(dr) dr.classList.remove('open');
     if(mask) mask.classList.remove('open');
   }
   window.__wkRenderTrend = renderWkTrend;
+  function computeWkStat(){
+    if(!WK || !WK.suppliers) return;
+    var d = new Date();
+    var dd = function(n){ return (n < 10 ? '0' : '') + n; };
+    var today = d.getFullYear() + '-' + dd(d.getMonth()+1) + '-' + dd(d.getDate());
+    var todayApply = 0, latestDate = '';
+    WK.suppliers.forEach(function(s){
+      (s.items||[]).forEach(function(it){
+        if(it.date === today) todayApply += (it.apply_qty||0);
+        if(it.date && it.date > latestDate) latestDate = it.date;
+      });
+    });
+    var latestApply = 0;
+    if(!todayApply){
+      WK.suppliers.forEach(function(s){
+        (s.items||[]).forEach(function(it){ if(it.date === latestDate) latestApply += (it.apply_qty||0); });
+      });
+    }
+    var showApply = todayApply > 0 ? todayApply : latestApply;
+    window.__wkStat = { total: WK.total_plan, todayApply: Math.round(showApply), todayIsToday: todayApply > 0, latestDate: latestDate };
+    try{ renderStats(); }catch(e){}
+  }
   (function bindWkTrendDrawer(){
     var c = document.getElementById('wkTrendDrawerClose'); if(c) c.onclick = closeWkTrendDrawer;
     var m = document.getElementById('wkTrendDrawerMask'); if(m) m.onclick = closeWkTrendDrawer;
-    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeWkTrendDrawer(); });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeWkFacet(); closeWkTrendDrawer(); } });
     window.addEventListener('resize', function(){ if(wkTrendChart) wkTrendChart.resize(); });
-    Array.prototype.forEach.call(document.querySelectorAll('#wk_trend_drawer .wk-f'), function(inp){
-      inp.addEventListener('input', function(){
-        var k = inp.getAttribute('data-f');
-        wkTrendFilter[k] = inp.value.trim();
-        renderWkTrendDrawerBody();
-      });
+    Array.prototype.forEach.call(document.querySelectorAll('#wk_trend_drawer .wk-facet-btn'), function(btn){
+      btn.addEventListener('click', function(ev){ ev.stopPropagation(); openWkFacet(btn.getAttribute('data-f'), btn); });
+    });
+    document.addEventListener('click', function(ev){
+      var pop = document.getElementById('wkFacetPop');
+      if(pop && !pop.hidden && !pop.contains(ev.target) && !ev.target.closest('.wk-facet-btn')) closeWkFacet();
+    });
+    var back = document.getElementById('wkSpuBack');
+    if(back) back.onclick = function(){ wkTrendSpu = ''; renderWkTrendSpuChart(); renderWkTrendDrawerBody(); };
+    /* 无障碍：把可点击的非按钮元素纳入 Tab 顺序，支持回车/空格触发 */
+    Array.prototype.forEach.call(document.querySelectorAll('.bn-item, .step'), function(el){
+      if(!el.hasAttribute('tabindex')) el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.th-fil-btn, .th-clr-btn'), function(el){ el.tabIndex = 0; });
+    document.addEventListener('keydown', function(e){
+      if(e.key !== 'Enter' && e.key !== ' ') return;
+      var t = e.target;
+      if(t && t.matches && t.matches('.bn-item,.step,.th-fil-btn,.th-clr-btn')){ e.preventDefault(); t.click(); }
     });
   })();
 
@@ -20302,6 +20571,7 @@ window.__test = {
       }
       document.addEventListener('click', function(){ if(WK_PANEL) closePanel(); });
       try{ if(window.__wkRenderTrend) window.__wkRenderTrend(); }catch(e){}
+      try{ computeWkStat(); }catch(e){}
     }).catch(function(){});
   }
 
