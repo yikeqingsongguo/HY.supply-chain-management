@@ -13976,11 +13976,33 @@ function initMapping() {
     applyPriceJson(state.mapping, res.prices);
     /* 历史脏数据的自愈：主价还挂在原供应商名下的行，按「旧价降备选」重排 */
     var _reOwn = normalizeQuoteOwnership(state.mapping);
+    /* 存量报价补传：本机导入过价目表（_localPrice）但云端 sku_quote 里这个 SKU 一条报价都没有
+       —— 早前 importPriceList 只写 localStorage、不触发上传，导致云端一直缺价。
+       这里标脏后自动补传一次；用 localStorage 记录已尝试的 SKU，避免结构不匹配时每次刷新都重传。
+       单次上限 400 行，剩余的下次加载继续，避免一次打几百个请求把页面卡住。 */
+    var _healed = {};
+    try { _healed = JSON.parse(localStorage.getItem('wk_quote_healed_v1') || '{}') || {}; } catch (e2) { _healed = {}; }
+    var _needHeal = 0;
+    (state.mapping || []).forEach(function (m) {
+      if (!m.rid || m._deleted || !m._localPrice) return;
+      if (!m.price && !(m.alts && m.alts.length)) return;
+      var kk = Core.normSKU(m.sku);
+      if (!kk || _healed[kk]) return;
+      var ent = res.prices && (res.prices[m.sku] || res.prices[kk]);
+      if (ent && Object.keys(ent).length) return;      // 云端已有该 SKU 报价，不用补
+      if (_needHeal >= 400) return;
+      m._dirty = true; _healed[kk] = 1; _needHeal++;
+    });
+    if (_needHeal) {
+      try { localStorage.setItem('wk_quote_healed_v1', JSON.stringify(_healed)); } catch (e3) {}
+    }
     state.quoteCount = res.quoteCount;
-    state.dirty = rescued > 0 || _reOwn > 0;
+    state.dirty = rescued > 0 || _reOwn > 0 || _needHeal > 0;
     saveLocalMap();
     setSync('cloud', '已同步 ' + state.mapping.length + ' 条 · 报价 ' + res.quoteCount + ' 条' +
-      (rescued ? '（找回本机未保存补录 ' + rescued + ' 条，记得保存）' : ''));
+      (rescued ? '（找回本机未保存补录 ' + rescued + ' 条，记得保存）' : '') +
+      (_needHeal ? '（补传本机报价 ' + _needHeal + ' 条…）' : ''));
+    if (_needHeal) setTimeout(function () { try { saveMapping(true); } catch (e4) {} }, 800);
   }).catch(function (err) {
     /* 云端连不上：域名不在允许列表（GitHub Pages 就是这样）时，服务端返回 403 access_denied，
        而浏览器先被 CORS 拦掉，SDK 抛的是 TypeError: Failed to fetch —— 两种都要按「只读本机」处理 */
@@ -13989,6 +14011,7 @@ function initMapping() {
       /Failed to fetch|NetworkError|Load failed|fetch failed|network error/i.test(emsg);
     if (isOriginBlock) {
       state.cloudBlocked = true;
+      state.cloudBlockedAt = Date.now();
       cloudErr = (err && err.code === 'origin') ? '域名不在云端允许列表' : '无法连接云端（域名受限或网络不通）';
       showCloudBanner(true);
       setSync('local', '云端不可达 · 改动只存本机');
@@ -14008,6 +14031,17 @@ function initMapping() {
 /* 保存：把脏记录提交云端（silent=true 供补录自动保存用：不弹进度框、文案区分） */
 function saveMapping(silent) {
   purgeEmptyMapRows();   // 同步前自动剔除没有任何数据的空行
+  /* 云端封锁可自愈：cloudBlocked 只是「上一次探测失败」的快照，不能永久锁死。
+     超过 60s 后重新拿一次连接，成功就恢复自动同步；失败再记一次时间戳。
+     否则页面开久了一点网络抖动，后面所有编辑都静默只存本机（用户看到的就是「不同步云端」）。 */
+  if (state.cloudBlocked) {
+    var _since = state.cloudBlockedAt || 0;
+    if (Date.now() - _since > 60000) {
+      state.cloudBlocked = false;
+      state.cloudBlockedAt = 0;
+      if (typeof showCloudBanner === 'function') showCloudBanner(false);
+    }
+  }
   var d = state.cloudBlocked ? null : db();
   var pending = state.mapping.filter(function (m) {
     return (m._deleted && m.rid) || (m._new && !m._deleted && m.sku) || (m._dirty && m.rid && !m._deleted)
@@ -14021,19 +14055,30 @@ function saveMapping(silent) {
     state.mapping.forEach(function (m) { m._new = false; m._dirty = false; });
     saveLocalMap();
     state.dirty = false;
-    setSync('local', state.cloudBlocked ? '云端不可达 · 改动只存本机' : ('仅本机 · ' + cloudReason()));
-    toast(state.cloudBlocked
-      ? '本页写不了云端：改动只存本机浏览器，未上传云端。请到云端管理台编辑'
-      : ('只保存到本机浏览器（' + cloudReason() + '），未上传云端'), 'err');
+    if (!state.cloudBlockedAt) state.cloudBlockedAt = Date.now();
+    setSync('local', state.cloudBlocked ? '未上云 · 改动只存本机（点此重试）' : ('未上云 · ' + cloudReason() + '（点此重试）'));
+    /* 自动保存（silent）时不要再弹 toast：批量编辑会刷屏，状态徽标已经写明「未上云」 */
+    if (!silent) {
+      toast(state.cloudBlocked
+        ? '本页写不了云端：改动只存本机浏览器，未上传云端。请到云端管理台编辑'
+        : ('只保存到本机浏览器（' + cloudReason() + '），未上传云端'), 'err');
+    }
     if (state.cloudBlocked) showCloudBanner(true);
     refreshAll();
     return Promise.resolve();
   }
   if (!pending.length && !state.mapping.some(function (m) { return m._deleted; })) {
     if (!silent) toast('没有需要保存的改动');
+    state.unsavedEdits = 0;
     return Promise.resolve();
   }
-  if (saveMapping._busy) { if (!silent) toast('上一次保存还在进行中，请稍候', 'ok'); return Promise.resolve(); }
+  /* 并发保护：旧逻辑直接 return，导致「上一次保存还没跑完时又改了行」的那次改动被静默丢弃
+     （防抖 2s 很容易撞上批量保存）。这里改成排队，当前批次结束后自动补跑一次。 */
+  if (saveMapping._busy) {
+    saveMapping._queued = true;
+    if (!silent) toast('上一次保存还在进行中，已排队，结束后自动补传', 'ok');
+    return Promise.resolve();
+  }
   saveMapping._busy = true;
   setSync('busy', '保存中…');
   var bd = silent ? null : dialog({
@@ -14140,8 +14185,20 @@ function saveMapping(silent) {
   }
   var workers = [];
   for (var i = 0; i < CONC; i++) workers.push(worker());
-  return Promise.all(workers).then(function () {
+  /* 批次收尾：无论成功失败都清 _busy，并处理「保存中被改动」的排队补跑 */
+  function afterBatch(okBatch, failedCount) {
     saveMapping._busy = false;
+    if (okBatch) {
+      state.unsavedEdits = 0;
+      state.cloudBlocked = false;
+      state.cloudBlockedAt = 0;
+    }
+    if (saveMapping._queued) {
+      saveMapping._queued = false;
+      setTimeout(function () { saveMapping(true); }, 80);
+    }
+  }
+  return Promise.all(workers).then(function () {
     // 移除云端删除成功的记录（删除失败的保留 _deleted 标记，可重试）
     state.mapping = state.mapping.filter(function (m) { return !m._gone; });
     var stillNew = state.mapping.some(function (m) { return m._new; });
@@ -14151,18 +14208,19 @@ function saveMapping(silent) {
       var mask = document.querySelector('.mask'); if (mask && mask.parentNode) mask.parentNode.removeChild(mask);
     }
     if (failed) {
-      setSync('err', '保存有 ' + failed + ' 条失败');
+      setSync('err', '保存有 ' + failed + ' 条失败 · 点此重试');
       toast('保存完成，但 ' + failed + ' 条失败，请重试', 'err');
     } else {
-      setSync('cloud', '已同步 ' + state.mapping.length + ' 条');
+      setSync('cloud', '已同步 ' + state.mapping.length + ' 条 · ' + nowStr().slice(11));
       toast(silent ? '已自动保存到云端' : '已保存到云端', 'ok');
     }
+    afterBatch(!failed, failed);
     refreshAll();
   }).catch(function (e) {
-    saveMapping._busy = false;
     if (!silent) { var mask = document.querySelector('.mask'); if (mask && mask.parentNode) mask.parentNode.removeChild(mask); }
-    setSync('err', '保存失败');
+    setSync('err', '保存失败 · 点此重试');
     toast('保存失败：' + ((e && e.message) || e), 'err');
+    afterBatch(false, 0);
   });
 }
 
@@ -16203,26 +16261,39 @@ function persistUnmatchRow(rawKey, vals) {
   return { row: row, created: true };
 }
 
-/* 补录后自动推送云端映射表（防抖 2.5s；失败不打断，下次保存/手动保存可重试） */
+/* 补录后自动推送云端映射表（防抖 1.5s；失败不打断，下次保存/手动保存可重试） */
 function scheduleUnmatchAutoSave() {
+  if (typeof state !== 'undefined') state.unsavedEdits = (state.unsavedEdits || 0) + 1;
+  markPendingSync();
   if (UNMATCH_AUTO_SAVE_TIMER) clearTimeout(UNMATCH_AUTO_SAVE_TIMER);
   UNMATCH_AUTO_SAVE_TIMER = setTimeout(function () {
     UNMATCH_AUTO_SAVE_TIMER = null;
-    if (typeof db !== 'function' || !db()) return;
+    if (typeof db !== 'function') return;
     if (typeof saveMapping === 'function') saveMapping(true);
-  }, 2500);
+  }, 1500);
 }
 
-/* 映射表编辑后自动推送云端（防抖 2s），无需每次手动点「保存到云端」 */
+/* 映射表编辑后自动推送云端（防抖 1.2s），无需每次手动点「保存到云端」
+ * 注意：不因 cloudBlocked 直接 return —— 交给 saveMapping 内部做「60s 后可重试」的自愈判断，
+ * 否则一次网络抖动会让整个会话永久不同步。 */
 var MAP_AUTO_SAVE_TIMER = null;
 function scheduleMapAutoSave() {
-  if (typeof state !== 'undefined' && state.cloudBlocked) return;
+  if (typeof state !== 'undefined') state.unsavedEdits = (state.unsavedEdits || 0) + 1;
+  markPendingSync();
   if (MAP_AUTO_SAVE_TIMER) clearTimeout(MAP_AUTO_SAVE_TIMER);
   MAP_AUTO_SAVE_TIMER = setTimeout(function () {
     MAP_AUTO_SAVE_TIMER = null;
-    if (typeof db !== 'function' || !db()) return;
+    if (typeof db !== 'function') return;
     if (typeof saveMapping === 'function') saveMapping(true);
-  }, 2000);
+  }, 1200);
+}
+
+/* 顶部状态徽标实时显示「有没有上云」，避免用户改完不知道到底存没存 */
+function markPendingSync() {
+  var n = (state && state.unsavedEdits) || 0;
+  if (!n) return;
+  if (typeof setSync !== 'function') return;
+  setSync('busy', '待同步 ' + n + ' 处改动…');
 }
 
 /* SPU 冲突确认弹窗：list = [{sku, old}]，onOk(true=覆盖冲突 / false=跳过冲突行) */
@@ -17624,6 +17695,27 @@ function initShell() {
   /* 映射表单元格改完（change 触发）后防抖自动保存到云端 */
   var _mapBody = $('mapBody');
   if (_mapBody) _mapBody.addEventListener('change', scheduleMapAutoSave);
+
+  /* 顶部同步徽标：点一下立刻同步。用户找不到「保存到云端」按钮（只读态会隐藏）
+     时，这是唯一明确的出口，文案里也写了「点此重试」。 */
+  var _sb = $('syncBadge');
+  if (_sb) {
+    _sb.style.cursor = 'pointer';
+    _sb.title = '点击立即同步到云端';
+    _sb.addEventListener('click', function () {
+      if (typeof saveMapping === 'function') saveMapping(false);
+    });
+  }
+  /* 还有改动在防抖队列里 / 上次同步失败时，离开页面给出提醒，
+     避免「改完就刷新/关页」把改动丢在本机。已知写不了云端（cloudBlocked）就不打扰。 */
+  window.addEventListener('beforeunload', function (e) {
+    if (state.cloudBlocked) return;
+    if (MAP_AUTO_SAVE_TIMER || UNMATCH_AUTO_SAVE_TIMER || (state.unsavedEdits || 0) > 0) {
+      e.preventDefault();
+      e.returnValue = '还有改动没有同步到云端，确定离开吗？';
+      return e.returnValue;
+    }
+  });
   var col = $('collapseBtn');
   if (col) col.addEventListener('click', function () {
     if (window.innerWidth > 1024) { var sb = $('sidebar'); if (sb) sb.classList.toggle('collapsed'); }
