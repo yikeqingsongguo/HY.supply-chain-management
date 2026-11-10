@@ -14010,7 +14010,10 @@ function saveMapping(silent) {
   purgeEmptyMapRows();   // 同步前自动剔除没有任何数据的空行
   var d = state.cloudBlocked ? null : db();
   var pending = state.mapping.filter(function (m) {
-    return (m._deleted && m.rid) || (m._new && !m._deleted && m.sku) || (m._dirty && m.rid && !m._deleted);
+    return (m._deleted && m.rid) || (m._new && !m._deleted && m.sku) || (m._dirty && m.rid && !m._deleted)
+      /* 手动保存时把「本机录入过报价」的行一并上云：修复历史导入只落本地、
+         _dirty 未持久化导致价格一直没进 sku_quote 的问题 */
+      || (!silent && m._localPrice && m.rid && !m._deleted && (m.price || (m.alts && m.alts.length)));
   });
   // 云端不可用：只落本地，并明确告知「没有上传云端」，不再用「已保存」含糊过去
   if (!d) {
@@ -18649,7 +18652,8 @@ function doImportMapping(rows, skuIdx, supIdx, buyIdx) {
   saveLocalMap();
   runMatch(); runCheck();
   refreshAll();
-  toast('导入完成：新增 ' + added + ' 条，覆盖 ' + updated + ' 条' + (skipped ? '，跳过 ' + skipped + ' 空行' : '') + '。记得点「保存到云端」', 'ok');
+  try { scheduleMapAutoSave(); } catch (e) {}
+  toast('导入完成：新增 ' + added + ' 条，覆盖 ' + updated + ' 条' + (skipped ? '，跳过 ' + skipped + ' 空行' : '') + '（已自动同步云端）', 'ok');
 }
 
 /* ================= 供应商价目表导入（报价 → 映射表 price / alts 一对多） ================= */
@@ -19024,6 +19028,7 @@ function importPriceList(rows, supplier) {
   saveLocalMap();
   runMatch(); runCheck();
   refreshAll();
+  try { scheduleMapAutoSave(); } catch (e) {}
   dialog({
     title: '价目表导入完成 · ' + (rep.supplier || ''),
     html: '<div>有效报价行：<b>' + rep.total + '</b></div>' +
