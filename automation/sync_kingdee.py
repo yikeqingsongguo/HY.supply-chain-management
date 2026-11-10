@@ -314,11 +314,31 @@ def main():
         else:
             log("=== 步骤 7-8/9: 申请单同步未启用（enable_apply_sync=false），跳过 ===")
 
-        # 3) git 提交并推送
-        log("=== 步骤 9/9: git push ===")
+        # 3) 重建看板数据：导出完成后立即构建，避免快照落后于源表
+        log("=== 步骤 9/10: 重建看板数据（clean → build） ===")
+        venv_py = r"C:\Users\admin\.workbuddy\binaries\python\envs\default\Scripts\python.exe"
+        build_py = venv_py if os.path.exists(venv_py) else python_exe
+        run_subprocess([build_py, str(dashboard_dir / "run.py")], cwd=str(dashboard_dir), timeout=900)
+        log("看板数据已重建（data.json / index.html / console/weekly.json / console/apply.csv）")
+
+        # 构建产物同步到发布包 _deploy_web，保证 allowed 域名发布时拿到最新数据
+        deploy_dir = dashboard_dir / "_deploy_web"
+        if deploy_dir.exists():
+            for rel in ["index.html", "console/index.html", "console/weekly.json", "console/apply.csv"]:
+                src_p = dashboard_dir / rel
+                dst_p = deploy_dir / rel
+                if src_p.exists():
+                    dst_p.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src_p, dst_p)
+            log("已同步构建产物到 _deploy_web（发布包）")
+
+        # 4) git 提交并推送
+        log("=== 步骤 10/10: git push ===")
         msg = git_cfg.get("commit_message", "daily: Kingdee 在途数据同步")
-        # 只提交看板数据源 src/，避免误提交 .lnk/.workbuddy/ 等无关文件
-        run_subprocess([git_exe, "add", "-A", "--", "src"], cwd=str(dashboard_dir))
+        # 提交源表 + 重建产物，保证 Pages / 发布包拿到同一版数据
+        run_subprocess([git_exe, "add", "-A", "--", "src",
+                        "data.json", "index.html",
+                        "console/weekly.json", "console/apply.csv"], cwd=str(dashboard_dir))
         # 仅当有变更才提交；无变更时 git diff --exit-code 返回 0
         diff = subprocess.run(
             [git_exe, "diff", "--cached", "--exit-code"],
@@ -331,7 +351,7 @@ def main():
         else:
             run_subprocess([git_exe, "commit", "-m", msg], cwd=str(dashboard_dir))
             run_subprocess([git_exe, "push", "origin", "main"], cwd=str(dashboard_dir))
-            log("已推送至 origin/main，GitHub Actions 将自动部署")
+            log("已推送至 origin/main（含重建产物），GitHub Actions 将自动部署")
 
         log("=== 同步完成 ===")
 
