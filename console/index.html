@@ -910,7 +910,12 @@ table.wk td b{white-space:nowrap}
     <div class="card wk-trend-card">
       <div class="card-hd"><h3>待下单趋势（按创建日期）</h3><span class="hint">蓝柱=申请单数 · 橙线=剩余数量 · 绿虚线=申请数量</span></div>
       <div class="card-bd">
-        <div class="wk-trend-hint">点击任意日期，右侧滑出当日明细（SKU / 供应商 / 单据 / 数量）</div>
+        <div class="wk-trend-filter">
+          <span class="wk-trend-hint">点击任意日期，右侧滑出当日明细</span>
+          <label>起 <input type="date" id="wkTrendFrom"></label>
+          <label>止 <input type="date" id="wkTrendTo"></label>
+          <button type="button" class="wk-trend-clear" id="wkTrendClear">清空</button>
+        </div>
         <div id="wk_trend_chart"></div>
       </div>
     </div>
@@ -920,10 +925,15 @@ table.wk td b{white-space:nowrap}
     .wk-trend-card .card-bd{ padding:14px 16px 10px; }
     #wk_trend_chart{ width:100%; height:320px; }
     .wk-trend-hint{ font-size:12px; color:#8a94a6; margin:2px 0 8px; }
+    .wk-trend-filter{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 8px; }
+    .wk-trend-filter label{ font-size:12px; color:#5b6577; display:inline-flex; align-items:center; gap:6px; }
+    .wk-trend-filter input[type=date]{ font-size:12px; padding:4px 8px; border:1px solid #d6deea; border-radius:7px; background:#fff; }
+    .wk-trend-clear{ border:1px solid #dfe6f0; background:#f7f9fc; border-radius:7px; padding:4px 10px; font-size:12px; color:#41506b; cursor:pointer; }
+    .wk-trend-clear:hover{ background:#eef4fc; }
     /* 待下单明细右侧抽屉 */
     #wkTrendDrawerMask{ position:fixed; inset:0; background:rgba(15,23,42,.35); opacity:0; visibility:hidden; transition:opacity .2s; z-index:60; }
     #wkTrendDrawerMask.open{ opacity:1; visibility:visible; }
-    #wk_trend_drawer{ position:fixed; top:0; right:0; height:100%; width:min(94vw,1120px); background:#fff; box-shadow:-8px 0 30px rgba(0,0,0,.18); transform:translateX(100%); transition:transform .25s ease; z-index:61; display:flex; flex-direction:column; }
+    #wk_trend_drawer{ position:fixed; top:0; right:0; height:auto; max-height:100vh; width:min(96vw,1360px); background:#fff; box-shadow:-8px 0 30px rgba(0,0,0,.18); transform:translateX(100%); transition:transform .25s ease; z-index:61; display:flex; flex-direction:column; }
     #wk_trend_drawer.open{ transform:translateX(0); }
     .wk-td-hd{ display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #eef1f6; }
     .wk-td-hd h3{ font-size:16px; margin:0; color:#1f2a44; flex:1; }
@@ -932,13 +942,13 @@ table.wk td b{white-space:nowrap}
     .wk-td-stat{ display:flex; gap:10px; flex-wrap:wrap; padding:12px 20px; background:#f6f8fc; border-bottom:1px solid #eef1f6; }
     .wk-td-stat span{ font-size:12.5px; color:#5b6577; background:#fff; border:1px solid #e6ebf3; border-radius:8px; padding:6px 12px; }
     .wk-td-stat b{ color:#1f2a44; font-weight:700; margin-right:2px; }
-    .wk-td-body{ flex:1; overflow:auto; padding:0; }
-    .wk-td-table{ width:100%; border-collapse:collapse; font-size:13px; }
+    .wk-td-body{ flex:0 1 auto; min-height:0; max-height:calc(100vh - 130px); overflow:auto; padding:0; }
+    .wk-td-table{ width:100%; min-width:1180px; border-collapse:collapse; font-size:13px; }
     .wk-td-table thead th{ position:sticky; top:0; background:#eef3fb; color:#41506b; text-align:left; padding:10px 12px; font-weight:600; white-space:nowrap; border-bottom:1px solid #dde5f1; }
     .wk-td-table tbody td{ padding:9px 12px; border-bottom:1px solid #f0f3f8; color:#2b3548; white-space:nowrap; }
     .wk-td-table tbody tr:nth-child(even){ background:#fafbfe; }
     .wk-clip{ max-width:200px; overflow:hidden; text-overflow:ellipsis; }
-    .wk-num{ text-align:right; font-variant-numeric:tabular-nums; }
+    .wk-num{ text-align:right; font-variant-numeric:tabular-nums; min-width:86px; }
     .wk-td-empty{ padding:40px; text-align:center; color:#9aa3b2; }
     .wk-td-table thead th{ padding:0; }
     .wk-facet-btn{ display:inline-flex; align-items:center; gap:4px; width:100%; background:none; border:0; cursor:pointer; padding:10px 12px; font:inherit; font-size:12px; font-weight:600; color:#41506b; text-align:left; }
@@ -14142,7 +14152,7 @@ function saveMapping(silent) {
       toast('保存完成，但 ' + failed + ' 条失败，请重试', 'err');
     } else {
       setSync('cloud', '已同步 ' + state.mapping.length + ' 条');
-      toast(silent ? '补录已自动保存到云端映射表' : '已保存到云端', 'ok');
+      toast(silent ? '已自动保存到云端' : '已保存到云端', 'ok');
     }
     refreshAll();
   }).catch(function (e) {
@@ -16200,6 +16210,18 @@ function scheduleUnmatchAutoSave() {
   }, 2500);
 }
 
+/* 映射表编辑后自动推送云端（防抖 2s），无需每次手动点「保存到云端」 */
+var MAP_AUTO_SAVE_TIMER = null;
+function scheduleMapAutoSave() {
+  if (typeof state !== 'undefined' && state.cloudBlocked) return;
+  if (MAP_AUTO_SAVE_TIMER) clearTimeout(MAP_AUTO_SAVE_TIMER);
+  MAP_AUTO_SAVE_TIMER = setTimeout(function () {
+    MAP_AUTO_SAVE_TIMER = null;
+    if (typeof db !== 'function' || !db()) return;
+    if (typeof saveMapping === 'function') saveMapping(true);
+  }, 2000);
+}
+
 /* SPU 冲突确认弹窗：list = [{sku, old}]，onOk(true=覆盖冲突 / false=跳过冲突行) */
 function confirmUnmatchSpuConflict(list, onOk) {
   var rowsHtml = list.slice(0, 12).map(function (x) {
@@ -17596,6 +17618,9 @@ function initShell() {
   Array.prototype.forEach.call(document.querySelectorAll('#sbNav .sb-item, .quick-btn, #bottomNav .bn-item'), function (b) {
     b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });
   });
+  /* 映射表单元格改完（change 触发）后防抖自动保存到云端 */
+  var _mapBody = $('mapBody');
+  if (_mapBody) _mapBody.addEventListener('change', scheduleMapAutoSave);
   var col = $('collapseBtn');
   if (col) col.addEventListener('click', function () {
     if (window.innerWidth > 1024) { var sb = $('sidebar'); if (sb) sb.classList.toggle('collapsed'); }
@@ -19361,11 +19386,11 @@ window.__test = {
   /* ============ 待下单趋势（按创建日期）+ 日期明细抽屉 ============ */
   var wkTrendChart = null;
   function wkTrendInRange(d){
-    if(!WK_DATE.from && !WK_DATE.to) return true;
+    if(!wkTrendFrom && !wkTrendTo) return true;
     var v = String(d||'');
     if(!v) return false;
-    if(WK_DATE.from && v < WK_DATE.from) return false;
-    if(WK_DATE.to && v > WK_DATE.to) return false;
+    if(wkTrendFrom && v < wkTrendFrom) return false;
+    if(wkTrendTo && v > wkTrendTo) return false;
     return true;
   }
   /* 按创建日期聚合：申请单数(去重单据) / 剩余数量 / 申请数量，并保留当日明细行 */
@@ -19442,6 +19467,7 @@ window.__test = {
   var wkTrendCurDate = null;
   var wkTrendFilter = {};
   var wkTrendSpu = '';
+  var wkTrendFrom = '', wkTrendTo = '';
   function clearWkTrendFilters(){
     wkTrendFilter = {};
     wkTrendSpu = '';
@@ -19666,6 +19692,16 @@ window.__test = {
     var m = document.getElementById('wkTrendDrawerMask'); if(m) m.onclick = closeWkTrendDrawer;
     document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeWkFacet(); closeWkTrendDrawer(); } });
     window.addEventListener('resize', function(){ if(wkTrendChart) wkTrendChart.resize(); });
+    /* 趋势图起止日期筛选（只作用于趋势图/抽屉，不影响其他页签） */
+    var _tf = document.getElementById('wkTrendFrom'), _tt = document.getElementById('wkTrendTo'), _tc = document.getElementById('wkTrendClear');
+    function applyTrendDate(){
+      wkTrendFrom = _tf ? _tf.value : '';
+      wkTrendTo = _tt ? _tt.value : '';
+      try{ renderWkTrend(); }catch(e){}
+    }
+    if(_tf) _tf.onchange = applyTrendDate;
+    if(_tt) _tt.onchange = applyTrendDate;
+    if(_tc) _tc.onclick = function(){ if(_tf) _tf.value = ''; if(_tt) _tt.value = ''; applyTrendDate(); };
     Array.prototype.forEach.call(document.querySelectorAll('#wk_trend_drawer .wk-facet-btn'), function(btn){
       btn.addEventListener('click', function(ev){ ev.stopPropagation(); openWkFacet(btn.getAttribute('data-f'), btn); });
     });
