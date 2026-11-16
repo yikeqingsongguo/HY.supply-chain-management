@@ -12,4 +12,3 @@
 | 1.6.1 | 2026-10-20 | 小修/微调 | 待填写回流补录、采购员统计、弹窗定位、移除VMI | 待下单 203 行/35,614 件/16 家/待填写 6 行；console 1,240,498 字节；otd.py 去掉 doc_type 过滤段；准交率本月 49.02% 不变。 | [1.6.1](versions/v1.6.1_2026-10-20) |
 | 1.6.2 | 2026-10-20 | 小修/微调 | 补录保存即时生效与待补数量常显 | console 1,242,766 字节；实测 9→8 行、待填写 2,040/6→1,450/4；线上 200。 | [1.6.2](versions/v1.6.2_2026-10-20) |
 | 2.0.0 | 2026-11-16 | 重大重构 | 全站总览首页 + 品牌 logo + 蓝绿配色 + 抽屉/同步修复 | index.html 2.67MB；console/index.html 1.36MB；新增 console/logo-vayi.png(37KB)/logo-mark.png(8KB)；新增 console/overview.json；index.template.html 同步修改（关键：产物需从模板重建）；新增 CHANGELOG.md 与 docs/交付文档.md。 | [2.0.0](versions/v2.0.0_2026-11-16) |
-| 3.0.0 | 2026-11-16 | 重大重构 | 全站总览首页 + 品牌 logo + 蓝绿配色 + 抽屉/同步修复 | index.html 2.67MB；console/index.html 1.36MB；新增 console/logo-vayi.png(37KB)/logo-mark.png(8KB)；新增 console/overview.json；index.template.html 同步修改（关键：产物需从模板重建）；新增 CHANGELOG.md 与 docs/交付文档.md。 | [3.0.0](versions/v3.0.0_2026-11-16) |
