@@ -828,11 +828,8 @@ table.wk td b{white-space:nowrap}
     <span class="sb-name">采购管理台</span>
   </div>
   <nav class="sb-nav" id="sbNav">
-    <button class="sb-item active" data-tab="home">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span class="sb-label">总览</span>
-    </button>
-    <button class="sb-item" data-tab="overview">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg><span class="sb-label">快速入口</span>
+    <button class="sb-item active" data-tab="overview">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg><span class="sb-label">概览</span>
     </button>
     <button class="sb-item" data-tab="map">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span class="sb-label">SKU 映射表</span>
@@ -902,69 +899,7 @@ table.wk td b{white-space:nowrap}
 </div>
 
   <!-- ============ 概览（SaaS 仪表盘首页） ============ -->
-  <!-- ============ 总览（首页） ============ -->
-  <section id="tab-home">
-    <div class="ov-wrap">
-      <div class="ov-main">
-        <div class="ov-head">
-          <h2 class="ov-title">总览</h2>
-          <span class="ov-sub" id="ovSubtitle">本周工作台的节奏</span>
-        </div>
-        <div class="ov-pills" id="ovPills">
-          <span class="ov-pill ok" id="ovPillRate">准交率 —</span>
-          <span class="ov-pill"><i class="dot-teal"></i>待下单 <b id="ovPillPending">—</b></span>
-          <span class="ov-pill"><i class="dot-amber"></i>待填写 <b id="ovPillFill">—</b></span>
-          <span class="ov-pill"><i class="dot-red"></i>逾期 <b id="ovPillOver">—</b></span>
-        </div>
-
-        <div class="ov-grid">
-          <div class="ov-card">
-            <div class="ov-hd">
-              <h3>本周申请数量</h3>
-              <div class="ov-seg" id="ovTrendSeg">
-                <button type="button" class="on" data-span="7">周</button>
-                <button type="button" data-span="30">月</button>
-              </div>
-            </div>
-            <p class="ov-hint" id="ovTrendHint">按申请日期统计的申请件数</p>
-            <div class="ov-chart" id="ovTrend"></div>
-          </div>
-
-          <div class="ov-card">
-            <div class="ov-hd"><h3>今日待办</h3><span class="ov-hd-sub" id="ovTodoCount"></span></div>
-            <p class="ov-hint">今天还要处理的事</p>
-            <div class="ov-todo" id="ovTodo"></div>
-          </div>
-
-          <div class="ov-card">
-            <div class="ov-hd"><h3>最近同步文件</h3><span class="ov-hd-sub">自动同步</span></div>
-            <p class="ov-hint">今天导出的四份源表</p>
-            <div class="ov-files" id="ovFiles"></div>
-          </div>
-
-          <div class="ov-card">
-            <div class="ov-hd"><h3>项目进度</h3><span class="ov-hd-sub" id="ovProgSub">待下单闭环</span></div>
-            <p class="ov-hint">三件正在推进的事</p>
-            <div class="ov-prog" id="ovProgress"></div>
-          </div>
-        </div>
-      </div>
-
-      <aside class="ov-side">
-        <div class="ov-card ov-side-card">
-          <div class="ov-hd"><h3>关键数据</h3><span class="ov-asof" id="ovAsOf">—</span></div>
-          <div class="ov-nums" id="ovNums"></div>
-        </div>
-        <div class="ov-card ov-side-card ov-next">
-          <p class="ov-next-l">数据截止</p>
-          <p class="ov-next-v" id="ovNextSync">—</p>
-          <p class="ov-next-s" id="ovNextNote">每次自动同步后更新</p>
-        </div>
-      </aside>
-    </div>
-  </section>
-
-  <section id="tab-overview" class="hidden">
+  <section id="tab-overview">
     <div class="stat-grid">
       <div class="stat-card"><p class="sc-label">已同步映射数</p><p class="sc-num" id="statMap">—</p><p class="sc-sub muted" id="statMapSub">SKU → 采购员 / 供应商</p></div>
       <div class="stat-card"><p class="sc-label">待补录数</p><p class="sc-num" id="statUnmatch">—</p><p class="sc-sub down" id="statUnmatchSub">未匹配 SKU</p></div>
@@ -2981,7 +2916,7 @@ var PAGE_SIZE = 100;
 
 /* ---------------- 状态 ---------------- */
 var state = {
-  tab: 'home',
+  tab: 'overview',
   mapping: [],          // {rid, sku, supplier, buyer, note, updated, _new, _dirty, _deleted, _sel}
   mapLoaded: false,
   syncMode: 'init',     // init | cloud | local
@@ -18155,9 +18090,6 @@ function initShell() {
   var _mapBody = $('mapBody');
   if (_mapBody) _mapBody.addEventListener('change', scheduleMapAutoSave);
 
-  /* 总览（首页）：绑定勾选/切换交互，并拉取聚合数据 */
-  bindHomeEvents();
-  loadOverview();
 
   /* 顶部同步徽标：点一下立刻同步。用户找不到「保存到云端」按钮（只读态会隐藏）
      时，这是唯一明确的出口，文案里也写了「点此重试」。 */
@@ -18208,8 +18140,6 @@ function initShell() {
 
 function switchTab(tab) {
   state.tab = tab;
-  var isHome = tab === 'home';
-  var home = $('tab-home'); if (home) home.classList.toggle('hidden', !isHome);
   var isOverview = tab === 'overview';
   var ov = $('tab-overview'); if (ov) ov.classList.toggle('hidden', !isOverview);
   ['map', 'match', 'check', 'supplier', 'unmatch'].forEach(function (k) {
@@ -18217,7 +18147,7 @@ function switchTab(tab) {
     if (pane) pane.classList.toggle('hidden', k !== tab);
   });
   ['todoBar', 'stepsBar'].forEach(function (id) {
-    var el = $(id); if (el) el.classList.toggle('hidden', isOverview || isHome);
+    var el = $(id); if (el) el.classList.toggle('hidden', isOverview);
   });
   Array.prototype.forEach.call(document.querySelectorAll('.step'), function (s) {
     s.classList.toggle('on', s.getAttribute('data-tab') === tab);
@@ -18230,7 +18160,6 @@ function switchTab(tab) {
   });
   renderStats();
   refreshAll();
-  if (isHome && typeof renderHome === 'function') renderHome();
   if (isOverview && window.__wkRenderTrend) window.__wkRenderTrend();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -19701,7 +19630,7 @@ window.__test = {
 })();
 </script>
 <nav class="bottom-nav" id="bottomNav">
-  <div class="bn-item active" data-tab="home"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>总览</div>
+  <div class="bn-item active" data-tab="overview"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>概览</div>
   <div class="bn-item" data-tab="map"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>映射</div>
   <div class="bn-item" data-tab="match"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M3 12l3 3"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>匹配</div>
   <div class="bn-item" data-tab="supplier"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>透视</div>

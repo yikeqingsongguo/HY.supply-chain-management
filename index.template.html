@@ -228,7 +228,8 @@
   .home-pill b{color:#0B4F47;font-weight:900;}
   .home-pill i{width:8px;height:8px;border-radius:50%;display:inline-block;}
   .home-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;}
-  .home-p-todo,.home-p-top{min-width:0;}
+  .home-p-todo,.home-p-top,.home-p-app{min-width:0;}
+  .home-p-entry{grid-column:1 / -1;}
   .home-todo{display:flex;flex-direction:column;gap:9px;}
   .home-todo-i{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:pointer;
     background:rgba(246,251,250,.92);border:1px solid rgba(214,236,231,.92);transition:all .18s ease-out;}
@@ -616,8 +617,14 @@
   <div class="home-grid">
     <div class="panel home-p-trend">
       <h3>近 14 天交付节奏</h3>
-      <div class="ph-sub" id="home_trend_sub">按交货日期统计的每日应交付剩余量</div>
+      <div class="ph-sub" id="home_trend_sub">按交货日期统计的每日应交付剩余量（未来 14 天）</div>
       <div class="chart" id="home_trend" style="height:210px"></div>
+    </div>
+
+    <div class="panel home-p-app">
+      <h3>近 14 天申请单</h3>
+      <div class="ph-sub">按申请日期统计的每日申请单数（过去 14 天，点柱下钻）</div>
+      <div class="chart" id="home_app" style="height:210px"></div>
     </div>
 
     <div class="panel home-p-todo">
@@ -626,16 +633,16 @@
       <div class="home-todo" id="home_todo"></div>
     </div>
 
-    <div class="panel home-p-entry">
-      <h3>模块入口</h3>
-      <div class="ph-sub">点击进入对应页面</div>
-      <div class="home-entry" id="home_entries"></div>
-    </div>
-
     <div class="panel home-p-top">
       <h3>供应商在途 Top6</h3>
       <div class="ph-sub">按剩余未收量排序，点条进入该供应商明细</div>
       <div class="home-top" id="home_top"></div>
+    </div>
+
+    <div class="panel home-p-entry">
+      <h3>模块入口</h3>
+      <div class="ph-sub">点击进入对应页面</div>
+      <div class="home-entry" id="home_entries"></div>
     </div>
   </div>
 </section>
@@ -2915,6 +2922,45 @@
           {offset:0,color:'rgba(14,158,142,0.28)'},{offset:1,color:'rgba(30,143,208,0.02)'}])},
         animationDuration:900
       }]
+    },true);
+
+    // 近 14 天申请单（按申请日期，过去 14 天；按单据号去重计单数）
+    var appCnt={}, appQty={};
+    wk.forEach(function(r){
+      var d=r.date; if(!d) return;
+      var doc=r.doc||r.sku||('_'+Math.random());
+      if(!appCnt[d]) appCnt[d]={};
+      appCnt[d][doc]=1;
+      appQty[d]=(appQty[d]||0)+nv(r.apply_qty!=null?r.apply_qty:r.qty);
+    });
+    var axs=[], acnt=[], aqty=[];
+    for(var j=13;j>=0;j--){
+      var dd=new Date(today.getTime()-j*86400000), kk=homeDayKey(dd);
+      axs.push(kk.slice(5));
+      acnt.push(appCnt[kk] ? Object.keys(appCnt[kk]).length : 0);
+      aqty.push(appQty[kk]||0);
+    }
+    var ca=getChart('home_app');
+    ca.setOption({
+      grid:{left:6,right:24,top:22,bottom:6,containLabel:true},
+      tooltip:{trigger:'axis',backgroundColor:'#FFFFFF',borderColor:'rgba(14,158,142,0.22)',textStyle:{color:'#16302D'},
+        formatter:function(ps){
+          var i2=ps[0].dataIndex;
+          return ps[0].axisValue+'<br/>申请单 <b>'+acnt[i2]+'</b> 单<br/>申请量 <b>'+fmt(aqty[i2])+'</b> 件';
+        }},
+      xAxis:{type:'category',data:axs,axisLine:AX.axisLine,axisTick:{show:false},axisLabel:{color:'#5A736F',fontSize:11}},
+      yAxis:[
+        {type:'value',name:'单',nameTextStyle:{color:'#5A736F',fontSize:10},splitLine:AX.splitLine,axisLabel:{color:'#5A736F',fontSize:11}},
+        {type:'value',name:'件',nameTextStyle:{color:'#5A736F',fontSize:10},splitLine:{show:false},axisLabel:{show:false}}
+      ],
+      series:[
+        {name:'申请单数',type:'bar',data:acnt,barMaxWidth:22,
+         itemStyle:{borderRadius:[6,6,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,[
+           {offset:0,color:'#4FD1C5'},{offset:1,color:'#0E9E8E'}])},
+         animationDelay:function(idx){return idx*30;}},
+        {name:'申请量',type:'line',yAxisIndex:1,data:aqty,smooth:true,symbol:'none',
+         lineStyle:{width:2,color:'#1E8FD0',type:'dashed'}}
+      ]
     },true);
 
     // 供应商 Top6
