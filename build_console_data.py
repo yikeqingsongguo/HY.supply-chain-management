@@ -368,6 +368,89 @@ def build():
         for r in rows:
             w.writerow([cv(x) for x in r])
 
+    # ---- 总览页数据（console/overview.json）----
+    # 只抽总览要用的聚合值：前端不必为几张卡片去拉 10MB 的 data.json。
+    # 任何异常都只降级总览，不影响待下单主流程。
+    try:
+        with open(os.path.join(HERE, "data.json"), encoding="utf-8") as f:
+            d = json.load(f)
+        cols = d.get("orders_cols") or []
+        orows = d.get("orders_rows") or []
+        pos = {k: i for i, k in enumerate(cols)}
+
+        def ov_cell(r, k):
+            j = pos.get(k)
+            return r[j] if (j is not None and j < len(r)) else None
+
+        def ov_num(v):
+            s = str("" if v is None else v).replace(",", "").strip()
+            try:
+                return float(s or 0)
+            except Exception:
+                return 0.0
+
+        month_remain, overdue_rows, overdue_qty, overdue_po = {}, 0, 0.0, 0.0
+        for r in orows:
+            m = str(ov_cell(r, "month") or "").strip()
+            rem = ov_num(ov_cell(r, "remain"))
+            if m:
+                month_remain[m] = month_remain.get(m, 0) + rem
+            if ov_num(ov_cell(r, "overdue_days")) > 0:
+                overdue_rows += 1
+                overdue_qty += rem
+                overdue_po += ov_num(ov_cell(r, "po_qty"))
+
+        otd = d.get("otd") or {}
+        periods = otd.get("periods") or []
+        per = periods[0] if periods else {}
+        ov = per.get("overall") or {}
+
+        # 源表快照时间：直接读文件 mtime，比构建时间更贴近「数据截止」
+        src_map = [("采购订单.xlsx", "采购订单"),
+                   ("otd_recv.xlsx", "收料通知单"),
+                   ("otd_apply.xlsx", "采购申请单"),
+                   ("otd_po_full.xlsx", "采购订单全量")]
+        sources = []
+        for fn, label in src_map:
+            p = os.path.join(SRC, fn)
+            if not os.path.exists(p):
+                continue
+            sources.append({
+                "file": fn,
+                "label": label,
+                "at": dt.datetime.fromtimestamp(os.path.getmtime(p)).strftime("%m-%d %H:%M"),
+                "size_kb": round(os.path.getsize(p) / 1024.0),
+            })
+
+        overview = {
+            "updated_at": updated_at,
+            "today": (d.get("meta") or {}).get("today") or "",
+            "expect_month": (d.get("meta") or {}).get("expect_month") or "",
+            "month_remain": {k: round(v, 1) for k, v in month_remain.items() if v > 0},
+            "overdue": {
+                "rows": overdue_rows,
+                "qty": round(overdue_qty, 1),
+                "po_qty": round(overdue_po, 1),
+                "cleared": round(max(overdue_po - overdue_qty, 0), 1),
+                "clear_rate": round((overdue_po - overdue_qty) / overdue_po * 100, 1) if overdue_po else 0,
+            },
+            "otd": {
+                "period": per.get("period") or "",
+                "label": per.get("label") or "",
+                "rate": (ov.get("rate") or 0),
+                "recv_qty": (ov.get("recv_qty") or 0),
+                "late": (ov.get("late") or 0),
+            },
+            "sources": sources,
+        }
+        with open(os.path.join(CONSOLE, "overview.json"), "w", encoding="utf-8") as f:
+            json.dump(overview, f, ensure_ascii=False, separators=(",", ":"))
+        print("总览：到期 %s ｜ 逾期 %d 行 / %s 件（清理率 %s%%）｜ 准交率 %s%%"
+              % (overview["expect_month"] or "-", overdue_rows, overview["overdue"]["qty"],
+                 overview["overdue"]["clear_rate"], overview["otd"]["rate"]))
+    except Exception as exc:
+        print("总览数据构建失败（不影响待下单）：%s" % exc)
+
     print("待下单（申请单驱动）：%d 行 / %s 件 ｜ 供应商 %d 家 + 待填写 %s 件（%d 行）｜ 映射 map %d / PO %d / 未映射 %d"
           % (out["rows"], out["total_plan"], out["supplier_count"], out["pending"]["qty"],
              out["pending"]["rows"], hit_map, hit_po, miss))

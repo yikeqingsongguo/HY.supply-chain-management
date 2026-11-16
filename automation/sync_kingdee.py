@@ -318,13 +318,13 @@ def main():
         log("=== 步骤 9/10: 重建看板数据（clean → build） ===")
         venv_py = r"C:\Users\admin\.workbuddy\binaries\python\envs\default\Scripts\python.exe"
         build_py = venv_py if os.path.exists(venv_py) else python_exe
-        run_subprocess([build_py, str(dashboard_dir / "run.py")], cwd=str(dashboard_dir), timeout=900)
-        log("看板数据已重建（data.json / index.html / console/weekly.json / console/apply.csv）")
+        run_subprocess([build_py, str(dashboard_dir / "run.py")], cwd=str(dashboard_dir), timeout=900, env=env)
+        log("看板数据已重建（data.json / index.html / console/weekly.json / console/apply.csv / console/overview.json）")
 
         # 构建产物同步到发布包 _deploy_web，保证 allowed 域名发布时拿到最新数据
         deploy_dir = dashboard_dir / "_deploy_web"
         if deploy_dir.exists():
-            for rel in ["index.html", "console/index.html", "console/weekly.json", "console/apply.csv"]:
+            for rel in ["index.html", "console/index.html", "console/weekly.json", "console/apply.csv", "console/overview.json"]:
                 src_p = dashboard_dir / rel
                 dst_p = deploy_dir / rel
                 if src_p.exists():
@@ -338,7 +338,7 @@ def main():
         # 提交源表 + 重建产物，保证 Pages / 发布包拿到同一版数据
         run_subprocess([git_exe, "add", "-A", "--", "src",
                         "data.json", "index.html",
-                        "console/weekly.json", "console/apply.csv"], cwd=str(dashboard_dir))
+                        "console/weekly.json", "console/apply.csv", "console/overview.json"], cwd=str(dashboard_dir))
         # 仅当有变更才提交；无变更时 git diff --exit-code 返回 0
         diff = subprocess.run(
             [git_exe, "diff", "--cached", "--exit-code"],
