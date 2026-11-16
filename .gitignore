@@ -19,3 +19,13 @@ automation/logs/
 # 误创建的快捷方式等临时文件
 *.lnk
 *.tmp
+
+# 发布包（由发布工具上传，不入库）
+_deploy_web/
+
+# 本地预览 / 临时页面与备份
+preview_*.html
+console/preview_*.html
+_t_*.html
+.workbuddy_backup_template_*.html
+data_20261020_backup.json

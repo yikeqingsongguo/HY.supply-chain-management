@@ -149,7 +149,7 @@ def write_meta(p, version, date, vtype, title, desc, reason, impact, parent, upd
         json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def write_delivery_note(p, version, date, vtype, title, desc, reason, impact, parent, updated_at):
+def write_delivery_note(p, version, date, vtype, title, desc, reason, impact, parent, updated_at, extra=None):
     label = TYPE_LABEL.get(vtype, vtype)
     content = f"""# 版本 {version} 交付说明
 
@@ -168,9 +168,14 @@ def write_delivery_note(p, version, date, vtype, title, desc, reason, impact, pa
 ## 影响范围
 {impact or '（基线存档：全局页面，作为后续对比基准）'}
 
+## 本版本留存的完整文件
+{chr(10).join('- ' + x for x in (extra or [])) or '- index.html'}
+
 ## 可恢复说明
-本目录 `index.html` 为当时完整页面（含内联数据），直接用浏览器打开即可看到当时渲染的看板。
-如需回滚源码，可 `git checkout` 对应提交或本版本目录。
+1. **直接看当时效果**：双击本目录 `index.html`（含内联数据，零依赖）；管理台打开 `console/index.html`。
+2. **回滚线上**：`git checkout v{version}` 后重新发布，或把本目录文件覆盖回 `supply-dashboard/`。
+3. **回滚源码**：`git tag` 已打 `v{version}`，可 `git checkout v{version}` 或 `git revert` 对应提交。
+4. **恢复数据**：本目录页面的内联数据即当时快照；源表历史在 `git log -- src/`。
 """
     (p / "delivery-note.md").write_text(content, encoding="utf-8")
 
@@ -220,6 +225,17 @@ def git_commit_push(version):
                        cwd=str(ROOT), check=True,
                        capture_output=True, encoding="utf-8", errors="replace")
         log("已提交并推送至 origin/main（云端已更新）")
+        # 打标签，便于按版本号精确回滚
+        tag = f"v{version}"
+        try:
+            subprocess.run([g, "tag", "-f", tag, "-m", f"版本存档 {version}"],
+                           cwd=str(ROOT), check=True, capture_output=True)
+            subprocess.run([g, "push", "-f", "origin", tag],
+                           cwd=str(ROOT), check=True, capture_output=True,
+                           encoding="utf-8", errors="replace")
+            log(f"已打标签 {tag} 并推送")
+        except subprocess.CalledProcessError:
+            log(f"⚠️ 标签 {tag} 未能推送（不影响主分支），可稍后手动 git push origin {tag}")
     except subprocess.CalledProcessError as e:
         log(f"⛔ git 操作失败：{e}")
         raise
@@ -257,6 +273,24 @@ def main():
 
     html, src = page_source()
     (vdir / "index.html").write_text(html, encoding="utf-8")
+
+    # 双页面系统：管理台页面、品牌图、源模板一并留存，缺一无法完整复原
+    extra = []
+    con = ROOT / "console" / "index.html"
+    if con.exists():
+        cdir = vdir / "console"
+        cdir.mkdir(exist_ok=True)
+        shutil.copy2(con, cdir / "index.html")
+        for nm in ("logo-vayi.png", "logo-mark.png"):
+            f = ROOT / "console" / nm
+            if f.exists():
+                shutil.copy2(f, cdir / nm)
+        extra.append("console/index.html（采购管理台完整页面）")
+        extra.append("console/logo-vayi.png、console/logo-mark.png（品牌图）")
+    tpl = ROOT / "index.template.html"
+    if tpl.exists():
+        shutil.copy2(tpl, vdir / "index.template.html")
+        extra.append("index.template.html（源模板，build.py 的输入；改 index.html 无效，必须改它）")
     updated_at = extract_updated_at(html)
     parent = args.parent or (latest.name.split("_")[0] if latest else None)
     log(f"存档版本 {version}｜来源={src}｜数据快照={updated_at}｜目录={dirname}")
@@ -264,7 +298,7 @@ def main():
     write_meta(vdir, version, date, args.type, args.title, args.desc,
                args.reason, args.impact, parent, updated_at)
     write_delivery_note(vdir, version, date, args.type, args.title, args.desc,
-                       args.reason, args.impact, parent, updated_at)
+                       args.reason, args.impact, parent, updated_at, extra)
     rel = f"versions/{dirname}"
     update_index_md(version, date, args.type, args.title, args.impact, rel)
     update_memory_archive(version, date, args.type, args.title)
