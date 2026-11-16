@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "date": "2026-11-16",
+  "type": "major",
+  "title": "全站总览首页 + 品牌 logo + 蓝绿配色 + 抽屉/同步修复",
+  "description": "1) index.html 新增总览为全站首屏（胶囊指标、4 KPI、近14天交付节奏、近14天申请单柱图、今日待办、模块入口、供应商Top6），原在途概览退为第二页签；2) 顶部固定华熠 VAYI 品牌 logo，点击回总览；3) 配色统一蓝绿：警示粉红改 #E2554F、指标数字 #0B4F47、图表粉红改蓝；4) 新增错峰入场、数字滚动、hover 位移等动效；5) 修复待下单明细抽屉退不出去（遮罩层级、头部被压成0高度、被 .wrap 层叠上下文覆盖），新增返回按钮/圆形×/点遮罩/Esc 四种出口；6) 采购管理台移除总览页签，恢复概览为首项。",
+  "reason": "用户要求总览作为全站首页（而非管理台专属）、顶部加 logo 并固定、视觉与配色统一到蓝绿风格；抽屉无法退出影响周例会使用。",
+  "impact": "index.html 2.67MB；console/index.html 1.36MB；新增 console/logo-vayi.png(37KB)/logo-mark.png(8KB)；新增 console/overview.json；index.template.html 同步修改（关键：产物需从模板重建）；新增 CHANGELOG.md 与 docs/交付文档.md。",
+  "data_updated_at": "2026-11-16 14:17",
+  "parent_version": "v1.6.2",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-16 14:26:10"
+}
