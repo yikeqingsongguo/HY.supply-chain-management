@@ -2,6 +2,10 @@
 
 > 完整快照见 `versions/`，每个版本目录内可直接双击 `index.html` 打开当时页面。
 > 版本索引：`versions/INDEX.md`。
+>
+> **文档同步约定（2026-11-17 起）**：交付文档有两份——本地 `docs/交付文档.md` 是权威源，
+> 云端资料库 https://www.workbuddy.cn/space/d/5BAUBU1Jd94bijxJ08gcYW 是团队版本。
+> **每次改动后必须执行 `python sync_cloud_doc.py`**，否则云端会停留在旧版本。
 
 ---
 
