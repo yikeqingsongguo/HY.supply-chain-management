@@ -1675,7 +1675,7 @@ table.wk td b{white-space:nowrap}
     </div>
     <div class="wk-td-stat" id="wkTrendDrawerStat"></div>
     <div class="wk-td-body">
-      <table class="wk-td-table">
+      <table class="wk-td-table" id="wkTrendTable">
         <thead>
           <tr>
             <th><button type="button" class="wk-facet-btn" data-f="sku">SKU<b class="wk-caret">▾</b></button></th>
@@ -19735,8 +19735,8 @@ window.__test = {
     {key:'doc',  label:'申请单单号',   w:118},
     {key:'date', label:'创建日期',    w:102},
     {key:'ling', label:'领星创建人',   w:82},
-    {key:'remark',label:'备注',       w:96},
-    {key:'qty',  label:'待下单',      w:72, num:true}
+    {key:'qty',  label:'待下单',      w:72, num:true},
+    {key:'remark',label:'备注',       w:74}
   ];
 
   function nf(n){ return (Math.round((n||0)*10)/10).toLocaleString('zh-CN'); }
@@ -20083,108 +20083,136 @@ window.__test = {
   function wkRemarkTag(v){
     var s = String(v||'').trim();
     if(!s) return '<span style="color:#B4B2A9">—</span>';
-    if(s === '新品') return '<span class="wk-rmk wk-rmk-new">新品</span>';
-    if(s === '新变体') return '<span class="wk-rmk wk-rmk-var">新变体</span>';
-    return '<span class="wk-rmk">' + esc(s) + '</span>';
+    var short = s.length > 5 ? s.slice(0,5) + '…' : s;
+    var cls = s === '新品' ? ' wk-rmk-new' : (s === '新变体' ? ' wk-rmk-var' : '');
+    return '<span class="wk-rmk' + cls + '" title="' + esc(s) + '" style="display:inline-block;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">' + esc(short) + '</span>';
   }
   function wkRemarkRank(it){
     var s = String((it && it.remark) || '');
     return s === '新品' ? 0 : (s === '新变体' ? 1 : 2);
   }
+  var wkTrendCurSpu = '';   // 第二层：当前下钻的 SPU（空 = 第一层 SPU 汇总表）
+  var SPU_HEAD_HTML = '<tr>'
+    + '<th style="width:72px">SPU</th><th>物料名称</th>'
+    + '<th style="width:92px">采购员</th><th style="width:92px">供应商</th>'
+    + '<th style="width:58px">SKU 数</th><th style="width:88px">待下单量</th>'
+    + '<th style="width:56px">行数</th><th style="width:56px">单据</th><th style="width:22px"></th></tr>';
+  var SKU_HEAD_HTML = '<tr>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="sku">SKU<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="name">物料名称<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="spec">规格<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="buyer">采购员<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="doc">申请单单号<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="sup">供应商名称<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="ling">领星创建人<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="qty">剩余数量<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="apply">申请数量<b class="wk-caret">▾</b></button></th>'
+    + '<th style="min-width:78px">备注</th></tr>';
+
   function renderWkTrendDrawerBody(){
     var rows = wkTrendDateRows();
-    if(wkTrendSpu){
-      rows = rows.filter(function(r){ return String(r.it.spu||'未标注') === wkTrendSpu; });
-    }
+    if(wkTrendSpu){ rows = rows.filter(function(r){ return String(r.it.spu||'未标注') === wkTrendSpu; }); }
     var keys = Object.keys(wkTrendFilter);
     if(keys.length){
       rows = rows.filter(function(r){
         for(var k=0;k<keys.length;k++){
-          var col = keys[k], set = wkTrendFilter[col];
+          var col=keys[k], set=wkTrendFilter[col];
           if(!set || !set.size) continue;
-          if(!set.has(wkFacetValue(col, r))) return false;
+          if(!set.has(wkFacetValue(col,r))) return false;
         }
         return true;
       });
     }
     var tb = document.getElementById('wkTrendDrawerBody');
+    var table = document.getElementById('wkTrendTable');
     if(!tb) return;
-    if(!rows.length){ tb.innerHTML = '<tr><td colspan="11" class="wk-td-empty">无匹配明细</td></tr>'; return; }
-    var un = [], ok = [];
-    rows.forEach(function(r){
-      var it=r.it, s=r.sup;
-      /* 实时判定：以当前映射表为准，不再读 weekly.json 构建时的 it.mapped 快照 */
-      var matched = false;
-      if (typeof lookupSKU === 'function') {
-        var lk = lookupSKU(it.sku);
-        var hit = lk && lk.hit;
-        if (hit && hit.supplier && String(hit.supplier).trim() &&
-            !/待填写/.test(String(hit.shortName || hit.supplier))) matched = true;
-      } else {
-        matched = !(s.short === '待填写' || s.pending || it.mapped === false);
+    if(!rows.length){
+      if(table && table.tHead) table.tHead.innerHTML = SPU_HEAD_HTML;
+      tb.innerHTML = '<tr><td colspan="9" class="wk-td-empty">无匹配明细</td></tr>'; return;
+    }
+
+    /* 实时判定已匹配（不读构建快照），供「含未匹配」提示用 */
+    function isMatched(r){
+      var it=r.it, sp=r.sup;
+      if(typeof lookupSKU === 'function'){
+        var lk=lookupSKU(it.sku), hit=lk&&lk.hit;
+        if(hit && hit.supplier && String(hit.supplier).trim() && !/待填写/.test(String(hit.shortName||hit.supplier))) return true;
+        return false;
       }
-      (matched ? ok : un).push(r);
+      return !(sp.short==='待填写' || sp.pending || it.mapped===false);
+    }
+
+    if(wkTrendCurSpu){
+      /* ---------- 第二层：SPU → SKU 明细，备注列在最后 ---------- */
+      var list = rows.filter(function(r){ return String(r.it.spu||'未标注') === wkTrendCurSpu; });
+      if(table && table.tHead) table.tHead.innerHTML = SKU_HEAD_HTML;
+      var backRow = '<tr class="wk-spu-back-row"><td colspan="11" style="background:#F1F9F6;padding:8px 12px">'
+        + '<button type="button" class="wk-trend-back" style="cursor:pointer;border:none;background:none;color:#0F6E56;font-weight:700;font-size:12.5px;padding:0">← 返回 SPU 汇总</button>'
+        + '<span style="margin-left:10px;color:#3E5B57;font-size:12.5px">SPU ' + esc(wkTrendCurSpu) + ' · SKU 明细</span></td></tr>';
+      tb.innerHTML = backRow + list.map(function(r){
+        var it=r.it, sp=r.sup;
+        return '<tr>'
+          + '<td class="wk-clip" title="'+esc(it.sku)+'">'+esc(it.sku)+'</td>'
+          + '<td class="wk-clip">'+esc(it.spu||'—')+'</td>'
+          + '<td class="wk-clip" title="'+esc(it.name)+'">'+esc(it.name||'—')+'</td>'
+          + '<td class="wk-clip" title="'+esc(it.spec)+'">'+esc(it.spec||'—')+'</td>'
+          + '<td class="wk-clip" title="'+esc(it.buyer)+'">'+(it.buyer?esc(it.buyer):'—')+'</td>'
+          + '<td class="wk-clip" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
+          + '<td class="wk-clip" title="'+esc(sp.name)+'">'+esc(sp.short||sp.name)+'</td>'
+          + '<td class="wk-clip" title="'+esc(it.ling)+'">'+(it.ling?esc(it.ling):'—')+'</td>'
+          + '<td class="wk-num">'+nf(it.qty||0)+'</td>'
+          + '<td class="wk-num">'+nf(it.apply_qty||0)+'</td>'
+          + '<td>'+wkRemarkTag(it.remark)+'</td>'
+          + '</tr>';
+      }).join('');
+      if(!tb.__backBound){
+        tb.__backBound = true;
+        tb.addEventListener('click', function(e){
+          var b = e.target.closest ? e.target.closest('.wk-trend-back') : null;
+          if(!b) return;
+          wkTrendCurSpu = '';
+          renderWkTrendDrawerBody();
+        });
+      }
+      return;
+    }
+
+    /* ---------- 第一层：SPU 汇总表（含采购员 / 供应商列） ---------- */
+    if(table && table.tHead) table.tHead.innerHTML = SPU_HEAD_HTML;
+    var bySpu = {};
+    rows.forEach(function(r){
+      var k = String(r.it.spu||'未标注');
+      var g = bySpu[k] || (bySpu[k] = {qty:0, rows:0, skus:{}, docs:{}, buyers:{}, sups:{}, items:[]});
+      g.qty += (r.it.qty||0); g.rows++; g.items.push(r);
+      if(r.it.sku) g.skus[r.it.sku]=1;
+      if(r.it.doc) g.docs[r.it.doc]=1;
+      if(r.it.buyer) g.buyers[r.it.buyer]=1;
+      if(r.sup && (r.sup.short||r.sup.name)) g.sups[r.sup.short||r.sup.name]=1;
     });
-    function rowHtml(r){
-      var it=r.it, s=r.sup;
-      return '<tr>'
-        + '<td class="wk-clip" title="' + esc(it.sku) + '">' + esc(it.sku) + '</td>'
-        + '<td class="wk-clip">' + esc(it.spu || '—') + '</td>'
-        + '<td class="wk-clip" title="' + esc(it.name) + '">' + esc(it.name || '—') + '</td>'
-        + '<td class="wk-clip" title="' + esc(it.spec) + '">' + esc(it.spec || '—') + '</td>'
-        + '<td class="wk-clip" title="' + esc(it.buyer) + '">' + (it.buyer ? esc(it.buyer) : '—') + '</td>'
-        + '<td class="wk-clip" title="' + esc(it.doc) + '">' + esc(it.doc) + '</td>'
-        + '<td class="wk-clip" title="' + esc(s.name) + '">' + esc(s.short || s.name) + '</td>'
-        + '<td class="wk-clip" title="' + esc(it.ling) + '">' + (it.ling ? esc(it.ling) : '—') + '</td>'
-        + '<td>' + wkRemarkTag(it.remark) + '</td>'
-        + '<td class="wk-num">' + nf(it.qty||0) + '</td>'
-        + '<td class="wk-num">' + nf(it.apply_qty||0) + '</td>'
-        + '</tr>';
-    }
-    /* 先按 SPU 分组，组内按 新品 → 新变体 → 常规 排序 */
-    function groupHtml(list, title, cls){
-      if(!list.length) return '';
-      var bySpu = {};
-      list.forEach(function(r){
-        var k = String(r.it.spu || '未标注');
-        (bySpu[k] || (bySpu[k] = [])).push(r);
-      });
-      var spus = Object.keys(bySpu).sort(function(a,b){
-        var qa = bySpu[a].reduce(function(s,r){ return s + (r.it.qty||0); }, 0);
-        var qb = bySpu[b].reduce(function(s,r){ return s + (r.it.qty||0); }, 0);
-        return qb - qa;
-      });
-      var h = '<tr class="wk-zone-hd ' + cls + '"><td colspan="11">' + title + ' · ' + list.length + ' 行</td></tr>';
-      spus.forEach(function(k){
-        var arr = bySpu[k].slice().sort(function(x,y){
-          return wkRemarkRank(x.it) - wkRemarkRank(y.it) || ((y.it.qty||0) - (x.it.qty||0));
-        });
-        var qty = arr.reduce(function(s,r){ return s + (r.it.qty||0); }, 0);
-        var skuSet = {}, nNew = 0, nVar = 0;
-        arr.forEach(function(r){
-          if(r.it.sku) skuSet[r.it.sku] = 1;
-          if(String(r.it.remark||'') === '新品') nNew++;
-          if(String(r.it.remark||'') === '新变体') nVar++;
-        });
-        var open = wkTrendOpenSpus[k] !== false;
-        h += '<tr class="wk-spu-grp" data-spu="' + esc(k) + '" style="cursor:pointer" title="点击折叠/展开该款 SKU">'
-          + '<td colspan="11">' + (open ? '▾' : '▸') + ' <b>SPU ' + esc(k) + '</b>'
-          + '　' + nf(qty) + ' 件 · ' + Object.keys(skuSet).length + ' SKU'
-          + (nNew ? ' · <span class="wk-rmk wk-rmk-new">新品 ' + nNew + '</span>' : '')
-          + (nVar ? ' · <span class="wk-rmk wk-rmk-var">新变体 ' + nVar + '</span>' : '')
-          + '</td></tr>';
-        if(open) h += arr.map(rowHtml).join('');
-      });
-      return h;
-    }
-    tb.innerHTML = groupHtml(un, '未匹配（待填写）', 'un') + groupHtml(ok, '已匹配', '');
+    var spus = Object.keys(bySpu).sort(function(a,b){ return bySpu[b].qty - bySpu[a].qty; });
+    function names(o){ var a=Object.keys(o); return a.length?a.join('、'):'—'; }
+    tb.innerHTML = spus.map(function(k){
+      var g=bySpu[k], nm='';
+      for(var i=0;i<g.items.length;i++){ if(g.items[i].it.name){ nm=g.items[i].it.name; break; } }
+      var un = g.items.filter(function(r){ return !isMatched(r); }).length;
+      return '<tr class="wk-row wk-spu-row" data-spu="'+esc(k)+'" style="cursor:pointer" title="点击查看该 SPU 的 SKU 明细">'
+        + '<td><b>'+esc(k)+'</b></td>'
+        + '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</td>'
+        + '<td style="color:#4A5668">'+esc(names(g.buyers))+'</td>'
+        + '<td style="color:#4A5668">'+esc(names(g.sups))+(un?' <span style="color:#C0392B;font-size:11px">含未匹配'+un+'</span>':'')+'</td>'
+        + '<td style="text-align:right">'+Object.keys(g.skus).length+'</td>'
+        + '<td style="text-align:right">'+nf(g.qty)+'</td>'
+        + '<td style="text-align:right;color:var(--muted)">'+g.rows+'</td>'
+        + '<td style="text-align:right;color:var(--muted)">'+Object.keys(g.docs).length+'</td>'
+        + '<td class="wk-arrow">▸</td></tr>';
+    }).join('');
     if(!tb.__spuBound){
       tb.__spuBound = true;
       tb.addEventListener('click', function(e){
-        var tr = e.target.closest ? e.target.closest('.wk-spu-grp') : null;
+        var tr = e.target.closest ? e.target.closest('.wk-spu-row') : null;
         if(!tr) return;
-        var k = tr.getAttribute('data-spu');
-        wkTrendOpenSpus[k] = (wkTrendOpenSpus[k] !== false) ? false : true;
+        wkTrendCurSpu = tr.getAttribute('data-spu') || '';
         renderWkTrendDrawerBody();
       });
     }
@@ -20448,8 +20476,10 @@ window.__test = {
     if(!rows.length){
       h += '<tr><td colspan="'+(cols.length+2)+'" style="color:var(--muted);text-align:center;padding:14px">当前筛选下无明细</td></tr>';
     }else{
-      h += '<tr class="wk-total"><td colspan="'+(cols.length)+'">合计 <span class="muted">'+rows.length+' 行</span></td>'
-        + '<td style="text-align:right">'+nf(sum)+'</td><td></td></tr>';
+      var qi = 0; cols.forEach(function(c,i){ if(c.key === 'qty') qi = i; });
+      h += '<tr class="wk-total"><td colspan="'+qi+'">合计 <span class="muted">'+rows.length+' 行</span></td>'
+        + '<td style="text-align:right">'+nf(sum)+'</td>'
+        + '<td colspan="'+(cols.length - qi)+'"></td></tr>';
     }
     h += '</tbody></table>';
     return h;
@@ -20701,22 +20731,30 @@ window.__test = {
     bar.appendChild(lb); bd.appendChild(bar);
     var tw = document.createElement('div'); tw.className = 'tw';
     tw.innerHTML = '<table class="wk"><thead><tr><th>SPU</th><th>物料名称</th>'
-      + '<th style="text-align:right;width:72px">SKU 数</th>'
-      + '<th style="text-align:right;width:100px">待下单量</th>'
-      + '<th style="text-align:right;width:62px">行数</th>'
-      + '<th style="text-align:right;width:62px">单据</th><th style="width:22px"></th></tr></thead><tbody>'
+      + '<th style="width:96px">采购员</th><th style="width:110px">供应商</th>'
+      + '<th style="text-align:right;width:64px">SKU 数</th>'
+      + '<th style="text-align:right;width:92px">待下单量</th>'
+      + '<th style="text-align:right;width:56px">行数</th>'
+      + '<th style="text-align:right;width:56px">单据</th><th style="width:22px"></th></tr></thead><tbody>'
       + (spus.length ? spus.map(function(k){
-          var g = bySpu[k], nm = '';
-          for(var i=0;i<g.items.length;i++){ if(g.items[i].name){ nm = g.items[i].name; break; } }
+          var g = bySpu[k], nm = '', buyers = {};
+          for(var i=0;i<g.items.length;i++){
+            if(g.items[i].name && !nm) nm = g.items[i].name;
+            if(g.items[i].buyer) buyers[g.items[i].buyer] = 1;
+          }
+          var bl = Object.keys(buyers).join('、') || '—';
+          var sn = sup.name || sup.short || '—';
           return '<tr class="wk-row wk-spu-row" data-spu="'+esc(k)+'" style="cursor:pointer" title="点击查看该 SPU 的 SKU 明细">'
             + '<td><b>'+esc(k)+'</b></td>'
-            + '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</td>'
+            + '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</td>'
+            + '<td style="color:var(--muted)">'+esc(bl)+'</td>'
+            + '<td style="color:var(--muted)">'+esc(sn)+'</td>'
             + '<td style="text-align:right">'+Object.keys(g.skus).length+'</td>'
             + '<td style="text-align:right">'+nf(g.qty)+'</td>'
             + '<td style="text-align:right;color:var(--muted)">'+g.rows+'</td>'
             + '<td style="text-align:right;color:var(--muted)">'+Object.keys(g.docs).length+'</td>'
             + '<td class="wk-arrow">▸</td></tr>';
-        }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">无数据</td></tr>')
+        }).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:14px">无数据</td></tr>')
       + '</tbody></table>';
     bd.appendChild(tw);
     tw.onclick = function(e){
