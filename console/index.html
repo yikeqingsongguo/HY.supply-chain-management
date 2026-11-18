@@ -1048,6 +1048,9 @@ table.wk td b{white-space:nowrap}
     .wk-spu-grp:hover td{ background:#E4F4EE; }
     #wkTrendTable.spu-mode{ table-layout:fixed; width:100%; }
     #wkTrendTable.spu-mode td{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #wkTrendTable.spu-mode thead th{ font-size:13.5px; font-weight:600; padding:10px 10px; }
+    #wkTrendTable.spu-mode .wk-facet-btn{ font-size:13.5px; font-weight:600; padding:10px 8px; }
+    #wkTrendTable.spu-mode .wk-caret{ font-size:12px; }
     .wk-td-table{ width:100%; min-width:1180px; border-collapse:collapse; font-size:13px; }
     .wk-td-table thead th{ position:sticky; top:0; background:#eef3fb; color:#41506b; text-align:left; padding:10px 12px; font-weight:600; white-space:nowrap; border-bottom:1px solid #dde5f1; }
     .wk-td-table tbody td{ padding:9px 12px; border-bottom:1px solid #f0f3f8; color:#2b3548; white-space:nowrap; }
@@ -20036,6 +20039,7 @@ window.__test = {
     if(col==='doc') return String(it.doc||'');
     if(col==='sup') return String(s.short||s.name||'');
     if(col==='ling') return String(it.ling||'');
+    if(col==='mark') return String(it.remark||'');
     if(col==='qty') return String(it.qty||0);
     if(col==='apply') return String(it.apply_qty||0);
     return '';
@@ -20097,14 +20101,15 @@ window.__test = {
   }
   var wkTrendCurSpu = '';   // 第二层：当前下钻的 SPU（空 = 第一层 SPU 汇总表）
   var SPU_HEAD_HTML = '<tr>'
-    + '<th style="width:68px">SPU</th>'
-    + '<th style="width:92px">待下单量</th>'
-    + '<th style="width:150px">物料名称</th>'
-    + '<th style="width:88px">采购员</th>'
-    + '<th>供应商</th>'
-    + '<th style="width:58px">SKU 数</th>'
-    + '<th style="width:52px">行数</th><th style="width:52px">单据</th>'
-    + '<th style="width:22px"></th></tr>';
+    + '<th style="width:66px"><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:92px"><button type="button" class="wk-facet-btn" data-f="qty">待下单量<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:140px"><button type="button" class="wk-facet-btn" data-f="name">物料名称<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:86px"><button type="button" class="wk-facet-btn" data-f="buyer">采购员<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:104px"><button type="button" class="wk-facet-btn" data-f="sup">供应商<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:104px"><button type="button" class="wk-facet-btn" data-f="mark">标记<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:60px">SKU 数</th><th style="width:52px">行数</th>'
+    + '<th style="width:52px"><button type="button" class="wk-facet-btn" data-f="doc">单据<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:24px"></th><th></th></tr>';   // 最后一列吸收剩余 => 留白在末尾
   var SKU_HEAD_HTML = '<tr>'
     + '<th><button type="button" class="wk-facet-btn" data-f="sku">SKU<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>'
@@ -20137,7 +20142,7 @@ window.__test = {
     if(!tb) return;
     if(!rows.length){
       if(table){ table.tHead.innerHTML = SPU_HEAD_HTML; table.classList.add('spu-mode'); }
-      tb.innerHTML = '<tr><td colspan="9" class="wk-td-empty">无匹配明细</td></tr>'; return;
+      tb.innerHTML = '<tr><td colspan="11" class="wk-td-empty">无匹配明细</td></tr>'; return;
     }
 
     /* 实时判定：lookupSKU 必须显式传 mapIndex / prefixes，
@@ -20210,19 +20215,27 @@ window.__test = {
     var spus = Object.keys(bySpu).sort(function(a,b){ return bySpu[b].qty - bySpu[a].qty; });
     function names(o){ var a=Object.keys(o); return a.length?a.join('、'):'—'; }
     tb.innerHTML = spus.map(function(k){
-      var g=bySpu[k], nm='';
-      for(var i=0;i<g.items.length;i++){ if(g.items[i].it.name){ nm=g.items[i].it.name; break; } }
+      var g=bySpu[k], nm='', nNew=0, nVar=0;
+      g.items.forEach(function(r){
+        var rm = String(r.it.remark||'');
+        if(rm === '新品') nNew++;
+        if(rm === '新变体') nVar++;
+      });
+      for(var i=0;i<g.items.length;i++){ if(g.items[i].it.name && !nm){ nm=g.items[i].it.name; } }
       var un = g.items.filter(function(r){ return !isMatched(r); }).length;
+      var mark = (nNew ? '<span class="wk-rmk wk-rmk-new">新品 '+nNew+'</span>' : '')
+        + (nVar ? '<span class="wk-rmk wk-rmk-var">新变体 '+nVar+'</span>' : '');
       return '<tr class="wk-row wk-spu-row" data-spu="'+esc(k)+'" style="cursor:pointer" title="点击查看该 SPU 的 SKU 明细">'
         + '<td><b>'+esc(k)+'</b></td>'
         + '<td style="text-align:right;font-variant-numeric:tabular-nums"><b>'+nf(g.qty)+'</b></td>'
-        + '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</td>'
+        + '<td title="'+esc(nm)+'">'+esc(nm)+'</td>'
         + '<td style="color:#4A5668">'+esc(names(g.buyers))+'</td>'
         + '<td style="color:#4A5668">'+esc(names(g.sups))+(un?' <span style="color:#C0392B;font-size:11px">含未匹配'+un+'</span>':'')+'</td>'
+        + '<td>'+(mark || '<span style="color:#B4B2A9">—</span>')+'</td>'
         + '<td style="text-align:right">'+Object.keys(g.skus).length+'</td>'
         + '<td style="text-align:right;color:var(--muted)">'+g.rows+'</td>'
         + '<td style="text-align:right;color:var(--muted)">'+Object.keys(g.docs).length+'</td>'
-        + '<td class="wk-arrow">▸</td></tr>';
+        + '<td class="wk-arrow">▸</td><td></td></tr>';
     }).join('');
     if(!tb.__spuBound){
       tb.__spuBound = true;
@@ -20364,9 +20377,17 @@ window.__test = {
     if(_tf) _tf.onchange = applyTrendDate;
     if(_tt) _tt.onchange = applyTrendDate;
     if(_tc) _tc.onclick = function(){ if(_tf) _tf.value = ''; if(_tt) _tt.value = ''; applyTrendDate(); };
-    Array.prototype.forEach.call(document.querySelectorAll('#wk_trend_drawer .wk-facet-btn'), function(btn){
-      btn.addEventListener('click', function(ev){ ev.stopPropagation(); openWkFacet(btn.getAttribute('data-f'), btn); });
-    });
+    /* 表头会随 SPU/SKU 两层动态替换，必须用事件委托，否则新按钮点不动 */
+    var dlgDrawer = document.getElementById('wk_trend_drawer');
+    if(dlgDrawer && !dlgDrawer.__facetDelegated){
+      dlgDrawer.__facetDelegated = true;
+      dlgDrawer.addEventListener('click', function(ev){
+        var btn = ev.target.closest ? ev.target.closest('.wk-facet-btn') : null;
+        if(!btn) return;
+        ev.stopPropagation();
+        openWkFacet(btn.getAttribute('data-f'), btn);
+      });
+    }
     document.addEventListener('click', function(ev){
       var pop = document.getElementById('wkFacetPop');
       if(pop && !pop.hidden && !pop.contains(ev.target) && !ev.target.closest('.wk-facet-btn')) closeWkFacet();
