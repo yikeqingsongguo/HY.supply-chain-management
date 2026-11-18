@@ -1,0 +1,16 @@
+{
+  "version": "2.1.0",
+  "date": "2026-11-18",
+  "type": "minor",
+  "title": "匹配/日期/点击修复 + 待下单两级下钻",
+  "description": "1) 抽屉未匹配改实时判定并补录后重绘；2) 趋势图读 WK_RAW 与其他页筛选隔离、日期轴随筛选铺连续日期；3) 漏下单默认全部申请日到今天；4) 总览 KPI 卡与胶囊可点击跳转；5) 供应商汇总改 SPU→SKU、采购员改供应商→SPU→SKU；6) 周计划抽屉按 SPU 分组加备注列与新品/新变体彩色标签。",
+  "reason": "用户反馈已填映射仍显示未匹配、日期跨页联动、漏下单日期单边导致筛选失灵、总览卡片点不动，以及汇总下钻层级过粗、备注信息缺失。",
+  "impact": "console/index.html 与 index.html/index.template.html 均改动；新增 console 弹窗两级下钻函数、周计划抽屉 SPU 分组；未改数据口径；云端交付文档已同步。",
+  "data_updated_at": "2026-11-18 09:24",
+  "parent_version": "v2.0.0",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-18 11:38:34",
+  "page_source": "local（改动未发布，线上仍是旧版）",
+  "size_note": "index.html/console/index.html/index.template.html 均为本地最新版快照"
+}

@@ -251,6 +251,7 @@ def main():
     ap.add_argument("--impact", default="", help="影响范围")
     ap.add_argument("--parent", default=None, help="父版本号（默认自动取上一版本）")
     ap.add_argument("--no-push", action="store_true", help="仅本地存档，不推送云端")
+    ap.add_argument("--local", action="store_true", help="用本地页面快照（改动未发布时必须用，默认抓线上）")
     args = ap.parse_args()
 
     VERSIONS_DIR.mkdir(exist_ok=True)
@@ -271,7 +272,8 @@ def main():
         vdir = VERSIONS_DIR / dirname
     vdir.mkdir(parents=True)
 
-    html, src = page_source()
+    if args.local:/n        html, src = local_index_html(), "local"
+    else:/n        html, src = page_source()
     (vdir / "index.html").write_text(html, encoding="utf-8")
 
     # 双页面系统：管理台页面、品牌图、源模板一并留存，缺一无法完整复原

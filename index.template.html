@@ -226,6 +226,9 @@
     background:rgba(255,255,255,.76);border:1px solid rgba(255,255,255,.88);border-radius:999px;padding:7px 14px;
     box-shadow:0 6px 16px -12px rgba(14,120,110,.55);backdrop-filter:blur(10px);}
   .home-pill b{color:#0B4F47;font-weight:900;}
+  .home-click{cursor:pointer;}
+  .home-pill[data-page]{cursor:pointer;transition:transform .15s ease-out,border-color .15s ease-out;}
+  .home-pill[data-page]:hover{transform:translateY(-2px);border-color:#9FDCCF;box-shadow:0 8px 18px -12px rgba(14,120,110,.7);}
   .home-pill i{width:8px;height:8px;border-radius:50%;display:inline-block;}
   .home-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;}
   .home-p-todo,.home-p-top,.home-p-app{min-width:0;}
@@ -2838,14 +2841,15 @@
     var ph=document.getElementById('home_pills');
     if(ph){
       var pills=[
-        {t:'在途总量', v:fmt(total)+' 件', c:'#0E9E8E'},
-        {t:'待下单', v:fmt(wkQty)+' 件', c:'#1E8FD0'},
-        {t:'逾期未收', v:fmt(odQty)+' 件', c:'#E2554F'},
-        {t:'准交率', v:(rate?rate.toFixed(1)+'%':'—'), c:'#12A08E'},
-        {t:'供应商', v:Object.keys(sup).length+' 家', c:'#4FD1C5'}
+        {t:'在途总量', v:fmt(total)+' 件', c:'#0E9E8E', page:'overview', pn:'在途概览'},
+        {t:'待下单', v:fmt(wkQty)+' 件', c:'#1E8FD0', page:'weekly', pn:'周计划'},
+        {t:'逾期未收', v:fmt(odQty)+' 件', c:'#E2554F', page:'overdue', pn:'逾期情况'},
+        {t:'准交率', v:(rate?rate.toFixed(1)+'%':'—'), c:'#12A08E', page:'otd', pn:'准交率'},
+        {t:'供应商', v:Object.keys(sup).length+' 家', c:'#4FD1C5', page:'supplier', pn:'产线-时效'}
       ];
       ph.innerHTML=pills.map(function(p){
-        return '<span class="home-pill"><i style="background:'+p.c+'"></i>'+p.t+' <b>'+p.v+'</b></span>';
+        return '<span class="home-pill" data-page="'+p.page+'" role="button" tabindex="0" title="进入'+p.pn+'">'
+          +'<i style="background:'+p.c+'"></i>'+p.t+' <b>'+p.v+'</b></span>';
       }).join('');
     }
 
@@ -2855,10 +2859,10 @@
     var kh=document.getElementById('home_kpi');
     if(kh){
       kh.innerHTML=''
-        +'<div class="card"><div class="lab">在途总量</div><div class="val" id="hk1">0</div><div class="hint">已收 '+fmt(recv)+' / 下单 '+fmt(po)+' 件 · 全部月份</div></div>'
-        +'<div class="card"><div class="lab">待下单</div><div class="val" id="hk2">0</div><div class="hint">'+wk.length+' 行 · 待填写 '+wk.filter(function(r){return !r.supplier_short||r.supplier_short==='待填写';}).length+' 个</div></div>'
-        +'<div class="card'+(odQty?' kpi-warn':'')+'"><div class="lab">逾期未收</div><div class="val" id="hk3">0</div><div class="hint">'+odRows.length+' 单 · 最长 '+(function(){var m=0;odRows.forEach(function(r){m=Math.max(m,nv(r.overdue_days));});return m;})()+' 天</div></div>'
-        +'<div class="card"><div class="lab">'+(per.label||'本月')+'准交率</div><div class="val" id="hk4">0</div><div class="hint">收料 '+fmt(ov.recv_qty||0)+' 件 · 目标 85%</div></div>';
+        +'<div class="card home-click" data-page="overview" role="button" tabindex="0" title="进入在途概览"><div class="lab">在途总量</div><div class="val" id="hk1">0</div><div class="hint">已收 '+fmt(recv)+' / 下单 '+fmt(po)+' 件 · 全部月份</div></div>'
+        +'<div class="card home-click" data-page="weekly" role="button" tabindex="0" title="进入周计划"><div class="lab">待下单</div><div class="val" id="hk2">0</div><div class="hint">'+wk.length+' 行 · 待填写 '+wk.filter(function(r){return !r.supplier_short||r.supplier_short==='待填写';}).length+' 个</div></div>'
+        +'<div class="card home-click'+(odQty?' kpi-warn':'')+'" data-page="overdue" role="button" tabindex="0" title="进入逾期情况"><div class="lab">逾期未收</div><div class="val" id="hk3">0</div><div class="hint">'+odRows.length+' 单 · 最长 '+(function(){var m=0;odRows.forEach(function(r){m=Math.max(m,nv(r.overdue_days));});return m;})()+' 天</div></div>'
+        +'<div class="card home-click" data-page="otd" role="button" tabindex="0" title="进入准交率"><div class="lab">'+(per.label||'本月')+'准交率</div><div class="val" id="hk4">0</div><div class="hint">收料 '+fmt(ov.recv_qty||0)+' 件 · 目标 85%</div></div>';
       homeCountUp(document.getElementById('hk1'), total);
       homeCountUp(document.getElementById('hk2'), wkQty);
       homeCountUp(document.getElementById('hk3'), odQty);
@@ -2979,7 +2983,7 @@
     }
 
     // 交互：待办 / 入口 / Top6
-    [th,eh].forEach(function(box){
+    [th,eh,kh,ph].forEach(function(box){
       if(!box || box.__bound) return;
       box.__bound=true;
       box.addEventListener('click',function(e){
