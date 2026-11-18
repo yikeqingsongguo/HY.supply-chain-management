@@ -9,6 +9,29 @@
 
 ---
 
+## v2.1.6 · 2026-11-18（晚）
+
+### 修复（真正的根因）
+- **采购员汇总「导出 Excel」点击无反应**：按钮 `wkExportExcel()` 调用了 **从未定义过的 `wkDownload()`**，
+  点击即抛 `ReferenceError`，被浏览器吞掉后表现为「毫无反应」。
+- 更深一层：把调用改成 `downloadBytes()` 后依然失败，因为 `downloadBytes` / `toast` / `fileStamp` /
+  `sanitizeFileName` 都定义在**第一个 script 作用域**，而周计划模块是独立的第二个 script，
+  **根本访问不到**——错误从 `wkDownload is not defined` 变成了 `downloadBytes is not defined`。
+- 彻底整改：把 `wkToast` / `wkStamp` / `wkSafe` / `wkDownloadBytes` 四个工具函数**就地实现在周计划模块内**，
+  不再跨作用域依赖；两处导出调用改为 `wkDownloadBytes()`，内部自带 iframe → 顶层 `postMessage` 代理。
+- 全量静态扫描确认该模块已无「调用但未定义」的业务函数。
+
+### 验证
+- 独立页点击：`5,841,044 字节`，文件 `待下单汇总_20261118_1639.xlsx`，
+  提示「已导出 541 行明细 · 26 家供应商 · 映射 10894 条 · 历史未下单 442 行」，无异常。
+- 看板 iframe 内点击：顶层收到代理，同样生成 5,841,044 字节、同名文件，iframe 内无错误。
+
+### 教训
+console 页面由两个独立 `<script>` 作用域组成，**跨作用域的函数不能直接调用**（`buildMapIndex` 也犯过同样的错）。
+新增调用前先确认函数在哪个 script 里，或统一通过 `window.__xxx` 暴露 / 就地实现。
+
+---
+
 ## v2.1.5 · 2026-11-18（晚）
 
 ### 修复

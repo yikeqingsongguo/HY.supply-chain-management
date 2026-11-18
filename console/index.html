@@ -20946,7 +20946,7 @@ window.__test = {
         { name:'下单明细', data:rows, cols:[16,18,7,28,11,9,9,32,10,16] }
       ]);
     } catch(e){ wkToast('生成 Excel 失败：' + (e && e.message || e), 'err'); return; }
-    wkDownload(out, fileTag + '_' + wkStamp() + '.xlsx',
+    wkDownloadBytes(out, fileTag + '_' + wkStamp() + '.xlsx',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     wkToast('已导出 ' + (rows.length - 1) + ' 行明细');
   }
@@ -20997,6 +20997,45 @@ window.__test = {
     });
     return rows;
   }
+  /* ===== 周计划模块自包含的导出工具 =====
+     本模块是独立的 script 作用域，访问不到第一个 script 里的 downloadBytes / toast /
+     fileStamp / sanitizeFileName。此前直接调用它们会抛 ReferenceError，按钮表现为"点了没反应"。
+     这里全部就地实现，不再跨作用域依赖。 */
+  function wkToast(msg, kind){
+    var host = document.getElementById('toast');
+    if (!host) { try { console.log('[wk]', msg); } catch (e) {} return; }
+    var t = document.createElement('div');
+    t.className = 'toast' + (kind === 'err' ? ' err' : '');
+    t.textContent = msg;
+    host.appendChild(t);
+    setTimeout(function(){ if (t.parentNode) t.parentNode.removeChild(t); }, kind === 'err' ? 5000 : 2800);
+  }
+  function wkStamp(){
+    var d = new Date();
+    function p(n){ return (n < 10 ? '0' : '') + n; }
+    return '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes());
+  }
+  function wkSafe(s){
+    return String(s || '').replace(/[\\\/:*?"<>|]/g, '_').slice(0, 40);
+  }
+  function wkDownloadBytes(bytes, filename, mime){
+    mime = mime || 'application/octet-stream';
+    /* 嵌在看板 iframe 里时，交给顶层页面执行下载，绕过 iframe 的下载拦截 */
+    try {
+      if (window.top && window.top !== window.self) {
+        var payload = (bytes && bytes.buffer) ? bytes.buffer : bytes;
+        window.top.postMessage({ __wbDownload: 1, bytes: payload, filename: filename, mime: mime }, '*');
+        return;
+      }
+    } catch (e) {}
+    var blob = new Blob([bytes], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ if (a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  }
+
   function wkExportExcel(){
     if(!WK){ wkToast('数据还没加载完，稍后再试', 'err'); return; }
     var d = wkExportRows();
@@ -21013,7 +21052,7 @@ window.__test = {
         { name:'历史未下单明细', data:chkRows,  cols:[22,18,7,11,9,9,10,9,30,10,9] }
       ]);
     } catch(e){ wkToast('生成 Excel 失败：' + (e && e.message || e), 'err'); return; }
-    wkDownload(out, '待下单汇总_' + wkStamp() + '.xlsx',
+    wkDownloadBytes(out, '待下单汇总_' + wkStamp() + '.xlsx',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     wkToast('已导出 ' + (d.rows1.length-1) + ' 行明细 · ' + (d.rows2.length-2) + ' 家供应商'
       + ' · 映射 ' + (mapRows.length-1) + ' 条 · 历史未下单 ' + (chkRows.length-1) + ' 行');
