@@ -99,7 +99,7 @@
   html{background:var(--bg);}
   body{margin:0;padding:0;background:transparent;color:var(--text);
     font-family:var(--f-body);font-size:17px;font-weight:500;line-height:1.65;
-    scroll-behavior:smooth;-webkit-font-smoothing:antialiased;}
+    -webkit-font-smoothing:antialiased;}   /* 去掉 scroll-behavior:smooth：被动滚动会变成缓慢滑动 */
   h1,h2,h3,h4,.page-title,.panel h3,.card .val,.d-val,.brand{font-family:var(--f-head);}
   :focus-visible{outline:none;box-shadow:0 0 0 4px rgba(14,158,142,0.30);border-radius:var(--r-b);}
 
@@ -3067,6 +3067,7 @@ window.DATA = {"meta":{"updated_at":"2026-11-18 14:24","source_po":"采购订单
   }
   function switchPage(p){
     state.page=p;
+    if(p==='weekly' && typeof window.__wkIframeFit==='function') setTimeout(window.__wkIframeFit, 80);
     document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-page')===p); });
     document.querySelectorAll('.page').forEach(function(s){ s.classList.toggle('active', s.id==='page_'+p); });
     closeNav();
@@ -3151,8 +3152,9 @@ window.DATA = {"meta":{"updated_at":"2026-11-18 14:24","source_po":"采购订单
         if(h>300) fr.style.height=(h+8)+'px';
       }catch(e){}
     }
+    window.__wkIframeFit = fit;
     fr.addEventListener('load', function(){ fit(); setTimeout(fit,600); setTimeout(fit,1600); });
-    setInterval(fit, 2000);
+    /* 不再 setInterval：iframe 内容高度细微波动会让页面每 2 秒跳一次；改为切到周计划时按需同步 */
   })();
 
   function syncWkView(){
