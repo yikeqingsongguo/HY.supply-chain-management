@@ -1,0 +1,14 @@
+{
+  "version": "2.1.5",
+  "date": "2026-11-18",
+  "type": "patch",
+  "title": "顶层代理下载彻底修复iframe导出",
+  "description": "iframe 通过 postMessage 把导出字节交给顶层，由顶层完整创建 Blob 和下载链接。实测生成 427KB xlsx 并触发下载。",
+  "reason": "v2.1.4 的顶层链接方案在用户浏览器仍被拦截，导出点击无反应。",
+  "impact": "index.html / index.template.html / console/index.html；数据口径不变。",
+  "data_updated_at": "2026-11-18 14:32",
+  "parent_version": "v2.1.4",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-18 16:25:30"
+}

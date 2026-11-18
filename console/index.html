@@ -3037,6 +3037,15 @@ function dialog(opts) {
 }
 
 function downloadBytes(bytes, filename, mime) {
+  /* iframe 内下载常被浏览器静默拦截：把字节交给顶层页面，由顶层上下文完整执行下载 */
+  if (window.top && window.top !== window.self) {
+    try {
+      var payload = (bytes && bytes.buffer) ? bytes.buffer : bytes;
+      window.top.postMessage({ __wbDownload: 1, bytes: payload, filename: filename,
+        mime: mime || 'application/octet-stream' }, '*');
+      return;
+    } catch (e) {}
+  }
   var blob = new Blob([bytes], { type: mime || 'application/octet-stream' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');

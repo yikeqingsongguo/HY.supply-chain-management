@@ -3355,6 +3355,21 @@
     if(b){ b.textContent='页面脚本出错：'+msg+'（第 '+line+' 行）；若图表空白请刷新或反馈'; b.classList.add('show'); }
     var bo=document.getElementById('boot'); if(bo) bo.classList.add('hide');
   };
+  /* 接收内嵌管理台（console iframe）的导出请求：必须由顶层页面创建链接并点击，
+     否则 iframe 发起的 blob 下载会被浏览器静默拦截。 */
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (!d || d.__wbDownload !== 1) return;
+    try {
+      var blob = new Blob([d.bytes], { type: d.mime || 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = d.filename || 'download';
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(url); }, 600);
+    } catch (err) { console.error('download proxy failed', err); }
+  });
+
   function boot(){
     try{
       document.getElementById('m_updated').textContent=META.updated_at||'—';

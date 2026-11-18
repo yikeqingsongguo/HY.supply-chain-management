@@ -9,6 +9,17 @@
 
 ---
 
+## v2.1.5 · 2026-11-18（晚）
+
+### 修复
+- **导出 Excel 在看板 iframe 内仍无反应**（v2.1.4 的顶层链接方案在部分浏览器仍被拦）：
+  改为 iframe 通过 `postMessage({__wbDownload:1, bytes, filename, mime})` 把字节交给顶层，
+  由顶层页面创建 Blob、`URL.createObjectURL`、`<a download>` 并点击，完整在顶层上下文执行下载。
+  看板侧新增 message 监听器；同时保留 iframe 的 `allow="downloads" allow-downloads` 作为补充。
+- 实测：iframe 内点导出 → 顶层收到请求，生成 `供应商下单明细_20261118_1624.xlsx`（427,393 字节）并触发下载。
+
+---
+
 ## v2.1.4 · 2026-11-18（晚）
 
 ### 修复

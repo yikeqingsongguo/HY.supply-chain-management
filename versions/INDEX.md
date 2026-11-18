@@ -17,3 +17,4 @@
 | 2.1.2 | 2026-11-18 | 小修/微调 | 修复页面周期性自动上移 | index.html + index.template.html；数据口径不变。 | [2.1.2](versions/v2.1.2_2026-11-18) |
 | 2.1.3 | 2026-11-18 | 小修/微调 | SPU汇总表恢复筛选、放大表头、新增标记列、留白移至末尾 | 仅 console/index.html；DOM 验证 11 列/7 筛选按钮/13.5px/标记胶囊正常。 | [2.1.3](versions/v2.1.3_2026-11-18) |
 | 2.1.4 | 2026-11-18 | 小修/微调 | 修复iframe内导出Excel无反应 | index.html / index.template.html / console/index.html；数据口径不变。 | [2.1.4](versions/v2.1.4_2026-11-18) |
+| 2.1.5 | 2026-11-18 | 小修/微调 | 顶层代理下载彻底修复iframe导出 | index.html / index.template.html / console/index.html；数据口径不变。 | [2.1.5](versions/v2.1.5_2026-11-18) |
