@@ -3041,8 +3041,11 @@ function downloadBytes(bytes, filename, mime) {
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+  /* 管理台常嵌在看板 iframe 里：把链接挂到顶层文档执行，绕过 iframe 下载拦截 */
+  var doc = document;
+  try { if (window.top && window.top !== window.self && window.top.document) doc = window.top.document; } catch (e) {}
+  doc.body.appendChild(a); a.click();
+  setTimeout(function () { if (a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(url); }, 400);
 }
 function downloadText(text, filename, mime) {
   downloadBytes([new TextEncoder().encode(text).buffer], filename, mime);

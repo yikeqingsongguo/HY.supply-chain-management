@@ -1,0 +1,14 @@
+{
+  "version": "2.1.4",
+  "date": "2026-11-18",
+  "type": "patch",
+  "title": "修复iframe内导出Excel无反应",
+  "description": "看板 iframe 加 allow=downloads 与 allow-downloads；管理台 downloadBytes 在 iframe 内把下载链接挂到顶层文档执行。实测生成 xlsx 且 inTop=true。",
+  "reason": "用户在看板内嵌管理台点导出 Excel 无反应，iframe 下载被浏览器拦截。",
+  "impact": "index.html / index.template.html / console/index.html；数据口径不变。",
+  "data_updated_at": "2026-11-18 14:32",
+  "parent_version": "v2.1.3",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-18 16:16:56"
+}

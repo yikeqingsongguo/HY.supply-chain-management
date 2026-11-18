@@ -9,6 +9,17 @@
 
 ---
 
+## v2.1.4 · 2026-11-18（晚）
+
+### 修复
+- **管理台「导出 Excel」在看板 iframe 内点击无反应**：
+  ① 看板 iframe 加 `allow="downloads" allow-downloads` 双权限；
+  ② 管理台 `downloadBytes()` 检测到 `window.top !== window.self` 时，把 `<a download>` 挂到顶层文档再点击，
+  绕过 iframe 的下载拦截（同源可行）。
+- 实测 iframe 内点击导出：生成 `供应商下单明细_20261118_1616.xlsx`，`inTop=true`。
+
+---
+
 ## v2.1.3 · 2026-11-18（晚）
 
 ### 变更（SPU 汇总表表头）
