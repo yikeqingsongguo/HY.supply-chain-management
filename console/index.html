@@ -1046,6 +1046,8 @@ table.wk td b{white-space:nowrap}
     .wk-rmk-var{ background:#CECBF6; color:#3C3489; font-weight:700; }
     .wk-spu-grp td{ background:#F1F9F6; color:#0B4F47; font-weight:600; padding:8px 12px; border-bottom:1px solid #DCEAE5; }
     .wk-spu-grp:hover td{ background:#E4F4EE; }
+    #wkTrendTable.spu-mode{ table-layout:fixed; width:100%; }
+    #wkTrendTable.spu-mode td{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .wk-td-table{ width:100%; min-width:1180px; border-collapse:collapse; font-size:13px; }
     .wk-td-table thead th{ position:sticky; top:0; background:#eef3fb; color:#41506b; text-align:left; padding:10px 12px; font-weight:600; white-space:nowrap; border-bottom:1px solid #dde5f1; }
     .wk-td-table tbody td{ padding:9px 12px; border-bottom:1px solid #f0f3f8; color:#2b3548; white-space:nowrap; }
@@ -14366,6 +14368,8 @@ function buildMapIndex() {
   }
   return { exact: exact, kind: kind };
 }
+/* 周计划 IIFE 在独立作用域，实时判定需要当前映射索引；显式暴露，避免 buildMapIndex is not defined */
+window.__wkMapIndex = buildMapIndex;
 /* ---------------- 映射表列筛选 / 价格格式化 ---------------- */
 /* 含税单价统一保留 2 位小数：23.65 / 21 → "21.00"；非法值返回 '' */
 function formatPrice2(v) {
@@ -18190,7 +18194,7 @@ function switchTab(tab) {
   renderStats();
   refreshAll();
   if (isOverview && window.__wkRenderTrend) window.__wkRenderTrend();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo(0, 0);   // 不用 smooth：切页签慢速回顶会被误认为页面自己滚动
 }
 function scrollToId(id) {
   var e = $(id);
@@ -20093,10 +20097,14 @@ window.__test = {
   }
   var wkTrendCurSpu = '';   // 第二层：当前下钻的 SPU（空 = 第一层 SPU 汇总表）
   var SPU_HEAD_HTML = '<tr>'
-    + '<th style="width:72px">SPU</th><th>物料名称</th>'
-    + '<th style="width:92px">采购员</th><th style="width:92px">供应商</th>'
-    + '<th style="width:58px">SKU 数</th><th style="width:88px">待下单量</th>'
-    + '<th style="width:56px">行数</th><th style="width:56px">单据</th><th style="width:22px"></th></tr>';
+    + '<th style="width:68px">SPU</th>'
+    + '<th style="width:92px">待下单量</th>'
+    + '<th style="width:150px">物料名称</th>'
+    + '<th style="width:88px">采购员</th>'
+    + '<th>供应商</th>'
+    + '<th style="width:58px">SKU 数</th>'
+    + '<th style="width:52px">行数</th><th style="width:52px">单据</th>'
+    + '<th style="width:22px"></th></tr>';
   var SKU_HEAD_HTML = '<tr>'
     + '<th><button type="button" class="wk-facet-btn" data-f="sku">SKU<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>'
@@ -20128,25 +20136,31 @@ window.__test = {
     var table = document.getElementById('wkTrendTable');
     if(!tb) return;
     if(!rows.length){
-      if(table && table.tHead) table.tHead.innerHTML = SPU_HEAD_HTML;
+      if(table){ table.tHead.innerHTML = SPU_HEAD_HTML; table.classList.add('spu-mode'); }
       tb.innerHTML = '<tr><td colspan="9" class="wk-td-empty">无匹配明细</td></tr>'; return;
     }
 
-    /* 实时判定已匹配（不读构建快照），供「含未匹配」提示用 */
+    /* 实时判定：lookupSKU 必须显式传 mapIndex / prefixes，
+       否则内部 mapGetExact(undefined) 永远不命中 → 补录后仍被判为未匹配。 */
+    var LK = (typeof lookupSKU === 'function') ? lookupSKU : (window.Core && window.Core.lookupSKU);
+    var BI = (typeof buildMapIndex === 'function') ? buildMapIndex : window.__wkMapIndex;
+    var mIdx = (typeof BI === 'function') ? BI() : { exact:new Map(), kind:new Map() };
+    var pfx = (window.Core && window.Core.parsePrefixes) ? window.Core.parsePrefixes('SP') : ['SP'];
+    function liveHit(it){
+      if(typeof LK !== 'function') return null;
+      var lk = LK(it.sku, mIdx, pfx);
+      return (lk && lk.hit) || null;
+    }
     function isMatched(r){
-      var it=r.it, sp=r.sup;
-      if(typeof lookupSKU === 'function'){
-        var lk=lookupSKU(it.sku), hit=lk&&lk.hit;
-        if(hit && hit.supplier && String(hit.supplier).trim() && !/待填写/.test(String(hit.shortName||hit.supplier))) return true;
-        return false;
-      }
-      return !(sp.short==='待填写' || sp.pending || it.mapped===false);
+      var hit = liveHit(r.it);
+      return !!(hit && hit.supplier && String(hit.supplier).trim() &&
+        !/待填写/.test(String(hit.shortName || hit.supplier)));
     }
 
     if(wkTrendCurSpu){
       /* ---------- 第二层：SPU → SKU 明细，备注列在最后 ---------- */
       var list = rows.filter(function(r){ return String(r.it.spu||'未标注') === wkTrendCurSpu; });
-      if(table && table.tHead) table.tHead.innerHTML = SKU_HEAD_HTML;
+      if(table){ table.tHead.innerHTML = SKU_HEAD_HTML; table.classList.remove('spu-mode'); }
       var backRow = '<tr class="wk-spu-back-row"><td colspan="11" style="background:#F1F9F6;padding:8px 12px">'
         + '<button type="button" class="wk-trend-back" style="cursor:pointer;border:none;background:none;color:#0F6E56;font-weight:700;font-size:12.5px;padding:0">← 返回 SPU 汇总</button>'
         + '<span style="margin-left:10px;color:#3E5B57;font-size:12.5px">SPU ' + esc(wkTrendCurSpu) + ' · SKU 明细</span></td></tr>';
@@ -20179,7 +20193,7 @@ window.__test = {
     }
 
     /* ---------- 第一层：SPU 汇总表（含采购员 / 供应商列） ---------- */
-    if(table && table.tHead) table.tHead.innerHTML = SPU_HEAD_HTML;
+    if(table){ table.tHead.innerHTML = SPU_HEAD_HTML; table.classList.add('spu-mode'); }
     var bySpu = {};
     rows.forEach(function(r){
       var k = String(r.it.spu||'未标注');
@@ -20187,8 +20201,11 @@ window.__test = {
       g.qty += (r.it.qty||0); g.rows++; g.items.push(r);
       if(r.it.sku) g.skus[r.it.sku]=1;
       if(r.it.doc) g.docs[r.it.doc]=1;
-      if(r.it.buyer) g.buyers[r.it.buyer]=1;
-      if(r.sup && (r.sup.short||r.sup.name)) g.sups[r.sup.short||r.sup.name]=1;
+      var hit = liveHit(r.it);
+      var buyer = (hit && hit.buyer) || r.it.buyer;
+      var supN = hit ? (hit.shortName || hit.supplier) : ((r.sup && (r.sup.short||r.sup.name)) || '');
+      if(buyer) g.buyers[buyer]=1;
+      if(supN && !/待填写/.test(String(supN))) g.sups[supN]=1;
     });
     var spus = Object.keys(bySpu).sort(function(a,b){ return bySpu[b].qty - bySpu[a].qty; });
     function names(o){ var a=Object.keys(o); return a.length?a.join('、'):'—'; }
@@ -20198,11 +20215,11 @@ window.__test = {
       var un = g.items.filter(function(r){ return !isMatched(r); }).length;
       return '<tr class="wk-row wk-spu-row" data-spu="'+esc(k)+'" style="cursor:pointer" title="点击查看该 SPU 的 SKU 明细">'
         + '<td><b>'+esc(k)+'</b></td>'
-        + '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</td>'
+        + '<td style="text-align:right;font-variant-numeric:tabular-nums"><b>'+nf(g.qty)+'</b></td>'
+        + '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</td>'
         + '<td style="color:#4A5668">'+esc(names(g.buyers))+'</td>'
         + '<td style="color:#4A5668">'+esc(names(g.sups))+(un?' <span style="color:#C0392B;font-size:11px">含未匹配'+un+'</span>':'')+'</td>'
         + '<td style="text-align:right">'+Object.keys(g.skus).length+'</td>'
-        + '<td style="text-align:right">'+nf(g.qty)+'</td>'
         + '<td style="text-align:right;color:var(--muted)">'+g.rows+'</td>'
         + '<td style="text-align:right;color:var(--muted)">'+Object.keys(g.docs).length+'</td>'
         + '<td class="wk-arrow">▸</td></tr>';
@@ -20730,10 +20747,11 @@ window.__test = {
     lb.textContent = (headTitle || '') + ' 点 SPU 行查看该款 SKU 明细';
     bar.appendChild(lb); bd.appendChild(bar);
     var tw = document.createElement('div'); tw.className = 'tw';
-    tw.innerHTML = '<table class="wk"><thead><tr><th>SPU</th><th>物料名称</th>'
-      + '<th style="width:96px">采购员</th><th style="width:110px">供应商</th>'
-      + '<th style="text-align:right;width:64px">SKU 数</th>'
+    tw.innerHTML = '<table class="wk"><thead><tr><th>SPU</th>'
       + '<th style="text-align:right;width:92px">待下单量</th>'
+      + '<th style="width:150px">物料名称</th>'
+      + '<th style="width:88px">采购员</th><th>供应商</th>'
+      + '<th style="text-align:right;width:64px">SKU 数</th>'
       + '<th style="text-align:right;width:56px">行数</th>'
       + '<th style="text-align:right;width:56px">单据</th><th style="width:22px"></th></tr></thead><tbody>'
       + (spus.length ? spus.map(function(k){
@@ -20746,11 +20764,11 @@ window.__test = {
           var sn = sup.name || sup.short || '—';
           return '<tr class="wk-row wk-spu-row" data-spu="'+esc(k)+'" style="cursor:pointer" title="点击查看该 SPU 的 SKU 明细">'
             + '<td><b>'+esc(k)+'</b></td>'
-            + '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</td>'
+            + '<td style="text-align:right;font-variant-numeric:tabular-nums"><b>'+nf(g.qty)+'</b></td>'
+            + '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</td>'
             + '<td style="color:var(--muted)">'+esc(bl)+'</td>'
             + '<td style="color:var(--muted)">'+esc(sn)+'</td>'
             + '<td style="text-align:right">'+Object.keys(g.skus).length+'</td>'
-            + '<td style="text-align:right">'+nf(g.qty)+'</td>'
             + '<td style="text-align:right;color:var(--muted)">'+g.rows+'</td>'
             + '<td style="text-align:right;color:var(--muted)">'+Object.keys(g.docs).length+'</td>'
             + '<td class="wk-arrow">▸</td></tr>';

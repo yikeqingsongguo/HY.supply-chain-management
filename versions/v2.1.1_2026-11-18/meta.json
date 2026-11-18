@@ -1,0 +1,14 @@
+{
+  "version": "2.1.1",
+  "date": "2026-11-18",
+  "type": "patch",
+  "title": "列宽顺序调整 + 补录实时判定修复 + 切页滚动修复",
+  "description": "1) SPU 汇总表列序改为 SPU/待下单量/物料名称/采购员/供应商/SKU数/行数/单据，物料名称固定 150px；2) 修复 lookupSKU 漏传 mapIndex 与跨作用域调用 buildMapIndex 导致抽屉报错、补录后仍显示待填写的问题；3) 去掉切页签的 smooth 滚动。",
+  "reason": "用户反馈物料名称列留白过长、补录页 0 条但汇总表仍显示待填写、页面自动缓慢滚动。",
+  "impact": "仅 console/index.html 与文档；实测 41 行待填写=0/含未匹配=0，列顺序正确。",
+  "data_updated_at": "2026-11-18 12:06",
+  "parent_version": "v2.1.0",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-18 14:16:46"
+}

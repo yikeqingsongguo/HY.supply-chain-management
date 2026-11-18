@@ -13,3 +13,4 @@
 | 1.6.2 | 2026-10-20 | 小修/微调 | 补录保存即时生效与待补数量常显 | console 1,242,766 字节；实测 9→8 行、待填写 2,040/6→1,450/4；线上 200。 | [1.6.2](versions/v1.6.2_2026-10-20) |
 | 2.0.0 | 2026-11-16 | 重大重构 | 全站总览首页 + 品牌 logo + 蓝绿配色 + 抽屉/同步修复 | index.html 2.67MB；console/index.html 1.36MB；新增 console/logo-vayi.png(37KB)/logo-mark.png(8KB)；新增 console/overview.json；index.template.html 同步修改（关键：产物需从模板重建）；新增 CHANGELOG.md 与 docs/交付文档.md。 | [2.0.0](versions/v2.0.0_2026-11-16) |
 | 2.1.0 | 2026-11-18 | 功能/较大改动 | 匹配/日期/点击修复 + 待下单两级下钻 | console/index.html 与 index.html/index.template.html 均改动；新增 console 弹窗两级下钻函数、周计划抽屉 SPU 分组；未改数据口径；云端交付文档已同步。 | [2.1.0](versions/v2.1.0_2026-11-18) |
+| 2.1.1 | 2026-11-18 | 小修/微调 | 列宽顺序调整 + 补录实时判定修复 + 切页滚动修复 | 仅 console/index.html 与文档；实测 41 行待填写=0/含未匹配=0，列顺序正确。 | [2.1.1](versions/v2.1.1_2026-11-18) |

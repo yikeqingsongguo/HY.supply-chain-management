@@ -272,8 +272,10 @@ def main():
         vdir = VERSIONS_DIR / dirname
     vdir.mkdir(parents=True)
 
-    if args.local:/n        html, src = local_index_html(), "local"
-    else:/n        html, src = page_source()
+    if args.local:
+        html, src = local_index_html(), "local"
+    else:
+        html, src = page_source()
     (vdir / "index.html").write_text(html, encoding="utf-8")
 
     # 双页面系统：管理台页面、品牌图、源模板一并留存，缺一无法完整复原

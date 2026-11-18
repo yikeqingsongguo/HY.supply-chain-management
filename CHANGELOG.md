@@ -9,6 +9,20 @@
 
 ---
 
+## v2.1.1 · 2026-11-18（下午）
+
+### 修复
+- **SPU 汇总表列宽与顺序**：列序改为 SPU → 待下单量 → 物料名称 → 采购员 → 供应商 → SKU 数 → 行数 → 单据；
+  物料名称固定 150px，不再吃掉整行剩余空间；表格用 `table-layout:fixed`，供应商列吸收剩余宽度。
+- **补录后仍显示「待填写 / 含未匹配 N」**：两个根因——
+  ① 上一版改实时判定时 `lookupSKU(it.sku)` **漏传 `mapIndex`/`prefixes`**，内部 `mapGetExact(undefined)` 恒不命中；
+  ② 补传后又在周计划 IIFE 里直接调用了另一作用域的 `buildMapIndex()`，抛 `ReferenceError` 导致抽屉打不开。
+  修法：主模块暴露 `window.__wkMapIndex`，周计划侧用 `window.Core.lookupSKU` + `__wkMapIndex()` 双保险取函数；
+  供应商/采购员列也改读实时映射而非 `weekly.json` 构建快照。实测 41 行中 `待填写=0 / 含未匹配=0`，与补录页 0 条一致。
+- **页面自动缓慢滚动**：`switchPage()` 里 `window.scrollTo({top:0,behavior:'smooth'})` 每次切页签都慢速回顶，改为瞬时定位。
+
+---
+
 ## v2.1.0 · 2026-11-18
 
 **一句话**：修复匹配/日期/点击三个体验缺陷，待下单汇总与周计划明细改为「SPU → SKU」两级下钻。
