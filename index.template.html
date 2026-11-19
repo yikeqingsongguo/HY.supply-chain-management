@@ -875,11 +875,22 @@
     </div>
     <div class="panel" style="grid-column:1/-1" id="cross_score_panel">
       <div class="card-hd" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <h3 style="margin:0">供应商综合评估</h3>
-        <span class="hint" id="cross_score_src">准交率40% · 逾期控制30% · 产能负荷15% · 款数15%</span>
+        <h3 style="margin:0">供应商综合评估 · 波士顿矩阵</h3>
+        <span class="hint" id="cross_score_src">X=综合分 · Y=总准交率 · 气泡=逾期未交量 · 颜色=评级</span>
+        <span class="spacer" style="flex:1"></span>
+        <div class="seg" id="cross_score_seg">
+          <span class="on" data-g="all">全部</span>
+          <span data-g="core">仅核心</span>
+        </div>
       </div>
       <div class="ph-sub" id="cross_score_note">准交率来自采购部工作台（金蝶实时准交率），与工作台同源；在途为 0 的供应商不参与</div>
-      <div id="cross_score_table" style="margin-top:10px"></div>
+      <div style="display:flex;gap:14px;align-items:stretch;margin-top:10px;flex-wrap:wrap">
+        <div class="chart" id="cross_score_chart" style="height:440px;flex:1 1 620px;min-width:420px"></div>
+        <div id="cross_score_detail" style="flex:0 1 300px;min-width:250px;background:#F6FBF9;border:1px solid #DCEAE5;border-radius:12px;padding:14px;font-size:12.5px">
+          <div style="color:#8794A8">点击矩阵中的气泡，查看该供应商的明细指标与评分说明</div>
+        </div>
+      </div>
+      <div id="cross_score_table" style="margin-top:12px"></div>
     </div>
   </div>
 </section>
@@ -2237,55 +2248,132 @@
     renderSupplierScore(rows);
   }
 
+  var scoreFilterG = 'all';
+  function scoreGrade(v){ return v>=90?'A':(v>=80?'B':(v>=70?'C':'D')); }
+  function scoreGColor(g){ return g==='A'?'#0E9E8E':(g==='B'?'#1E8FD0':(g==='C'?'#E2A33C':'#E2554F')); }
+
   function renderSupplierScore(rows){
-    var host=document.getElementById('cross_score_table');
-    if(!host) return;
     var sc=window.DATA && window.DATA.supplier_score;
-    if(!sc || !sc.rows || !sc.rows.length){ host.innerHTML='<div class="hint">暂无评分数据（请先运行 build_supplier_score.py）</div>'; return; }
+    var host=document.getElementById('cross_score_table');
+    var detail=document.getElementById('cross_score_detail');
+    if(!host || !sc || !sc.rows || !sc.rows.length){
+      if(host) host.innerHTML='<div class="hint">暂无评分数据（请先运行 build_supplier_score.py）</div>';
+      return;
+    }
     var src=document.getElementById('cross_score_src');
-    if(src) src.textContent='数据区间 '+sc.asof_start+' ~ '+sc.asof_end+' · 生成于 '+sc.updated_at+' · 源：金蝶云星空（采购部工作台同源）';
+    if(src) src.textContent='X=综合分 · Y=总准交率 · 气泡=逾期未交量 · 颜色=评级 ｜ '+sc.asof_start+' ~ '+sc.asof_end+' · '+sc.updated_at;
     var note=document.getElementById('cross_score_note');
-    if(note) note.textContent='口径：'+sc.formula+'；'+sc.load_note+'；准交率与采购部工作台一致；在途为 0 不参与。点击行下钻该供应商逾期明细。';
-    function grade(v){ return v>=90?'A':(v>=80?'B':(v>=70?'C':'D')); }
-    function gcolor(g){ return g==='A'?'#0E9E8E':(g==='B'?'#1E8FD0':(g==='C'?'#E2A33C':'#E2554F')); }
-    function section(title, list){
-      if(!list.length) return '';
-      var h='<div style="margin:10px 0 6px;font-weight:700;color:#0B4F47;font-size:13px">'+title+' · '+list.length+' 家</div>'
+    if(note) note.textContent='口径：'+sc.formula+'；'+sc.load_note+'；准交率与采购部工作台一致；在途为 0 不参与。点击气泡查看明细与评分说明。';
+
+    var list=sc.rows.filter(function(x){ return scoreFilterG==='all' || x.core; });
+    // ---- 矩阵图：X=综合分, Y=总准交率, size=逾期未交量, color=评级 ----
+    var c=getChart('cross_score_chart');
+    if(typeof echarts!=='undefined' && c){
+      var maxOd=Math.max(1,Math.max.apply(null,list.map(function(x){return x.od||0;})));
+      var pts=list.map(function(x){
+        return {name:x.short, value:[x.score, x.rate, x.od], x:x,
+          symbolSize: 12 + Math.sqrt((x.od||0)/maxOd)*26};
+      });
+      c.setOption({
+        backgroundColor:'transparent',
+        tooltip:Object.assign({trigger:'item',formatter:function(p){
+          var x=p.data.x;
+          return '<b>'+x.short+'</b><br/>综合分 '+x.score+'（'+scoreGrade(x.score)+'级）<br/>'
+            +'总准交率 '+x.rate+'%<br/>新品准交率 '+(x.new_rate===null?'—':x.new_rate+'%')+'<br/>'
+            +'逾期未交 '+fmt(x.od)+'<br/>负荷率 '+x.load+'%';}},TT),
+        grid:{left:56,right:28,top:44,bottom:52},
+        xAxis:Object.assign({type:'value',name:'综合分',min:0,max:100,
+          splitLine:{show:true,lineStyle:{color:'#EDF3F1'}}},AX),
+        yAxis:Object.assign({type:'value',name:'总准交率 %',min:0,max:100,
+          splitLine:{show:true,lineStyle:{color:'#EDF3F1'}}},AX),
+        series:[{
+          type:'scatter', data:pts,
+          itemStyle:{color:function(p){return scoreGColor(scoreGrade(p.data.x.score));},opacity:.82},
+          label:{show:true,formatter:function(p){return p.data.name;},position:'top',fontSize:10,color:'#24403C'},
+          markLine:{silent:true,symbol:'none',lineStyle:{type:'dashed',color:'#B8C9C4'},
+            label:{show:false},
+            data:[{xAxis:80},{yAxis:85}]}
+        }],
+        graphic:[
+          {type:'text',right:34,top:8,style:{text:'明星：高综合分 · 高准交',fill:'#0F6E56',fontSize:10}},
+          {type:'text',left:62,top:8,style:{text:'辅导：低准交',fill:'#B45309',fontSize:10}}
+        ]
+      },true);
+      c.off('click');
+      c.on('click',function(p){
+        var x=p.data && p.data.x;
+        if(x) showScoreDetail(x, detail, rows);
+      });
+    }
+
+    // ---- 表格（核心/普通分组，保留原表格，列调整为新品） ----
+    function section(title, arr){
+      if(!arr.length) return '';
+      var h='<div style="margin:10px 0 6px;font-weight:700;color:#0B4F47;font-size:13px">'+title+' · '+arr.length+' 家</div>'
         +'<table style="width:100%;border-collapse:collapse;font-size:12.5px">'
         +'<thead><tr style="background:#E3F4F1;color:#0B5E57">'
-        +'<th style="padding:7px 8px;text-align:left">#</th>'
-        +'<th style="padding:7px 8px;text-align:left">供应商</th>'
-        +'<th style="padding:7px 8px;text-align:right">综合分</th>'
-        +'<th style="padding:7px 8px;text-align:right">准交率</th>'
-        +'<th style="padding:7px 8px;text-align:right">逾期未交</th>'
-        +'<th style="padding:7px 8px;text-align:right">负荷率</th>'
-        +'<th style="padding:7px 8px;text-align:right">款数</th>'
+        +'<th style="padding:7px 8px;text-align:left">#</th><th style="padding:7px 8px;text-align:left">供应商</th>'
+        +'<th style="padding:7px 8px;text-align:right">综合分</th><th style="padding:7px 8px;text-align:right">总准交</th>'
+        +'<th style="padding:7px 8px;text-align:right">新品准交</th><th style="padding:7px 8px;text-align:right">新品在途</th>'
+        +'<th style="padding:7px 8px;text-align:right">逾期未交</th><th style="padding:7px 8px;text-align:right">负荷率</th>'
         +'<th style="padding:7px 8px;text-align:center">评级</th></tr></thead><tbody>';
-      list.forEach(function(x){
-        var g=grade(x.score);
+      arr.forEach(function(x){
+        var g=scoreGrade(x.score);
         h+='<tr data-short="'+x.short+'" style="cursor:pointer;border-bottom:1px solid #EDF3F1">'
           +'<td style="padding:6px 8px;color:var(--muted)">'+x.rank+'</td>'
           +'<td style="padding:6px 8px"><b>'+x.short+'</b></td>'
           +'<td style="padding:6px 8px;text-align:right"><b>'+x.score.toFixed(1)+'</b></td>'
-          +'<td style="padding:6px 8px;text-align:right;color:'+(x.rate>=95?'#0E9E8E':(x.rate>=85?'#1E8FD0':'#E2554F'))+'">'+x.rate.toFixed(1)+'%</td>'
+          +'<td style="padding:6px 8px;text-align:right;color:'+(x.rate>=85?'#0E9E8E':'#E2554F')+'">'+x.rate.toFixed(1)+'%</td>'
+          +'<td style="padding:6px 8px;text-align:right;color:'+(x.new_rate===null?'#8794A8':(x.new_rate>=85?'#0E9E8E':'#E2554F'))+'">'
+          +(x.new_rate===null?'—':x.new_rate.toFixed(1)+'%')+'</td>'
+          +'<td style="padding:6px 8px;text-align:right">'+fmt(x.new_cur||0)+'</td>'
           +'<td style="padding:6px 8px;text-align:right;color:'+(x.od>0?'#E2554F':'var(--muted)')+'">'+fmt(x.od)+'</td>'
           +'<td style="padding:6px 8px;text-align:right">'+x.load+'%</td>'
-          +'<td style="padding:6px 8px;text-align:right;color:var(--muted)">'+x.spu+'</td>'
-          +'<td style="padding:6px 8px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:9px;background:'+gcolor(g)+';color:#fff;font-weight:700">'+g+'</span></td>'
+          +'<td style="padding:6px 8px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:9px;background:'+scoreGColor(g)+';color:#fff;font-weight:700">'+g+'</span></td>'
           +'</tr>';
       });
       return h+'</tbody></table>';
     }
-    var core=sc.rows.filter(function(x){return x.core;});
-    var normal=sc.rows.filter(function(x){return !x.core;});
-    host.innerHTML=section('核心供应商',core)+section('普通供应商',normal);
+    host.innerHTML=section('核心供应商',sc.rows.filter(function(x){return x.core;}))
+      +section('普通供应商',sc.rows.filter(function(x){return !x.core;}));
     host.onclick=function(e){
       var tr=e.target.closest ? e.target.closest('tr[data-short]') : null;
       if(!tr) return;
-      var s=tr.getAttribute('data-short');
-      var sub=overdueRows(rows).filter(function(o){return o.supplier_short===s;});
-      if(!sub.length){ alert(s+' 当前无逾期明细'); return; }
-      openOdSummary(sub, s+' · 逾期明细（综合评估下钻）');
+      var x=sc.rows.filter(function(y){return y.short===tr.getAttribute('data-short');})[0];
+      if(x && detail) showScoreDetail(x, detail, rows);
+    };
+  }
+
+  function showScoreDetail(x, detail, rows){
+    if(!detail) return;
+    var g=scoreGrade(x.score);
+    var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+      +'<b style="font-size:15px;color:#0B4F47">'+x.short+'</b>'
+      +'<span style="padding:2px 9px;border-radius:9px;background:'+scoreGColor(g)+';color:#fff;font-weight:700">'+g+'级</span>'
+      +'<span style="margin-left:auto;color:#8794A8;font-size:11px">'+(x.core?'核心':'普通')+'</span></div>'
+      +'<div style="font-size:22px;font-weight:800;color:'+scoreGColor(g)+';margin-bottom:10px">'+x.score.toFixed(1)+'<span style="font-size:12px;color:#8794A8;font-weight:500"> 综合分</span></div>'
+      +'<div style="border-top:1px solid #DCEAE5;padding-top:8px;margin-bottom:8px"><b style="color:#0B4F47">明细指标</b></div>'
+      +'<table style="width:100%;font-size:12px;border-collapse:collapse">'
+      +'<tr><td style="padding:3px 0;color:#4A5668">总准交率</td><td style="text-align:right"><b>'+x.rate.toFixed(1)+'%</b></td></tr>'
+      +'<tr><td style="padding:3px 0;color:#4A5668">新品准交率</td><td style="text-align:right"><b>'+(x.new_rate===null?'—':x.new_rate.toFixed(1)+'%')+'</b> '+(x.new_den>0?'('+x.new_ok+'/'+x.new_den+')':'无新品')+'</td></tr>'
+      +'<tr><td style="padding:3px 0;color:#4A5668">在途新品</td><td style="text-align:right"><b>'+fmt(x.new_cur||0)+'</b></td></tr>'
+      +'<tr><td style="padding:3px 0;color:#4A5668">逾期未交</td><td style="text-align:right;color:'+(x.od>0?'#E2554F':'#0E9E8E')+'"><b>'+fmt(x.od)+'</b></td></tr>'
+      +'<tr><td style="padding:3px 0;color:#4A5668">负荷率</td><td style="text-align:right"><b>'+x.load+'%</b></td></tr>'
+      +'<tr><td style="padding:3px 0;color:#4A5668">收料样本</td><td style="text-align:right">'+x.recv_rows+' 行</td></tr>'
+      +'</table>'
+      +'<div style="border-top:1px solid #DCEAE5;padding-top:8px;margin:10px 0 6px"><b style="color:#0B4F47">评分说明</b></div>';
+    (x.detail && x.detail.score_parts || []).forEach(function(p){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:2px 0;color:#4A5668">'
+        +'<span>'+p.label+' '+p.value.toFixed(1)+' × '+p.weight+'%</span>'
+        +'<b style="color:#0B4F47">+'+p.contrib.toFixed(1)+'</b></div>';
+    });
+    h+='<div style="margin-top:8px"><button id="score_detail_drill" class="btn sm" style="width:100%">查看逾期明细</button></div>';
+    detail.innerHTML=h;
+    var btn=document.getElementById('score_detail_drill');
+    if(btn) btn.onclick=function(){
+      var sub=(typeof overdueRows==='function'?overdueRows(rows):[]).filter(function(o){return o.supplier_short===x.short;});
+      if(!sub.length){ alert(x.short+' 当前无逾期明细'); return; }
+      if(typeof openOdSummary==='function') openOdSummary(sub, x.short+' · 逾期明细（综合评估下钻）');
     };
   }
 
@@ -3134,6 +3222,9 @@
   });
   document.getElementById('cross_heat_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-m]'); if(!s)return;
     state.crossHeatSeg=s.getAttribute('data-m'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderCross(); });
+  var scoreSeg=document.getElementById('cross_score_seg');
+  if(scoreSeg) scoreSeg.addEventListener('click',function(e){ var s=e.target.closest('[data-g]'); if(!s)return;
+    scoreFilterG=s.getAttribute('data-g'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderCross(); });
   document.getElementById('sup_doc_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-t]'); if(!s)return;
     state.docType=s.getAttribute('data-t'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderSupplier(); });
   document.getElementById('sup_bub_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-d]'); if(!s)return;

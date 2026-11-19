@@ -1,0 +1,14 @@
+{
+  "version": "2.2.1",
+  "date": "2026-11-19",
+  "type": "patch",
+  "title": "供应商评估改波士顿矩阵+新品维度",
+  "description": "移除款数，15%给新品准交率；展示改为四象限气泡矩阵（X综合分/Y总准交），点击显示明细指标与逐项评分说明。VMI数据用11-19新调拨明细更新。",
+  "reason": "用户要求呈现四象限/波士顿矩阵，计算在途新品和新品准交率，点击工厂看明细指标和评分说明。",
+  "impact": "build_supplier_score.py/data.json/index.template.html；评分公式变更，2026-11-19 下午生效。",
+  "data_updated_at": "2026-11-19 14:33",
+  "parent_version": "v2.2.0",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-19 14:54:46"
+}

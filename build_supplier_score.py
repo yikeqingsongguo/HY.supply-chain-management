@@ -2,7 +2,8 @@
 """build_supplier_score.py —— 生成「供应商综合评估」数据，写入 data.json 的 supplier_score 键。
 
 口径（2026-11-19 锁定）：
-  综合分 = 准交率×40% + 逾期控制×30% + 产能负荷×15% + 款数规模×15%
+  综合分 = 准交率×40% + 逾期控制×30% + 产能负荷×15% + 新品准交率×15%
+  （2026-11-19 改：移除款数维度；矩阵 X=综合分，Y=总准交率）
 
   准交率     : 采购部工作台 k3_live.json 的 suppliers（judge_std，工作台口径，照搬不修）
   逾期控制   : 逾期未交量÷当月在途，min-max 反向归一化 × 准交修正系数(0.5+0.5×rate)
@@ -57,6 +58,9 @@ def main():
             "ok": int(s.get("ok") or 0),
             "den": int(s.get("den") or 0),
             "rows": int(s.get("rows") or 0),
+            "new_rate": round(float(s.get("newRate") or 0) * 100, 2),
+            "new_ok": int(s.get("newOk") or 0),
+            "new_den": int(s.get("newDen") or 0),
         }
 
     core = set(d.get("meta", {}).get("core_suppliers", []))
@@ -67,7 +71,7 @@ def main():
                 for c in d.get("capacity", [])}
 
     # 按供应商聚合：当月在途 / 逾期未交 / SPU
-    agg = defaultdict(lambda: {"cur": 0.0, "od": 0.0, "spus": set()})
+    agg = defaultdict(lambda: {"cur": 0.0, "od": 0.0, "spus": set(), "new_cur": 0.0})
     for r in rows:
         s = r[ix["supplier_short"]] or "未标注"
         a = agg[s]
@@ -75,6 +79,10 @@ def main():
         if str(r[ix["month"]] or "") == "11月":
             a["cur"] += rem
         a["spus"].add(str(r[ix["spu"]] or ""))
+        # 在途新品：时效标签含 新品/新变体/爆款
+        timing = str(r[ix.get("timing", 0)] or "") if "timing" in ix else ""
+        if rem > 0 and any(k in timing for k in ("新品", "新变体", "爆款")):
+            a["new_cur"] += rem
         try:
             od = int(r[ix["overdue_days"]] or 0)
         except (TypeError, ValueError):
@@ -102,7 +110,6 @@ def main():
                (lambda v: (v - lo) / (hi - lo) * 100)
 
     f_od = norm([agg[s]["od"] / max(agg[s]["cur"], 1) for s in sups], True)
-    f_sp = norm([len(agg[s]["spus"]) for s in sups])
 
     def load_score(v):
         """产能负荷：85%-100% 满分，过低/过载递减"""
@@ -124,8 +131,9 @@ def main():
         od_score = f_od(a["od"] / max(a["cur"], 1)) * (0.5 + 0.5 * rate / 100)
         load_ratio = a["cur"] / max(capacity.get(s, 0) * ratio, 1)
         ld_score = load_score(load_ratio)
-        sp_score = f_sp(len(a["spus"]))
-        score = rate * 0.40 + od_score * 0.30 + ld_score * 0.15 + sp_score * 0.15
+        # 新品准交率：无新品分母时给中性分 50，不惩罚
+        new_score = o["new_rate"] if o["new_den"] > 0 else 50.0
+        score = rate * 0.40 + od_score * 0.30 + ld_score * 0.15 + new_score * 0.15
         result.append({
             "short": s,
             "core": s in core,
@@ -134,8 +142,21 @@ def main():
             "od": round(a["od"]),
             "cur": round(a["cur"]),
             "load": round(load_ratio * 100),
-            "spu": len(a["spus"]),
+            "new_rate": new_score if o["new_den"] > 0 else None,
+            "new_ok": o["new_ok"],
+            "new_den": o["new_den"],
+            "new_cur": round(a["new_cur"]),
             "recv_rows": o["rows"],
+            "detail": {
+                "rate": round(rate, 1), "od": round(a["od"]), "cur": round(a["cur"]),
+                "load": round(load_ratio * 100), "new_rate": round(new_score, 1),
+                "score_parts": [
+                    {"label": "准交率", "value": round(rate, 1), "weight": 40, "contrib": round(rate * 0.4, 1)},
+                    {"label": "逾期控制", "value": round(od_score, 1), "weight": 30, "contrib": round(od_score * 0.3, 1)},
+                    {"label": "产能负荷", "value": round(ld_score, 1), "weight": 15, "contrib": round(ld_score * 0.15, 1)},
+                    {"label": "新品准交", "value": round(new_score, 1), "weight": 15, "contrib": round(new_score * 0.15, 1)},
+                ],
+            },
         })
 
     result.sort(key=lambda x: (-x["core"], -x["score"]))
@@ -148,7 +169,7 @@ def main():
         "asof_end": k3.get("asof_end", ""),
         "source": k3.get("source", ""),
         "metric": "工作台口径 judge_std（同采购部工作台）",
-        "formula": "准交率40% + 逾期控制30% + 产能负荷15% + 款数规模15%",
+        "formula": "准交率40% + 逾期控制30% + 产能负荷15% + 新品准交15%",
         "load_note": "当月在途 ÷ (月产能 × 剩余天数比)，%d/%d 天" % (left_days, total_days),
         "overall": round(k3.get("overall", {}).get("rate", 0) * 100, 2),
         "rows": result,
