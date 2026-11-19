@@ -119,7 +119,7 @@ def main():
     print("  目录：%s" % DASH)
 
     gi = 0
-    total = 3 if skip_export else 4
+    total = 3 if skip_export else 5
 
     # ---- 1) 金蝶导出 ----
     if not skip_export:
@@ -133,9 +133,21 @@ def main():
             print("  若只是暂时连不上金蝶，可改用：refresh_all.bat skip（用现有数据重建）")
             return 1
 
+    # ---- 1b) 采购部工作台口径准交率（k3_live.json）----
+    # 供应商综合评估的准交率来自工作台，与采购部工作台同源；
+    # 失败不阻断主流程（build.py 会沿用现有 k3_live.json 算评分）
+    k3live_py = r"C:\Users\admin\Desktop\财年指标及数据\build_k3live.py"
+    if os.path.exists(k3live_py):
+        gi += 1
+        step(gi, total, "刷新准交率（build_k3live.py → k3_live.json，工作台同源）")
+        if not run([VENV_PY, k3live_py], "准交率刷新"):
+            print("  准交率刷新失败，沿用现有 k3_live.json（评分表数据可能滞后）")
+    else:
+        gi += 1  # 步骤计数保持一致
+
     # ---- 2) 本地重建 ----
     gi += 1
-    step(gi, total, "重建看板数据（clean.py → build.py，含待下单汇总）")
+    step(gi, total, "重建看板数据（clean.py → build.py，含待下单汇总 + 供应商评分）")
     if not run([BUILD_PY, os.path.join(DASH, "run.py")], "数据重建"):
         print()
         print("  重建失败，未做任何提交。源表未被修改，可直接重试。")

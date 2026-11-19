@@ -19,3 +19,4 @@
 | 2.1.4 | 2026-11-18 | 小修/微调 | 修复iframe内导出Excel无反应 | index.html / index.template.html / console/index.html；数据口径不变。 | [2.1.4](versions/v2.1.4_2026-11-18) |
 | 2.1.5 | 2026-11-18 | 小修/微调 | 顶层代理下载彻底修复iframe导出 | index.html / index.template.html / console/index.html；数据口径不变。 | [2.1.5](versions/v2.1.5_2026-11-18) |
 | 2.1.6 | 2026-11-18 | 小修/微调 | 彻底修复采购员汇总导出：补全跨作用域缺失函数 | 仅 console/index.html；静态扫描确认无其他缺失业务函数。 | [2.1.6](versions/v2.1.6_2026-11-18) |
+| 2.2.0 | 2026-11-19 | 功能/较大改动 | 交叉分析新增供应商综合评估评分表 | index.template.html/data.json/build.py/refresh_all.py/新增build_supplier_score.py；准交率照搬工作台口径，不用含VMI的skill口径。 | [2.2.0](versions/v2.2.0_2026-11-19) |

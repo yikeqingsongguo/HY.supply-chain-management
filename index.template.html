@@ -873,6 +873,14 @@
       <div class="ph-sub">按逾期剩余收料数量降序，点击柱体下钻该供应商逾期明细</div>
       <div class="chart" id="cross_od_bar" style="height:320px"></div>
     </div>
+    <div class="panel" style="grid-column:1/-1" id="cross_score_panel">
+      <div class="card-hd" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h3 style="margin:0">供应商综合评估</h3>
+        <span class="hint" id="cross_score_src">准交率40% · 逾期控制30% · 产能负荷15% · 款数15%</span>
+      </div>
+      <div class="ph-sub" id="cross_score_note">准交率来自采购部工作台（金蝶实时准交率），与工作台同源；在途为 0 的供应商不参与</div>
+      <div id="cross_score_table" style="margin-top:10px"></div>
+    </div>
   </div>
 </section>
 
@@ -2224,6 +2232,61 @@
     });
     c2.off('click'); c2.on('click',function(p){ var d=supArr[p.dataIndex]; var sub=ov.filter(function(o){return o.supplier_short===d.s;});
       openOdSummary(sub, d.s+' · 逾期明细（按 SPU × 订单号）'); });
+
+    // 供应商综合评估表（数据源：k3_live.json 工作台口径准交率，build.py 内联进 DATA.supplier_score）
+    renderSupplierScore(rows);
+  }
+
+  function renderSupplierScore(rows){
+    var host=document.getElementById('cross_score_table');
+    if(!host) return;
+    var sc=window.DATA && window.DATA.supplier_score;
+    if(!sc || !sc.rows || !sc.rows.length){ host.innerHTML='<div class="hint">暂无评分数据（请先运行 build_supplier_score.py）</div>'; return; }
+    var src=document.getElementById('cross_score_src');
+    if(src) src.textContent='数据区间 '+sc.asof_start+' ~ '+sc.asof_end+' · 生成于 '+sc.updated_at+' · 源：金蝶云星空（采购部工作台同源）';
+    var note=document.getElementById('cross_score_note');
+    if(note) note.textContent='口径：'+sc.formula+'；'+sc.load_note+'；准交率与采购部工作台一致；在途为 0 不参与。点击行下钻该供应商逾期明细。';
+    function grade(v){ return v>=90?'A':(v>=80?'B':(v>=70?'C':'D')); }
+    function gcolor(g){ return g==='A'?'#0E9E8E':(g==='B'?'#1E8FD0':(g==='C'?'#E2A33C':'#E2554F')); }
+    function section(title, list){
+      if(!list.length) return '';
+      var h='<div style="margin:10px 0 6px;font-weight:700;color:#0B4F47;font-size:13px">'+title+' · '+list.length+' 家</div>'
+        +'<table style="width:100%;border-collapse:collapse;font-size:12.5px">'
+        +'<thead><tr style="background:#E3F4F1;color:#0B5E57">'
+        +'<th style="padding:7px 8px;text-align:left">#</th>'
+        +'<th style="padding:7px 8px;text-align:left">供应商</th>'
+        +'<th style="padding:7px 8px;text-align:right">综合分</th>'
+        +'<th style="padding:7px 8px;text-align:right">准交率</th>'
+        +'<th style="padding:7px 8px;text-align:right">逾期未交</th>'
+        +'<th style="padding:7px 8px;text-align:right">负荷率</th>'
+        +'<th style="padding:7px 8px;text-align:right">款数</th>'
+        +'<th style="padding:7px 8px;text-align:center">评级</th></tr></thead><tbody>';
+      list.forEach(function(x){
+        var g=grade(x.score);
+        h+='<tr data-short="'+x.short+'" style="cursor:pointer;border-bottom:1px solid #EDF3F1">'
+          +'<td style="padding:6px 8px;color:var(--muted)">'+x.rank+'</td>'
+          +'<td style="padding:6px 8px"><b>'+x.short+'</b></td>'
+          +'<td style="padding:6px 8px;text-align:right"><b>'+x.score.toFixed(1)+'</b></td>'
+          +'<td style="padding:6px 8px;text-align:right;color:'+(x.rate>=95?'#0E9E8E':(x.rate>=85?'#1E8FD0':'#E2554F'))+'">'+x.rate.toFixed(1)+'%</td>'
+          +'<td style="padding:6px 8px;text-align:right;color:'+(x.od>0?'#E2554F':'var(--muted)')+'">'+fmt(x.od)+'</td>'
+          +'<td style="padding:6px 8px;text-align:right">'+x.load+'%</td>'
+          +'<td style="padding:6px 8px;text-align:right;color:var(--muted)">'+x.spu+'</td>'
+          +'<td style="padding:6px 8px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:9px;background:'+gcolor(g)+';color:#fff;font-weight:700">'+g+'</span></td>'
+          +'</tr>';
+      });
+      return h+'</tbody></table>';
+    }
+    var core=sc.rows.filter(function(x){return x.core;});
+    var normal=sc.rows.filter(function(x){return !x.core;});
+    host.innerHTML=section('核心供应商',core)+section('普通供应商',normal);
+    host.onclick=function(e){
+      var tr=e.target.closest ? e.target.closest('tr[data-short]') : null;
+      if(!tr) return;
+      var s=tr.getAttribute('data-short');
+      var sub=overdueRows(rows).filter(function(o){return o.supplier_short===s;});
+      if(!sub.length){ alert(s+' 当前无逾期明细'); return; }
+      openOdSummary(sub, s+' · 逾期明细（综合评估下钻）');
+    };
   }
 
   // ================= 页5 周数据计划 =================

@@ -85,6 +85,13 @@ def main():
     except Exception as e:
         print("⚠️ 管理台数据生成失败:", e)
 
+    # 1b) 供应商综合评估评分（依赖 k3_live.json 准交率 + data.json 订单/产能）
+    try:
+        import build_supplier_score
+        build_supplier_score.main()
+    except Exception as e:
+        print("⚠️ 供应商评分生成失败（沿用现有 supplier_score）:", e)
+
     # 2) 模板 + 数据
     with open(tpl_path, "r", encoding="utf-8") as f:
         tpl = f.read()

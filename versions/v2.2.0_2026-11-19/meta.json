@@ -1,0 +1,14 @@
+{
+  "version": "2.2.0",
+  "date": "2026-11-19",
+  "type": "minor",
+  "title": "交叉分析新增供应商综合评估评分表",
+  "description": "评分表按核心/普通分组，准交率与采购部工作台同源(k3_live.json)，权重40/30/15/15，产能负荷按当月剩余天数折算，含评级与下钻。build.py与refresh_all.py已接入自动刷新。",
+  "reason": "用户要求结合逾期数量、准交率、产能、款数做多维综合评估。",
+  "impact": "index.template.html/data.json/build.py/refresh_all.py/新增build_supplier_score.py；准交率照搬工作台口径，不用含VMI的skill口径。",
+  "data_updated_at": "2026-11-19 12:06",
+  "parent_version": "v2.1.6",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-19 12:18:34"
+}
