@@ -1,0 +1,274 @@
+{
+ "updated_at": "2026-11-19 12:06",
+ "period": "2026-11",
+ "metric": "准交量÷(实际交货+调拨数量)",
+ "standard": "《准交标准》全规则 P0-P5 + VMI七天",
+ "source": "k3cloud-weekly-report",
+ "overall": 97.52,
+ "suppliers": [
+  {
+   "short": "桐叶",
+   "rate": 100.0,
+   "zhun": 8186,
+   "den": 8186,
+   "recv_rows": 78,
+   "vmi_rows": 1
+  },
+  {
+   "short": "宾泰利",
+   "rate": 100.0,
+   "zhun": 3680,
+   "den": 3680,
+   "recv_rows": 18,
+   "vmi_rows": 0
+  },
+  {
+   "short": "战獒",
+   "rate": 100.0,
+   "zhun": 600,
+   "den": 600,
+   "recv_rows": 3,
+   "vmi_rows": 0
+  },
+  {
+   "short": "旺达",
+   "rate": 100.0,
+   "zhun": 2350,
+   "den": 2350,
+   "recv_rows": 9,
+   "vmi_rows": 0
+  },
+  {
+   "short": "宝莎",
+   "rate": 100.0,
+   "zhun": 12201,
+   "den": 12201,
+   "recv_rows": 56,
+   "vmi_rows": 0
+  },
+  {
+   "short": "同光",
+   "rate": 100.0,
+   "zhun": 17891,
+   "den": 17891,
+   "recv_rows": 101,
+   "vmi_rows": 6
+  },
+  {
+   "short": "蒙娜丽莎",
+   "rate": 100.0,
+   "zhun": 400,
+   "den": 400,
+   "recv_rows": 2,
+   "vmi_rows": 0
+  },
+  {
+   "short": "科比",
+   "rate": 100.0,
+   "zhun": 1,
+   "den": 1,
+   "recv_rows": 1,
+   "vmi_rows": 0
+  },
+  {
+   "short": "千度",
+   "rate": 100.0,
+   "zhun": 2000,
+   "den": 2000,
+   "recv_rows": 6,
+   "vmi_rows": 0
+  },
+  {
+   "short": "迪紫彤",
+   "rate": 100.0,
+   "zhun": 2498,
+   "den": 2498,
+   "recv_rows": 18,
+   "vmi_rows": 0
+  },
+  {
+   "short": "森丰",
+   "rate": 100.0,
+   "zhun": 2738,
+   "den": 2738,
+   "recv_rows": 18,
+   "vmi_rows": 0
+  },
+  {
+   "short": "彤润",
+   "rate": 99.98,
+   "zhun": 5515,
+   "den": 5516,
+   "recv_rows": 33,
+   "vmi_rows": 0
+  },
+  {
+   "short": "柏翊",
+   "rate": 99.98,
+   "zhun": 4807,
+   "den": 4808,
+   "recv_rows": 10,
+   "vmi_rows": 26
+  },
+  {
+   "short": "佳俊",
+   "rate": 99.93,
+   "zhun": 17854,
+   "den": 17867,
+   "recv_rows": 178,
+   "vmi_rows": 0
+  },
+  {
+   "short": "顺进",
+   "rate": 99.71,
+   "zhun": 2094,
+   "den": 2100,
+   "recv_rows": 30,
+   "vmi_rows": 0
+  },
+  {
+   "short": "思哲",
+   "rate": 99.47,
+   "zhun": 11514,
+   "den": 11575,
+   "recv_rows": 103,
+   "vmi_rows": 19
+  },
+  {
+   "short": "贝瑞卡",
+   "rate": 99.28,
+   "zhun": 5208,
+   "den": 5246,
+   "recv_rows": 63,
+   "vmi_rows": 4
+  },
+  {
+   "short": "格莱尔",
+   "rate": 98.5,
+   "zhun": 9244,
+   "den": 9385,
+   "recv_rows": 50,
+   "vmi_rows": 14
+  },
+  {
+   "short": "骏航",
+   "rate": 98.24,
+   "zhun": 1560,
+   "den": 1588,
+   "recv_rows": 50,
+   "vmi_rows": 0
+  },
+  {
+   "short": "拿可",
+   "rate": 98.12,
+   "zhun": 16723,
+   "den": 17043,
+   "recv_rows": 212,
+   "vmi_rows": 8
+  },
+  {
+   "short": "唯亮",
+   "rate": 98.04,
+   "zhun": 4600,
+   "den": 4692,
+   "recv_rows": 37,
+   "vmi_rows": 0
+  },
+  {
+   "short": "新动力",
+   "rate": 97.92,
+   "zhun": 5601,
+   "den": 5720,
+   "recv_rows": 28,
+   "vmi_rows": 0
+  },
+  {
+   "short": "润峰",
+   "rate": 97.91,
+   "zhun": 5445,
+   "den": 5561,
+   "recv_rows": 41,
+   "vmi_rows": 7
+  },
+  {
+   "short": "嘉韵",
+   "rate": 97.74,
+   "zhun": 3721,
+   "den": 3807,
+   "recv_rows": 25,
+   "vmi_rows": 0
+  },
+  {
+   "short": "明冠",
+   "rate": 95.54,
+   "zhun": 5484,
+   "den": 5740,
+   "recv_rows": 62,
+   "vmi_rows": 0
+  },
+  {
+   "short": "泓扬",
+   "rate": 95.48,
+   "zhun": 6235,
+   "den": 6530,
+   "recv_rows": 103,
+   "vmi_rows": 1
+  },
+  {
+   "short": "忆恩",
+   "rate": 94.89,
+   "zhun": 20645,
+   "den": 21757,
+   "recv_rows": 115,
+   "vmi_rows": 13
+  },
+  {
+   "short": "名狼",
+   "rate": 94.88,
+   "zhun": 15716,
+   "den": 16564,
+   "recv_rows": 100,
+   "vmi_rows": 5
+  },
+  {
+   "short": "艾迪比",
+   "rate": 94.84,
+   "zhun": 2903,
+   "den": 3061,
+   "recv_rows": 52,
+   "vmi_rows": 0
+  },
+  {
+   "short": "益滢",
+   "rate": 94.63,
+   "zhun": 2748,
+   "den": 2904,
+   "recv_rows": 31,
+   "vmi_rows": 2
+  },
+  {
+   "short": "浩川",
+   "rate": 93.37,
+   "zhun": 18008,
+   "den": 19286,
+   "recv_rows": 169,
+   "vmi_rows": 9
+  },
+  {
+   "short": "骏亿",
+   "rate": 91.87,
+   "zhun": 3347,
+   "den": 3643,
+   "recv_rows": 69,
+   "vmi_rows": 6
+  },
+  {
+   "short": "泽运",
+   "rate": 90.49,
+   "zhun": 2807,
+   "den": 3102,
+   "recv_rows": 37,
+   "vmi_rows": 0
+  }
+ ]
+}

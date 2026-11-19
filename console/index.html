@@ -752,6 +752,14 @@ table.wk{width:100%;border-collapse:collapse;font-size:12.5px}
 table.wk.wk-items{table-layout:fixed}
 table.wk.wk-items td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 table.wk.wk-items td.td-remark,table.wk.wk-items td.spec-cell{white-space:nowrap}
+/* 下钻弹窗 · SPU 层：字号放大 + SPU 灰底等宽标签 + 数量品牌蓝加粗，和 SKU 层同一套视觉语言 */
+table.wk.wk-spu-level{font-size:13.5px}
+table.wk.wk-spu-level thead th{font-size:13px;font-weight:600;color:#0B5E57;background:#DCF1EC;
+  border-bottom:1px solid #BFE6DF;padding:9px 10px}
+table.wk.wk-spu-level tbody td{padding:9px 10px;color:#2B3E44;border-bottom:1px solid #EEF4F2}
+table.wk.wk-spu-level tbody tr:hover{background:#F1FAF7}
+table.wk.wk-spu-level .wk-spu-cell{font-size:12.5px;padding:3px 9px}
+table.wk.wk-spu-level .wk-qty-strong{font-size:14.5px}
 table.wk th{text-align:left;color:var(--muted);font-weight:500;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 table.wk td{padding:7px 8px;border-bottom:1px solid #F2F2F2;vertical-align:middle}
 table.wk tbody tr.wk-row{cursor:pointer}
@@ -1051,8 +1059,9 @@ table.wk td b{white-space:nowrap}
     .wk-td-stat b{ color:#1f2a44; font-weight:700; margin-right:2px; }
     .wk-td-body{ flex:1 1 auto; min-height:0; max-height:none; overflow:auto; padding:0; }
     /* 备注标签 + SPU 分组行 */
-    .wk-spu-cell{ font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:11.5px;
-      background:#F1F5F9; color:#475569; padding:2px 7px; border-radius:4px; display:inline-block; min-width:42px; text-align:center; }
+    .wk-spu-cell{ font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:11.5px; font-weight:600;
+      background:#E4EBF3; color:#2F4256; border:1px solid #CFDAE6; letter-spacing:.02em;
+      padding:2px 8px; border-radius:5px; display:inline-block; min-width:44px; text-align:center; }
     .wk-qty-strong{ color:#1E8FD0; font-weight:800; font-variant-numeric:tabular-nums; }
     .wk-doc{ max-width:62px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .wk-expect{ font-size:11.5px; color:#4A5668; white-space:nowrap; }
@@ -1066,6 +1075,12 @@ table.wk td b{white-space:nowrap}
     #wkTrendTable.spu-mode thead th{ font-size:13.5px; font-weight:600; padding:10px 10px; }
     #wkTrendTable.spu-mode .wk-facet-btn{ font-size:13.5px; font-weight:600; padding:10px 8px; }
     #wkTrendTable.spu-mode .wk-caret{ font-size:12px; }
+    /* 数据行：原来沿用 12.5px + 浅灰，看着又小又淡 */
+    #wkTrendTable.spu-mode tbody td{ font-size:13.5px; padding:9px 10px; color:#2B3E44; }
+    #wkTrendTable.spu-mode tbody tr:hover{ background:#F1FAF7; }
+    #wkTrendTable.spu-mode tbody td .wk-spu-cell{ font-size:12.5px; padding:3px 9px; }
+    #wkTrendTable.spu-mode tbody td .wk-qty-strong{ font-size:14.5px; }
+    #wkTrendTable.spu-mode tbody td .wk-rmk{ font-size:11.5px; }
     .wk-td-table{ width:100%; min-width:1180px; border-collapse:collapse; font-size:13px; }
     .wk-td-table thead th{ position:sticky; top:0; background:#eef3fb; color:#41506b; text-align:left; padding:10px 12px; font-weight:600; white-space:nowrap; border-bottom:1px solid #dde5f1; }
     .wk-td-table tbody td{ padding:9px 12px; border-bottom:1px solid #f0f3f8; color:#2b3548; white-space:nowrap; }
@@ -19717,6 +19732,17 @@ window.__test = {
   batchSet: batchSet
 };
 
+/* 跨 script 块桥接：第二个块（周计划/待下单 IIFE）是独立作用域，
+   访问不到本块内的 fmtYMD / renderStats / toast / refreshFoldSums。
+   不桥接时调用会抛 ReferenceError，而外层多数包了 try/catch 会静默吞掉，
+   表现为「点了没反应」「图不动」，极难定位。 */
+window.__core = {
+  fmtYMD: fmtYMD,
+  renderStats: renderStats,
+  toast: toast,
+  refreshFoldSums: refreshFoldSums
+};
+
 })();
 </script>
 <nav class="bottom-nav" id="bottomNav">
@@ -19731,6 +19757,11 @@ window.__test = {
 <script src="../vendor/echarts.min.js"></script>
 <script id="dash-auto-js">
 (function(){
+  /* 从第一个 script 块桥接过来的公共函数（见块0 的 window.__core） */
+  var _CORE = window.__core || {};
+  var fmtYMD = _CORE.fmtYMD;
+  var renderStats = _CORE.renderStats;
+  var refreshFoldSums = _CORE.refreshFoldSums;
   var WK = null;
   var WK_RAW = [];            // 服务端原始分组（不被本地映射污染）
   var WK_SCOPE = 'all';
@@ -19850,7 +19881,7 @@ window.__test = {
       saveLocal();
       rebuild(); wkRender(); fillAssignSelect();
     }
-    try{ toast('已补录：' + (short || buyer || k) + '，待下单已同步'); }catch(e){}
+    try{ wkToast('已补录：' + (short || buyer || k) + '，待下单已同步'); }catch(e){}
   };
 
   function loadApply(){
@@ -20150,11 +20181,11 @@ window.__test = {
   }
   var wkTrendCurSpu = '';   // 第二层：当前下钻的 SPU（空 = 第一层 SPU 汇总表）
   var SPU_HEAD_HTML = '<tr>'
-    + '<th style="width:66px"><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>'
-    + '<th style="width:92px"><button type="button" class="wk-facet-btn" data-f="qty">待下单量<b class="wk-caret">▾</b></button></th>'
-    + '<th style="width:140px"><button type="button" class="wk-facet-btn" data-f="name">物料名称<b class="wk-caret">▾</b></button></th>'
-    + '<th style="width:86px"><button type="button" class="wk-facet-btn" data-f="buyer">采购员<b class="wk-caret">▾</b></button></th>'
-    + '<th style="width:104px"><button type="button" class="wk-facet-btn" data-f="sup">供应商<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:82px"><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:104px"><button type="button" class="wk-facet-btn" data-f="qty">待下单量<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:17%"><button type="button" class="wk-facet-btn" data-f="name">物料名称<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:88px"><button type="button" class="wk-facet-btn" data-f="buyer">采购员<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:22%"><button type="button" class="wk-facet-btn" data-f="sup">供应商<b class="wk-caret">▾</b></button></th>'
     + '<th style="width:104px"><button type="button" class="wk-facet-btn" data-f="mark">标记<b class="wk-caret">▾</b></button></th>'
     + '<th style="width:60px">SKU 数</th><th style="width:52px">行数</th>'
     + '<th style="width:52px"><button type="button" class="wk-facet-btn" data-f="doc">单据<b class="wk-caret">▾</b></button></th>'
@@ -20163,7 +20194,6 @@ window.__test = {
     + '<th><button type="button" class="wk-facet-btn" data-f="sku">SKU<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="name">物料名称<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="qty">剩余数量<b class="wk-caret">▾</b></button></th>'
-    + '<th><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="spec">规格<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="buyer">采购员<b class="wk-caret">▾</b></button></th>'
     + '<th style="width:62px"><button type="button" class="wk-facet-btn" data-f="doc">单号<b class="wk-caret">▾</b></button></th>'
@@ -20225,7 +20255,6 @@ window.__test = {
           + '<td class="wk-clip" title="'+esc(it.sku)+'">'+esc(it.sku)+'</td>'
           + '<td class="wk-clip" title="'+esc(it.name)+'">'+esc(it.name||'—')+'</td>'
           + '<td class="wk-num wk-qty-strong" title="剩余数量">'+nf(it.qty||0)+'</td>'
-          + '<td class="wk-spu-cell" title="SPU '+(it.spu||'—')+'">'+(it.spu||'—')+'</td>'
           + '<td class="wk-clip" title="'+esc(it.spec)+'">'+esc(it.spec||'—')+'</td>'
           + '<td class="wk-clip" title="'+esc(it.buyer)+'">'+(it.buyer?esc(it.buyer):'—')+'</td>'
           + '<td class="wk-clip wk-doc" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
@@ -20277,15 +20306,15 @@ window.__test = {
       var mark = (nNew ? '<span class="wk-rmk wk-rmk-new">新品 '+nNew+'</span>' : '')
         + (nVar ? '<span class="wk-rmk wk-rmk-var">新变体 '+nVar+'</span>' : '');
       return '<tr class="wk-row wk-spu-row" data-spu="'+esc(k)+'" style="cursor:pointer" title="点击查看该 SPU 的 SKU 明细">'
-        + '<td><b>'+esc(k)+'</b></td>'
-        + '<td style="text-align:right;font-variant-numeric:tabular-nums"><b>'+nf(g.qty)+'</b></td>'
+        + '<td><span class="wk-spu-cell" title="SPU '+esc(k)+'">'+esc(k)+'</span></td>'
+        + '<td style="text-align:right"><span class="wk-qty-strong">'+nf(g.qty)+'</span></td>'
         + '<td title="'+esc(nm)+'">'+esc(nm)+'</td>'
-        + '<td style="color:#4A5668">'+esc(names(g.buyers))+'</td>'
-        + '<td style="color:#4A5668">'+esc(names(g.sups))+(un?' <span style="color:#C0392B;font-size:11px">含未匹配'+un+'</span>':'')+'</td>'
-        + '<td>'+(mark || '<span style="color:#B4B2A9">—</span>')+'</td>'
-        + '<td style="text-align:right">'+Object.keys(g.skus).length+'</td>'
-        + '<td style="text-align:right;color:var(--muted)">'+g.rows+'</td>'
-        + '<td style="text-align:right;color:var(--muted)">'+Object.keys(g.docs).length+'</td>'
+        + '<td>'+esc(names(g.buyers))+'</td>'
+        + '<td>'+esc(names(g.sups))+(un?' <span style="color:#C0392B;font-size:11.5px">含未匹配'+un+'</span>':'')+'</td>'
+        + '<td>'+(mark || '<span style="color:#9AA5AF">—</span>')+'</td>'
+        + '<td style="text-align:right;font-variant-numeric:tabular-nums">'+Object.keys(g.skus).length+'</td>'
+        + '<td style="text-align:right;color:#6B7A8C">'+g.rows+'</td>'
+        + '<td style="text-align:right;color:#6B7A8C">'+Object.keys(g.docs).length+'</td>'
         + '<td class="wk-arrow">▸</td><td></td></tr>';
     }).join('');
     if(!tb.__spuBound){
@@ -20380,6 +20409,8 @@ window.__test = {
     document.body.classList.add('wk-drawer-open');
     if(dr) dr.setAttribute('aria-hidden','false');
   }
+  /* 暴露给自动化测试与跨块调用（点击柱子走的是图表内部回调，headless 下合成事件不稳定） */
+  window.__openWkTrendDrawer = openWkTrendDrawer;
   function closeWkTrendDrawer(){
     closeWkFacet();
     var dr = document.getElementById('wk_trend_drawer');
@@ -20529,6 +20560,8 @@ window.__test = {
     opts = opts || {};
     var f = opts.filters || {};
     var cols = COLS.slice();
+    /* SPU 已锁定的明细层（供应商→SPU→SKU）整表同 SPU，保留该列纯属噪音 */
+    if(opts.hideSpu) cols = cols.filter(function(c){ return c.key !== 'spu'; });
     if(opts.showSup){
       var di = 0;
       cols.forEach(function(c,i){ if(c.key === 'doc') di = i; });
@@ -20587,7 +20620,7 @@ window.__test = {
     return h;
   }
 
-  function wkItemsHtml(sup){
+  function wkItemsHtml(sup, opts){
     var items = (sup.items||[]).slice().sort(function(a,b){ return (b.qty||0)-(a.qty||0); });
     var f = WK_FIELD[sup.short] || {};
     COLS.forEach(function(c){
@@ -20595,7 +20628,7 @@ window.__test = {
       var set = f[c.key];
       if(set && set.size) items = items.filter(function(it){ return set.has(String(it[c.key]||'')); });
     });
-    return wkDetailHtml(items, { filters: f });
+    return wkDetailHtml(items, { filters: f, hideSpu: !!(opts && opts.hideSpu) });
   }
 
   /* 勾选 / 全选 / 指定 —— 供应商详情与采购员详情共用 */
@@ -20786,7 +20819,7 @@ window.__test = {
     bar.appendChild(lb); bd.appendChild(bar);
     var fakeSup = { short: sup.short, name: sup.name, items: items };
     var tw = document.createElement('div'); tw.className = 'tw';
-    tw.innerHTML = wkItemsHtml(fakeSup);
+    tw.innerHTML = wkItemsHtml(fakeSup, { hideSpu: true });
     bd.appendChild(tw);
     bindItems(tw, fakeSup);
     WK_DETAIL = { short: sup.short, tw: tw, _mask: mask };
@@ -20832,10 +20865,10 @@ window.__test = {
     lb.textContent = (headTitle || '') + ' 点 SPU 行查看该款 SKU 明细';
     bar.appendChild(lb); bd.appendChild(bar);
     var tw = document.createElement('div'); tw.className = 'tw';
-    tw.innerHTML = '<table class="wk"><thead><tr><th>SPU</th>'
-      + '<th style="text-align:right;width:92px">待下单量</th>'
+    tw.innerHTML = '<table class="wk wk-spu-level"><thead><tr><th style="width:82px">SPU</th>'
+      + '<th style="text-align:right;width:104px">待下单量</th>'
       + '<th style="width:150px">物料名称</th>'
-      + '<th style="width:88px">采购员</th><th>供应商</th>'
+      + '<th style="width:96px">采购员</th><th>供应商</th>'
       + '<th style="text-align:right;width:64px">SKU 数</th>'
       + '<th style="text-align:right;width:56px">行数</th>'
       + '<th style="text-align:right;width:56px">单据</th><th style="width:22px"></th></tr></thead><tbody>'
@@ -20848,14 +20881,14 @@ window.__test = {
           var bl = Object.keys(buyers).join('、') || '—';
           var sn = sup.name || sup.short || '—';
           return '<tr class="wk-row wk-spu-row" data-spu="'+esc(k)+'" style="cursor:pointer" title="点击查看该 SPU 的 SKU 明细">'
-            + '<td><b>'+esc(k)+'</b></td>'
-            + '<td style="text-align:right;font-variant-numeric:tabular-nums"><b>'+nf(g.qty)+'</b></td>'
+            + '<td><span class="wk-spu-cell" title="SPU '+esc(k)+'">'+esc(k)+'</span></td>'
+            + '<td style="text-align:right"><span class="wk-qty-strong">'+nf(g.qty)+'</span></td>'
             + '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</td>'
-            + '<td style="color:var(--muted)">'+esc(bl)+'</td>'
-            + '<td style="color:var(--muted)">'+esc(sn)+'</td>'
-            + '<td style="text-align:right">'+Object.keys(g.skus).length+'</td>'
-            + '<td style="text-align:right;color:var(--muted)">'+g.rows+'</td>'
-            + '<td style="text-align:right;color:var(--muted)">'+Object.keys(g.docs).length+'</td>'
+            + '<td>'+esc(bl)+'</td>'
+            + '<td>'+esc(sn)+'</td>'
+            + '<td style="text-align:right;font-variant-numeric:tabular-nums">'+Object.keys(g.skus).length+'</td>'
+            + '<td style="text-align:right;color:#6B7A8C">'+g.rows+'</td>'
+            + '<td style="text-align:right;color:#6B7A8C">'+Object.keys(g.docs).length+'</td>'
             + '<td class="wk-arrow">▸</td></tr>';
         }).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:14px">无数据</td></tr>')
       + '</tbody></table>';
@@ -21404,14 +21437,18 @@ window.__test = {
     try{ if(localStorage.getItem(K)==='1') set(true); }catch(e){}
   }
 
-  function boot(){ loadApply(); loadWk(); bindUnmatchFold(); bindFoldSums(); }
+  function boot(){
+  loadApply(); loadWk(); bindUnmatchFold();
+  try{ bindFoldSums(); }catch(e){}
+}
 function bindFoldSums(){
+  var RF = function(){ try{ if(refreshFoldSums) refreshFoldSums(); }catch(e){} };
   Array.prototype.forEach.call(document.querySelectorAll('input[name="checkMode"]'), function(r){
-    r.addEventListener('change', refreshFoldSums);
+    r.addEventListener('change', RF);
   });
   ['optPrefixes','optApplyEx','optCloseEx','optOrderEx'].forEach(function(id){
     var e = document.getElementById(id);
-    if(e) e.addEventListener('input', refreshFoldSums);
+    if(e) e.addEventListener('input', RF);
   });
 }
   if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); }

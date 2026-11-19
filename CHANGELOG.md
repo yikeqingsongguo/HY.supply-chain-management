@@ -9,6 +9,31 @@
 
 ---
 
+## v2.4.1 · 2026-11-19（晚）
+
+### 三个功能性 bug（都是「点了没反应」级别）
+- **待下单趋势筛日期不刷新 + 点不开明细**：`fmtYMD` 定义在第 1 个 script 块，
+  `wkTrendAgg()` 在第 2 个块。一输入起止日期就走进「铺连续日期」分支 → `ReferenceError`，
+  被 `applyTrendDate` 的 `try{...}catch(e){}` **静默吞掉**。同一个异常也让
+  `openWkTrendDrawer` 第一行的 `wkTrendAgg()` 抛错，所以点柱子同样无声失败。一个 bug 两个症状。
+  修法：块0 末尾建 `window.__core = { fmtYMD, renderStats, toast, refreshFoldSums }`，块1 顶部取别名。
+- **交叉分析所有指标点开都提示「无订单明细」**：`renderSupplierScore(window.DATA.orders_rows)`——
+  但 `orders_rows` 在启动时已被合并成 `DATA.orders` 并删除，读到的永远是空数组。
+  改为传 `ORDERS`（还原后的对象数组）。
+- **`refreshFoldSums is not defined` 中断 boot()**：上一版把函数放块0、调用放块1。
+  已桥接 + `bindFoldSums()` 包 try/catch，任何一步失败不再阻断后续初始化。
+
+### 界面（按用户明确指正）
+- **待下单趋势抽屉 · SKU 明细层去掉 SPU 列**：该层已锁定单一 SPU，整列同值属噪音。
+- **待下单趋势抽屉 · SPU 汇总层**：表头/数据行字号加大（数据行 13.5px）、文字颜色加深；
+  SPU 用灰蓝胶囊标签（#E4EBF3 + 边框 + 600 字重），待下单量品牌蓝加粗 —— 两者一眼区分；
+  物料名称/供应商改百分比列宽，右侧不再留近 1/3 空白。
+- **供应商详情 SPU 层**：同样上胶囊 + 蓝粗数量（新增 `table.wk.wk-spu-level` 样式），
+  表头 13px 加粗，行高放宽。
+- **供应商详情 SKU 层**：同样去掉 SPU 列（`wkDetailHtml` 新增 `hideSpu` 选项）。
+
+---
+
 ## v2.2.5 · 2026-11-19（深夜）
 
 ### 评分口径（用户明确要求）

@@ -2351,8 +2351,11 @@
   function renderCross(){
     var sc=window.DATA && window.DATA.supplier_score;
     if(!sc || !sc.rows || !sc.rows.length) return;
-    renderCrossKpis(sc, window.DATA.orders_rows || []);
-    renderSupplierScore(window.DATA.orders_rows || []);
+    /* 必须用还原后的对象数组 ORDERS：data.json 用列式存储（orders_cols+orders_rows），
+       启动时已合并成 DATA.orders 并删掉 orders_rows，继续读 orders_rows 只能拿到 []，
+       导致交叉分析所有指标点开都提示「无订单明细」。 */
+    renderCrossKpis(sc, ORDERS);
+    renderSupplierScore(ORDERS);
   }
 
   function renderCrossKpis(sc, orderRows){
