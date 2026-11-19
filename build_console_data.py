@@ -311,6 +311,7 @@ def build():
             "doc": doc,
             "ling": str(g(r, "领星创建人") or "").strip(),
             "date": (to_date(g(r, "创建日期")) or "").isoformat() if to_date(g(r, "创建日期")) else "",
+            "expect": (to_date(g(r, "期望到货日期")) or "").isoformat() if to_date(g(r, "期望到货日期")) else "",
             "apply_qty": round(num(g(r, "申请数量")), 1),
             "approved_qty": round(num(g(r, "批准数量")), 1),
             "ordered_qty": round(num(g(r, "订单数量")), 1),

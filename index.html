@@ -2214,7 +2214,7 @@ window.DATA = {"meta":{"updated_at":"2026-11-19 16:48","source_po":"采购订单
     var srcEl=document.getElementById('cross_score_src');
     if(srcEl && sc.formula) srcEl.setAttribute('title', sc.formula+'；'+sc.load_note+'；准交率与采购部工作台一致；在途为 0 不参与');
 
-    var list=sc.rows.filter(function(x){ return scoreFilterG==='all' || x.core; });
+    var list=sc.rows.filter(function(x){ return (x.remain||0)>=6000 && (scoreFilterG==='all' || x.core); });
     // ---- 矩阵图：X=综合分, Y=总准交率, size=逾期未交量, color=评级 ----
     var c=getChart('cross_score_chart');
     if(typeof echarts!=='undefined' && c){
@@ -2285,8 +2285,9 @@ window.DATA = {"meta":{"updated_at":"2026-11-19 16:48","source_po":"采购订单
       });
       return h+'</tbody></table>';
     }
-    host.innerHTML=section('核心供应商',sc.rows.filter(function(x){return x.core;}))
-      +section('普通供应商',sc.rows.filter(function(x){return !x.core;}));
+    var tableRows=sc.rows.filter(function(x){return (x.remain||0)>=6000;});
+    host.innerHTML=section('核心供应商',tableRows.filter(function(x){return x.core;}))
+      +section('普通供应商',tableRows.filter(function(x){return !x.core;}));
     host.onclick=function(e){
       var tr=e.target.closest ? e.target.closest('tr[data-short]') : null;
       if(!tr) return;
@@ -2381,12 +2382,12 @@ window.DATA = {"meta":{"updated_at":"2026-11-19 16:48","source_po":"采购订单
   function renderCrossKpis(sc, orderRows){
     var host=document.getElementById('cross_kpis');
     if(!host) return;
-    var rows=sc.rows;
+    var rows=sc.rows.filter(function(x){return (x.remain||0)>=6000;});  // 矩阵页：总在途<6000 不统计
     function sum(k){ return rows.reduce(function(s,x){return s+(x[k]||0);},0); }
     var cards=[
       {k:'new_spu_cnt', label:'新品款数', v:sum('new_spu_cnt'), unit:'款', color:'#8B7FD4'},
       {k:'doc_cnt',     label:'总订单数', v:sum('doc_cnt'), unit:'单', color:'#1E8FD0'},
-      {k:'remain',      label:'剩余收料', v:sum('remain'), unit:'件', color:'#0E9E8E'},
+      {k:'remain',      label:'在途订单数量', v:sum('remain'), unit:'件', color:'#0E9E8E'},
       {k:'cur',         label:'本月在途', v:sum('cur'), unit:'件', color:'#E2A33C'},
       {k:'next',        label:'下月在途', v:sum('next'), unit:'件', color:'#4FD1C5'},
     ];

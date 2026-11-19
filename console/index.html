@@ -790,7 +790,7 @@ table.wk-items td.wk-ck input{width:15px;height:15px;cursor:pointer}
 .wk-duo>.card>.card-hd{flex:none}
 .wk-duo>.card>.card-bd{flex:1 1 auto;min-height:0;overflow:auto}
 .wk-duo>.card>.card-bd>table.wk{margin:0}
-.wk-duo>.card>.card-bd>table.wk thead th{position:sticky;top:0;z-index:3;background:#DCF1EC;color:#0B5E57;border-bottom:1px solid #BFE6DF;box-shadow:inset 0 -1px 0 #BFE6DF}
+.wk-duo>.card>.card-bd>table.wk thead th{position:sticky;top:0;z-index:6;background:#DCF1EC;color:#0B5E57;border-bottom:1px solid #BFE6DF;box-shadow:0 2px 4px rgba(11,94,87,.10);height:34px;padding:7px 8px;line-height:20px;white-space:nowrap}
 @media (max-width:1180px){.wk-duo{grid-template-columns:1fr}.wk-duo>.card{max-height:none}}
 .wk-assign{position:absolute;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(41,79,74,.28);width:380px;padding:20px 22px}
 /* 指定供应商：简称联想候选 */
@@ -1041,6 +1041,11 @@ table.wk td b{white-space:nowrap}
     .wk-td-stat b{ color:#1f2a44; font-weight:700; margin-right:2px; }
     .wk-td-body{ flex:1 1 auto; min-height:0; max-height:none; overflow:auto; padding:0; }
     /* 备注标签 + SPU 分组行 */
+    .wk-spu-cell{ font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:11.5px;
+      background:#F1F5F9; color:#475569; padding:2px 7px; border-radius:4px; display:inline-block; min-width:42px; text-align:center; }
+    .wk-qty-strong{ color:#1E8FD0; font-weight:800; font-variant-numeric:tabular-nums; }
+    .wk-doc{ max-width:62px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .wk-expect{ font-size:11.5px; color:#4A5668; white-space:nowrap; }
     .wk-rmk{ display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; background:#EDF1F6; color:#6C7A8E; }
     .wk-rmk-new{ background:#FAC775; color:#633806; font-weight:700; }
     .wk-rmk-var{ background:#CECBF6; color:#3C3489; font-weight:700; }
@@ -1450,6 +1455,26 @@ table.wk td b{white-space:nowrap}
           <div class="field"><label>关闭状态排除词</label><input class="inp" id="optCloseEx" placeholder="已关闭"></div>
           <div class="field"><label>订单状态排除词</label><input class="inp" id="optOrderEx" placeholder="取消,作废,关闭,草稿"></div>
         </div>
+      </div>
+      <div class="card-bd" style="padding-top:0;border-top:1px dashed var(--line)">
+        <div class="rule mt12" style="background:#FFF;border:1px solid var(--line);padding:10px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        </div>
+        <div class="btn-row mt12">
+          <button class="btn pri" id="btnRunCheck">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            开始核查
+          </button>
+          <button class="btn" id="btnResetOpt">恢复默认规则</button>
+          <span class="spacer" style="flex:1"></span>
+          <button class="btn" id="btnExportCheckX">导出 Excel</button>
+          <button class="btn" id="btnExportCheckC">导出 CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd" style="gap:8px"><h3 style="margin:0">创建日期筛选</h3></div>
+      <div class="card-bd">
         <div class="grid g3" style="margin-top:12px">
           <div class="field"><label>日期快捷</label>
             <select class="inp" id="optDateQuick">
@@ -1464,20 +1489,6 @@ table.wk td b{white-space:nowrap}
           </div>
           <div class="field"><label>创建日期起</label><input class="inp" type="date" id="optDateFrom"></div>
           <div class="field"><label>创建日期止</label><input class="inp" type="date" id="optDateTo"></div>
-        </div>
-      </div>
-      <div class="card-bd" style="padding-top:0;border-top:1px dashed var(--line)">
-        <div class="rule mt12" style="background:#FFF;border:1px solid var(--line);padding:10px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        </div>
-        <div class="btn-row mt12">
-          <button class="btn pri" id="btnRunCheck">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            开始核查
-          </button>
-          <button class="btn" id="btnResetOpt">恢复默认规则</button>
-          <span class="spacer" style="flex:1"></span>
-          <button class="btn" id="btnExportCheckX">导出 Excel</button>
-          <button class="btn" id="btnExportCheckC">导出 CSV</button>
         </div>
       </div>
     </div>
@@ -1675,16 +1686,17 @@ table.wk td b{white-space:nowrap}
         <thead>
           <tr>
             <th><button type="button" class="wk-facet-btn" data-f="sku">SKU<b class="wk-caret">▾</b></button></th>
-            <th><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>
             <th><button type="button" class="wk-facet-btn" data-f="name">物料名称<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="qty">剩余数量<b class="wk-caret">▾</b></button></th>
+            <th><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>
             <th><button type="button" class="wk-facet-btn" data-f="spec">规格<b class="wk-caret">▾</b></button></th>
             <th><button type="button" class="wk-facet-btn" data-f="buyer">采购员<b class="wk-caret">▾</b></button></th>
-            <th><button type="button" class="wk-facet-btn" data-f="doc">申请单单号<b class="wk-caret">▾</b></button></th>
+            <th style="width:62px"><button type="button" class="wk-facet-btn" data-f="doc">单号<b class="wk-caret">▾</b></button></th>
             <th><button type="button" class="wk-facet-btn" data-f="sup">供应商名称<b class="wk-caret">▾</b></button></th>
             <th><button type="button" class="wk-facet-btn" data-f="ling">领星创建人<b class="wk-caret">▾</b></button></th>
-            <th style="min-width:78px">备注</th>
-            <th><button type="button" class="wk-facet-btn" data-f="qty">剩余数量<b class="wk-caret">▾</b></button></th>
+            <th style="width:96px">期望到货</th>
             <th><button type="button" class="wk-facet-btn" data-f="apply">申请数量<b class="wk-caret">▾</b></button></th>
+            <th style="min-width:78px">备注</th>
           </tr>
         </thead>
         <tbody id="wkTrendDrawerBody"></tbody>
@@ -19991,6 +20003,7 @@ window.__test = {
     var box = document.getElementById('wk_trend_chart');
     if(!box) return;
     if(!wkTrendChart){ wkTrendChart = echarts.init(box); }
+    wkTrendChart.off('click');   // 防止每次筛选重绘后重复绑定，导致点击被多次触发而失效
     wkTrendChart.setOption({
       tooltip:{ trigger:'axis',
         formatter:function(ps){
@@ -20115,14 +20128,15 @@ window.__test = {
     + '<th style="width:24px"></th><th></th></tr>';   // 最后一列吸收剩余 => 留白在末尾
   var SKU_HEAD_HTML = '<tr>'
     + '<th><button type="button" class="wk-facet-btn" data-f="sku">SKU<b class="wk-caret">▾</b></button></th>'
-    + '<th><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="name">物料名称<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="qty">剩余数量<b class="wk-caret">▾</b></button></th>'
+    + '<th><button type="button" class="wk-facet-btn" data-f="spu">SPU<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="spec">规格<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="buyer">采购员<b class="wk-caret">▾</b></button></th>'
-    + '<th><button type="button" class="wk-facet-btn" data-f="doc">申请单单号<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:62px"><button type="button" class="wk-facet-btn" data-f="doc">单号<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="sup">供应商名称<b class="wk-caret">▾</b></button></th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="ling">领星创建人<b class="wk-caret">▾</b></button></th>'
-    + '<th><button type="button" class="wk-facet-btn" data-f="qty">剩余数量<b class="wk-caret">▾</b></button></th>'
+    + '<th style="width:96px">期望到货</th>'
     + '<th><button type="button" class="wk-facet-btn" data-f="apply">申请数量<b class="wk-caret">▾</b></button></th>'
     + '<th style="min-width:78px">备注</th></tr>';
 
@@ -20176,14 +20190,15 @@ window.__test = {
         var it=r.it, sp=r.sup;
         return '<tr>'
           + '<td class="wk-clip" title="'+esc(it.sku)+'">'+esc(it.sku)+'</td>'
-          + '<td class="wk-clip">'+esc(it.spu||'—')+'</td>'
           + '<td class="wk-clip" title="'+esc(it.name)+'">'+esc(it.name||'—')+'</td>'
+          + '<td class="wk-num wk-qty-strong" title="剩余数量">'+nf(it.qty||0)+'</td>'
+          + '<td class="wk-spu-cell" title="SPU '+(it.spu||'—')+'">'+(it.spu||'—')+'</td>'
           + '<td class="wk-clip" title="'+esc(it.spec)+'">'+esc(it.spec||'—')+'</td>'
           + '<td class="wk-clip" title="'+esc(it.buyer)+'">'+(it.buyer?esc(it.buyer):'—')+'</td>'
-          + '<td class="wk-clip" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
+          + '<td class="wk-clip wk-doc" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
           + '<td class="wk-clip" title="'+esc(sp.name)+'">'+esc(sp.short||sp.name)+'</td>'
           + '<td class="wk-clip" title="'+esc(it.ling)+'">'+(it.ling?esc(it.ling):'—')+'</td>'
-          + '<td class="wk-num">'+nf(it.qty||0)+'</td>'
+          + '<td class="wk-expect" title="'+(it.expect||'')+'">'+(it.expect||'—')+'</td>'
           + '<td class="wk-num">'+nf(it.apply_qty||0)+'</td>'
           + '<td>'+wkRemarkTag(it.remark)+'</td>'
           + '</tr>';
@@ -20376,6 +20391,16 @@ window.__test = {
       wkTrendFrom = _tf ? _tf.value : '';
       wkTrendTo = _tt ? _tt.value : '';
       try{ renderWkTrend(); }catch(e){}
+      /* 抽屉开着时同步重绘明细，保证日期筛选后表格与图一致 */
+      try{
+        var dr = document.getElementById('wk_trend_drawer');
+        if(dr && dr.classList.contains('open') && typeof renderWkTrendDrawerBody==='function'){
+          wkTrendCurDate = '';   // 若所选日期已不在筛选范围，下一行会自然显示空
+          renderWkTrendDrawerBody();
+          var hd=document.getElementById('wkTrendDrawerHead');
+          if(hd) hd.textContent='待下单明细（筛选后）';
+        }
+      }catch(e){}
     }
     if(_tf) _tf.onchange = applyTrendDate;
     if(_tt) _tt.onchange = applyTrendDate;
