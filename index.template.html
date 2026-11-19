@@ -3245,8 +3245,6 @@
     state.month=sp.getAttribute('data-m');
     syncMonthSwitch(); renderCurrent();
   });
-  document.getElementById('cross_heat_seg').addEventListener('click',function(e){ var s=e.target.closest('[data-m]'); if(!s)return;
-    state.crossHeatSeg=s.getAttribute('data-m'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderCross(); });
   var scoreSeg=document.getElementById('cross_score_seg');
   if(scoreSeg) scoreSeg.addEventListener('click',function(e){ var s=e.target.closest('[data-g]'); if(!s)return;
     scoreFilterG=s.getAttribute('data-g'); this.querySelectorAll('span').forEach(function(x){x.classList.toggle('on',x===s);}); renderCross(); });
