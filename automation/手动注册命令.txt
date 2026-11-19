@@ -7,7 +7,7 @@ schtasks /create /tn "KingdeeSync-0915" /tr "\"C:\Users\admin\WorkBuddy\2026-09-
 
 schtasks /create /tn "KingdeeSync-1430" /tr "\"C:\Users\admin\WorkBuddy\2026-09-17-11-48-46\supply-dashboard\automation\sync_kingdee.bat\"" /sc daily /st 14:30 /rl HIGHEST /f
 
-schtasks /create /tn "KingdeeSync-1745" /tr "\"C:\Users\admin\WorkBuddy\2026-09-17-11-48-46\supply-dashboard\automation\sync_kingdee.bat\"" /sc daily /st 17:45 /rl HIGHEST /f
+schtasks /create /tn "KingdeeSync-1645" /tr "\"C:\Users\admin\WorkBuddy\2026-09-17-11-48-46\supply-dashboard\automation\sync_kingdee.bat\"" /sc daily /st 16:45 /rl HIGHEST /f
 
 3. 验证是否创建成功：
    schtasks /query /tn "KingdeeSync-*"

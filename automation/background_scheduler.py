@@ -8,7 +8,7 @@
 
 用法：
   1. 双击 start_scheduler.bat（或使用 pythonw 隐藏窗口）
-  2. 任务在后台运行，每天 09:15 / 14:30 / 17:45 自动执行同步
+  2. 任务在后台运行，每天 09:15 / 14:30 / 16:45 自动执行同步
   3. 需要停止时双击 stop_scheduler.bat
 
 特性：
@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # 目标调度时间（时, 分）
-TRIGGERS = [(9, 15), (14, 30), (17, 45)]
+TRIGGERS = [(9, 15), (14, 30), (16, 45)]
 GRACE_SECONDS = 60  # 唤醒后宽限期，错过目标时间 60 秒内仍补跑
 
 # 无控制台环境（pythonw）下启动子进程：避免子进程因控制台被回收而收到

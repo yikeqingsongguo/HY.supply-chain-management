@@ -4,7 +4,7 @@
     注册金蝶 -> 供应链看板 每日自动同步的 Windows 计划任务
 .DESCRIPTION
     以管理员身份运行一次本脚本，会创建 3 个每日任务：
-    KingdeeSync-0915 / KingdeeSync-1430 / KingdeeSync-1745
+    KingdeeSync-0915 / KingdeeSync-1430 / KingdeeSync-1645
 .NOTES
     若提示“无法加载脚本”，先在管理员 PowerShell 里执行：
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
@@ -41,7 +41,7 @@ $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatt
 $Created = @()
 $Failed  = @()
 
-foreach ($time in @("09:15", "14:30", "17:45")) {
+foreach ($time in @("09:15", "14:30", "16:45")) {
     $name = "KingdeeSync-" + $time.Replace(":", "")
     $Trigger = New-ScheduledTaskTrigger -Daily -At $time
     try {
