@@ -71,18 +71,31 @@ def main():
                 for c in d.get("capacity", [])}
 
     # 按供应商聚合：当月在途 / 逾期未交 / SPU
-    agg = defaultdict(lambda: {"cur": 0.0, "od": 0.0, "spus": set(), "new_cur": 0.0})
+    this_m = "11月"   # 当月（与 meta.expect_month 可能对不上，用当月实际月份）
+    import calendar
+    _mn = dt.date.today().month
+    this_m = "%d月" % _mn
+    next_m = "%d月" % (_mn % 12 + 1)
+    agg = defaultdict(lambda: {"cur": 0.0, "od": 0.0, "spus": set(), "new_cur": 0.0,
+                               "docs": set(), "remain": 0.0, "next": 0.0, "new_spus": set()})
     for r in rows:
         s = r[ix["supplier_short"]] or "未标注"
         a = agg[s]
         rem = float(r[ix["remain"]] or 0)
-        if str(r[ix["month"]] or "") == "11月":
+        _mon = str(r[ix["month"]] or "")
+        if _mon == this_m:
             a["cur"] += rem
+        if _mon == next_m:
+            a["next"] += rem
+        a["remain"] += rem
+        if r[ix["doc_no"]]:
+            a["docs"].add(str(r[ix["doc_no"]]))
         a["spus"].add(str(r[ix["spu"]] or ""))
         # 在途新品：时效标签含 新品/新变体/爆款
         timing = str(r[ix.get("timing", 0)] or "") if "timing" in ix else ""
         if rem > 0 and any(k in timing for k in ("新品", "新变体", "爆款")):
             a["new_cur"] += rem
+            a["new_spus"].add(str(r[ix["spu"]] or ""))
         try:
             od = int(r[ix["overdue_days"]] or 0)
         except (TypeError, ValueError):
@@ -112,14 +125,12 @@ def main():
     f_od = norm([agg[s]["od"] / max(agg[s]["cur"], 1) for s in sups], True)
 
     def load_score(v):
-        """产能负荷：85%-100% 满分，过低/过载递减"""
+        """产能负荷：负荷越低分越高（有余量能接单），满产=0分"""
         if v <= 0:
-            return 0.0
-        if 0.85 <= v <= 1.0:
             return 100.0
-        if v < 0.85:
-            return max(0.0, (v / 0.85) * 60 + 40)
-        return max(0.0, 100 - (v - 1.0) / 0.5 * 60)
+        if v >= 1.0:
+            return 0.0
+        return max(0.0, (1.0 - v) * 100)
 
     result = []
     for s in sups:
@@ -146,6 +157,10 @@ def main():
             "new_ok": o["new_ok"],
             "new_den": o["new_den"],
             "new_cur": round(a["new_cur"]),
+            "new_spu_cnt": len(a["new_spus"]),
+            "doc_cnt": len(a["docs"]),
+            "remain": round(a["remain"]),
+            "next": round(a["next"]),
             "recv_rows": o["rows"],
             "detail": {
                 "rate": round(rate, 1), "od": round(a["od"]), "cur": round(a["cur"]),
@@ -153,7 +168,7 @@ def main():
                 "score_parts": [
                     {"label": "准交率", "value": round(rate, 1), "weight": 40, "contrib": round(rate * 0.4, 1)},
                     {"label": "逾期控制", "value": round(od_score, 1), "weight": 30, "contrib": round(od_score * 0.3, 1)},
-                    {"label": "产能负荷", "value": round(ld_score, 1), "weight": 15, "contrib": round(ld_score * 0.15, 1)},
+                    {"label": "产能余量", "value": round(ld_score, 1), "weight": 15, "contrib": round(ld_score * 0.15, 1)},
                     {"label": "新品准交", "value": round(new_score, 1), "weight": 15, "contrib": round(new_score * 0.15, 1)},
                 ],
             },
@@ -170,7 +185,7 @@ def main():
         "source": k3.get("source", ""),
         "metric": "工作台口径 judge_std（同采购部工作台）",
         "formula": "准交率40% + 逾期控制30% + 产能负荷15% + 新品准交15%",
-        "load_note": "当月在途 ÷ (月产能 × 剩余天数比)，%d/%d 天" % (left_days, total_days),
+        "load_note": "负荷率=当月在途÷(月产能×剩余天数比)，%d/%d天；负荷越低分越高（有余量能接单），满产0分" % (left_days, total_days),
         "overall": round(k3.get("overall", {}).get("rate", 0) * 100, 2),
         "rows": result,
     }

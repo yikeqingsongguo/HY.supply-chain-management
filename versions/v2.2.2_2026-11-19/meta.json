@@ -1,0 +1,14 @@
+{
+  "version": "2.2.2",
+  "date": "2026-11-19",
+  "type": "patch",
+  "title": "交叉分析改版：删旧图加指标卡与下钻",
+  "description": "负荷评分反转（低分高）；删热力图/逾期图；新增5个可下钻指标卡；详情面板9项指标逐项下钻；修复气泡标签与表格列文字挤占。",
+  "reason": "用户反馈文字挤占看不清、无法判断数据准确性、要求指标可下钻。",
+  "impact": "build_supplier_score.py/data.json/index.template.html；评分方向变更。",
+  "data_updated_at": "2026-11-19 15:01",
+  "parent_version": "v2.2.1",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-19 15:42:37"
+}
