@@ -62,8 +62,13 @@ def to_date(v):
         return v.date()
     if isinstance(v, dt.date):
         return v
-    t = str(v or "").strip()[:10].replace("/", "-")
-    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", t)
+    # 先按空格/T 切掉时间再归一化：金蝶导出的月日不补零（如 2027/3/5 00:00:00），
+    # 若先截前 10 个字符会得到 "2027-3-5 0" 而解析失败（曾导致 110 行期望到货丢失）
+    s = str(v or "").strip()
+    if not s:
+        return None
+    s = s.split(" ")[0].split("T")[0].replace("/", "-")
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", s)
     if m:
         return dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
     return None

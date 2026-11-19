@@ -2,13 +2,15 @@
 """build_supplier_score.py —— 生成「供应商综合评估」数据，写入 data.json 的 supplier_score 键。
 
 口径（2026-11-19 锁定）：
-  综合分 = 准交率×40% + 逾期控制×30% + 产能负荷×15% + 新品准交率×15%
-  （2026-11-19 改：移除款数维度；矩阵 X=综合分，Y=总准交率）
+  综合分 = 准交率×35% + 逾期控制×25% + 规模贡献×20% + 产能负荷×10% + 新品准交率×10%
+  （2026-11-19 二改：加入「在途订单数量」维度——订单规模越大且准交率越高，得分越高）
 
   准交率     : 采购部工作台 k3_live.json 的 suppliers（judge_std，工作台口径，照搬不修）
   逾期控制   : 逾期未交量÷当月在途，min-max 反向归一化 × 准交修正系数(0.5+0.5×rate)
-  产能负荷   : 当月在途 ÷ (月产能 × 当月剩余天数比)；85%-100% 满分，过低/过载递减
-  款数规模   : 订单 SPU 去重数 min-max 正向
+  规模贡献   : 在途订单数量 min-max 正向归一化 × (准交率/100)
+               —— 乘法而非加法：量大但准交低不加分，量小但准交满分也拿不到高分
+  产能负荷   : 当月在途 ÷ (月产能 × 当月剩余天数比)；负荷越低分越高（有余量能接单）
+  新品准交率 : 工作台 newRate（无新品分母给中性 50 分，不惩罚）
 
 边界：在途为 0 不显示；核心/普通分组；无准交率不评分。
 
@@ -123,6 +125,8 @@ def main():
                (lambda v: (v - lo) / (hi - lo) * 100)
 
     f_od = norm([agg[s]["od"] / max(agg[s]["cur"], 1) for s in sups], True)
+    # 规模：在途订单数量（全部未收，含本月/下月）正向归一化
+    f_size = norm([agg[s]["remain"] for s in sups], False)
 
     def load_score(v):
         """产能负荷：负荷越低分越高（有余量能接单），满产=0分"""
@@ -142,9 +146,12 @@ def main():
         od_score = f_od(a["od"] / max(a["cur"], 1)) * (0.5 + 0.5 * rate / 100)
         load_ratio = a["cur"] / max(capacity.get(s, 0) * ratio, 1)
         ld_score = load_score(load_ratio)
+        # 规模贡献：订单规模归一化 × 准交率（乘法，量大利薄不算优质）
+        size_score = f_size(a["remain"]) * (rate / 100.0)
         # 新品准交率：无新品分母时给中性分 50，不惩罚
         new_score = o["new_rate"] if o["new_den"] > 0 else 50.0
-        score = rate * 0.40 + od_score * 0.30 + ld_score * 0.15 + new_score * 0.15
+        score = (rate * 0.35 + od_score * 0.25 + size_score * 0.20
+                 + ld_score * 0.10 + new_score * 0.10)
         result.append({
             "short": s,
             "core": s in core,
@@ -159,6 +166,7 @@ def main():
             "new_cur": round(a["new_cur"]),
             "new_spu_cnt": len(a["new_spus"]),
             "doc_cnt": len(a["docs"]),
+            "size_score": round(size_score, 1),
             "remain": round(a["remain"]),
             "next": round(a["next"]),
             "recv_rows": o["rows"],
@@ -166,10 +174,11 @@ def main():
                 "rate": round(rate, 1), "od": round(a["od"]), "cur": round(a["cur"]),
                 "load": round(load_ratio * 100), "new_rate": round(new_score, 1),
                 "score_parts": [
-                    {"label": "准交率", "value": round(rate, 1), "weight": 40, "contrib": round(rate * 0.4, 1)},
-                    {"label": "逾期控制", "value": round(od_score, 1), "weight": 30, "contrib": round(od_score * 0.3, 1)},
-                    {"label": "产能余量", "value": round(ld_score, 1), "weight": 15, "contrib": round(ld_score * 0.15, 1)},
-                    {"label": "新品准交", "value": round(new_score, 1), "weight": 15, "contrib": round(new_score * 0.15, 1)},
+                    {"label": "准交率", "value": round(rate, 1), "weight": 35, "contrib": round(rate * 0.35, 1)},
+                    {"label": "逾期控制", "value": round(od_score, 1), "weight": 25, "contrib": round(od_score * 0.25, 1)},
+                    {"label": "规模贡献", "value": round(size_score, 1), "weight": 20, "contrib": round(size_score * 0.20, 1)},
+                    {"label": "产能余量", "value": round(ld_score, 1), "weight": 10, "contrib": round(ld_score * 0.10, 1)},
+                    {"label": "新品准交", "value": round(new_score, 1), "weight": 10, "contrib": round(new_score * 0.10, 1)},
                 ],
             },
         })
@@ -184,7 +193,7 @@ def main():
         "asof_end": k3.get("asof_end", ""),
         "source": k3.get("source", ""),
         "metric": "工作台口径 judge_std（同采购部工作台）",
-        "formula": "准交率40% + 逾期控制30% + 产能负荷15% + 新品准交15%",
+        "formula": "准交率35% + 逾期控制25% + 规模贡献20% + 产能负荷10% + 新品准交10%",
         "load_note": "负荷率=当月在途÷(月产能×剩余天数比)，%d/%d天；负荷越低分越高（有余量能接单），满产0分" % (left_days, total_days),
         "overall": round(k3.get("overall", {}).get("rate", 0) * 100, 2),
         "rows": result,

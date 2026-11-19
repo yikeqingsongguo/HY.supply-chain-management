@@ -380,8 +380,14 @@ tr.grp-row.unm td{background:#F9EBEB !important;border-top:1px solid var(--dange
 }
 
 /* === 可折叠卡片头（核查方式 / 核查规则）=== */
+/* 漏下单核查 · 差异明细：长供应商名不换行，超出省略（完整名悬停可见） */
+#checkTable tbody td{white-space:nowrap}
+#checkTable td.ck-sup{max-width:190px;overflow:hidden;text-overflow:ellipsis}
 .card-hd.foldable{cursor:pointer;user-select:none}
 .card-hd.foldable:hover{background:#FAFAFA}
+/* 折叠卡标题后的「当前口径」摘要：不属于冗余小字，需单独放行 */
+.card-hd .fold-sum{font-family:inherit;font-size:12.5px;font-weight:400;color:var(--muted);
+  margin-left:10px;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fold-ind{display:inline-block;min-width:11px;color:var(--hint);font-size:11px}
 .card.folded .card-hd{border-bottom:none}
 
@@ -742,6 +748,10 @@ body{
 .wk-toolbar{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
 .wk-toolbar input{width:110px}
 table.wk{width:100%;border-collapse:collapse;font-size:12.5px}
+/* 明细表固定列宽：单号/日期等窄列按 colgroup 收窄并省略号，不再被长单号撑开 */
+table.wk.wk-items{table-layout:fixed}
+table.wk.wk-items td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.wk.wk-items td.td-remark,table.wk.wk-items td.spec-cell{white-space:nowrap}
 table.wk th{text-align:left;color:var(--muted);font-weight:500;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 table.wk td{padding:7px 8px;border-bottom:1px solid #F2F2F2;vertical-align:middle}
 table.wk tbody tr.wk-row{cursor:pointer}
@@ -1398,7 +1408,7 @@ table.wk td b{white-space:nowrap}
   <div id="tab-check" class="hidden">
     <div class="card folded">
       <div class="card-hd foldable" data-fold="foldCheckMode">
-        <h3><span class="fold-ind">▸</span> ① 选择核查方式</h3>
+        <h3><span class="fold-ind">▸</span> ① 选择核查方式<span class="fold-sum" id="sumCheckMode"></span></h3>
       </div>
       <div class="card-bd hidden" id="foldCheckMode">
         <div class="mode-wrap">
@@ -1438,8 +1448,7 @@ table.wk td b{white-space:nowrap}
 
     <div class="card folded">
       <div class="card-hd foldable" data-fold="foldCheckRule">
-        <h3><span class="fold-ind">▸</span> ③ 核查规则</h3>
-        <span class="hint">点击展开口径说明与参数</span>
+        <h3><span class="fold-ind">▸</span> ③ 核查规则<span class="fold-sum" id="sumCheckRule"></span></h3>
       </div>
       <div class="card-bd hidden" id="foldCheckRule">
         <div class="rule mb12" style="margin-bottom:12px">
@@ -1457,8 +1466,6 @@ table.wk td b{white-space:nowrap}
         </div>
       </div>
       <div class="card-bd" style="padding-top:0;border-top:1px dashed var(--line)">
-        <div class="rule mt12" style="background:#FFF;border:1px solid var(--line);padding:10px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        </div>
         <div class="btn-row mt12">
           <button class="btn pri" id="btnRunCheck">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -17722,7 +17729,9 @@ function renderCheckTable() {
     /* 创建日期：按 SKU 汇总时取最早的创建日期 */
     tr.appendChild(el('td', 'col-date', r.dateMin || '—'));
     tr.appendChild(el('td', 'sku-big mono', r.sku));
-    tr.appendChild(el('td', null, r.supplier || '—'));
+    var tdSup = el('td', 'ck-sup', r.supplier || '—');
+    tdSup.title = r.supplier || '';
+    tr.appendChild(tdSup);
     /* 领星创建人：从 applyRows 行里聚合（按 SKU） */
     tr.appendChild(el('td', null, r.lingxingCreator || '—'));
     tr.appendChild(el('td', 'num', fmtNum(r.applyQty)));
@@ -19074,8 +19083,31 @@ function initFolds() {
       if (ind) ind.textContent = open ? '▾' : '▸';
     }
     paint(!body.classList.contains('hidden'));
-    hd.onclick = function () { paint(body.classList.contains('hidden')); };
+    hd.onclick = function () { paint(body.classList.contains('hidden')); refreshFoldSums(); };
   });
+  refreshFoldSums();
+}
+
+/* 折叠状态下在标题行显示当前生效口径，避免「空盒子」看不出里面配了什么 */
+function refreshFoldSums() {
+  var mode = document.getElementById('sumCheckMode');
+  if (mode) {
+    var m = document.querySelector('input[name="checkMode"]:checked');
+    var isSingle = !m || m.value === 'single';
+    mode.textContent = isSingle
+      ? '单文件核查 · 用申请单自带「剩余数量 / 订单数量」判定'
+      : '双文件核查 · 申请量 vs 采购订单逐项比对';
+  }
+  var rule = document.getElementById('sumCheckRule');
+  if (rule) {
+    var g = function (id) { var e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; };
+    var parts = [];
+    if (g('optPrefixes')) parts.push('剥前缀 ' + g('optPrefixes'));
+    if (g('optApplyEx')) parts.push('状态排除 ' + g('optApplyEx'));
+    if (g('optCloseEx')) parts.push('关闭排除 ' + g('optCloseEx'));
+    if (g('optOrderEx')) parts.push('订单排除 ' + g('optOrderEx'));
+    rule.textContent = parts.length ? parts.join(' · ') : '容差 0 · 未设排除词（点击展开可改）';
+  }
 }
 
 /* === 导入说明弹窗（原内联说明块 → 可点击查看）=== */
@@ -19754,9 +19786,10 @@ window.__test = {
     {key:'name', label:'物料名称',    w:90},
     {key:'spec', label:'规格',        w:132, cls:'spec-cell'},
     {key:'buyer',label:'采购员',      w:66},
-    {key:'doc',  label:'申请单单号',   w:118},
+    {key:'doc',  label:'申请单单号',   w:62},
     {key:'date', label:'创建日期',    w:102},
     {key:'ling', label:'领星创建人',   w:82},
+    {key:'expect',label:'期望到货',   w:96},
     {key:'qty',  label:'待下单',      w:72, num:true},
     {key:'remark',label:'备注',       w:74}
   ];
@@ -20198,7 +20231,7 @@ window.__test = {
           + '<td class="wk-clip wk-doc" title="'+esc(it.doc)+'">'+esc(it.doc)+'</td>'
           + '<td class="wk-clip" title="'+esc(sp.name)+'">'+esc(sp.short||sp.name)+'</td>'
           + '<td class="wk-clip" title="'+esc(it.ling)+'">'+(it.ling?esc(it.ling):'—')+'</td>'
-          + '<td class="wk-expect" title="'+(it.expect||'')+'">'+(it.expect||'—')+'</td>'
+          + '<td class="wk-expect" title="'+esc(it.expect)+'">'+(it.expect?esc(String(it.expect).replace(/-/g,'/')):'—')+'</td>'
           + '<td class="wk-num">'+nf(it.apply_qty||0)+'</td>'
           + '<td>'+wkRemarkTag(it.remark)+'</td>'
           + '</tr>';
@@ -20529,6 +20562,9 @@ window.__test = {
           h += '<td class="col-date" style="color:var(--muted);white-space:nowrap">'+esc(v||'—')+'</td>';
         }else if(c.key === 'spec'){
           h += '<td class="spec-cell" title="'+esc(v||'')+'">'+esc(v||'')+'</td>';
+        }else if(c.key === 'expect'){
+          var ev = v ? String(v).replace(/-/g,'/') : '';
+          h += '<td class="wk-expect" title="'+esc(ev)+'" style="color:'+(ev?'#4A5668':'#B9C2CC')+'">'+(ev?esc(ev):'—')+'</td>';
         }else if(c.key === 'sku' || c.key === 'spu' || c.key === 'doc' || c.key === 'supName'){
           h += '<td class="mono" title="'+esc(v||'')+'">'+esc(v||'—')+'</td>';
         }else if(c.key === 'name'){
@@ -21171,9 +21207,13 @@ window.__test = {
         + (sl.length ? sl.map(function(x){
             var bl = (x.buyers||[]).join('、');
             return '<tr class="wk-row'+(x.pending?' wk-pending':'')+'" data-short="'+esc(x.short)+'" title="点击查看 SKU 明细">'
-              + '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(x.name||x.short)+'">'
-              + '<b>'+esc(x.short)+'</b> '+(x.pending?'<span class="tag pending">待填写</span> ':(x.core?'<span class="tag core">核心</span> ':''))
-              + '<span style="color:var(--muted)">'+esc(x.name)+'</span></td>'
+              + '<td style="max-width:200px" title="'+esc(x.name||x.short)+'">'
+              + '<div style="display:flex;align-items:center;gap:5px;white-space:nowrap"><b>'+esc(x.short)+'</b>'
+              + (x.pending?'<span class="tag pending">待填写</span>':(x.core?'<span class="tag core">核心</span>':''))+'</div>'
+              + (x.name && x.name!==x.short
+                  ? '<div style="font-size:11px;color:#94A3B0;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.name)+'</div>'
+                  : '')
+              + '</td>'
               + '<td style="text-align:right">'+nf(x.plan)+'</td>'
               + '<td style="text-align:right">'+(scopeTotal>0?(x.plan/scopeTotal*100).toFixed(1):'0.0')+'%</td>'
               + '<td style="text-align:right;color:var(--muted)">'+(x.skus||0)+'</td>'
@@ -21364,7 +21404,16 @@ window.__test = {
     try{ if(localStorage.getItem(K)==='1') set(true); }catch(e){}
   }
 
-  function boot(){ loadApply(); loadWk(); bindUnmatchFold(); }
+  function boot(){ loadApply(); loadWk(); bindUnmatchFold(); bindFoldSums(); }
+function bindFoldSums(){
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="checkMode"]'), function(r){
+    r.addEventListener('change', refreshFoldSums);
+  });
+  ['optPrefixes','optApplyEx','optCloseEx','optOrderEx'].forEach(function(id){
+    var e = document.getElementById(id);
+    if(e) e.addEventListener('input', refreshFoldSums);
+  });
+}
   if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); }
   else { setTimeout(boot, 300); }
 })();
