@@ -24,3 +24,4 @@
 | 2.2.2 | 2026-11-19 | 小修/微调 | 交叉分析改版：删旧图加指标卡与下钻 | build_supplier_score.py/data.json/index.template.html；评分方向变更。 | [2.2.2](versions/v2.2.2_2026-11-19) |
 | 2.2.3 | 2026-11-19 | 小修/微调 | 全站五类小字清理 | index.template.html/console/index.html/index.html；纯文案与样式，无数据口径变更。 | [2.2.3](versions/v2.2.3_2026-11-19) |
 | 2.2.4 | 2026-11-19 | 小修/微调 | 八项修复：日期联动/列序/期望到货/指标可点 | build_console_data.py/console/index.html/index.template.html/data.json；新增期望到货字段，矩阵门槛6000。 | [2.2.4](versions/v2.2.4_2026-11-19) |
+| 2.3.0 | 2026-11-19 | 功能/较大改动 | 在途订单计入评分 + 三处渲染/数据 bug 修复 | - | [2.3.0](versions/v2.3.0_2026-11-19) |

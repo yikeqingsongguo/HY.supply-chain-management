@@ -1,0 +1,14 @@
+{
+  "version": "2.3.0",
+  "date": "2026-11-19",
+  "type": "minor",
+  "title": "在途订单计入评分 + 三处渲染/数据 bug 修复",
+  "description": "交叉分析新增规模贡献维度(在途订单数量×准交率, 权重35/25/20/10/10)；修复产能负荷页因 cap_detail_sub 节点被删导致的渲染中断；修复 to_date 月日未补零导致 110 行期望到货丢失；KPI 卡改 .ckpi、详情面板默认展开首位、明细表 fixed 布局",
+  "reason": "",
+  "impact": "",
+  "data_updated_at": "2026-11-19 17:15",
+  "parent_version": "v2.2.4",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-19 17:51:54"
+}
