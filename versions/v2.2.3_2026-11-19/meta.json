@@ -1,0 +1,14 @@
+{
+  "version": "2.2.3",
+  "date": "2026-11-19",
+  "type": "patch",
+  "title": "全站五类小字清理",
+  "description": "按复述副标题/模块说明/免责声明/按钮提示/空状态长解释五类规则清理看板与管理台；口径公式收进ⓘ气泡。",
+  "reason": "用户要求全站整改，保持界面简洁，给出'删掉会不会做错'判断标准。",
+  "impact": "index.template.html/console/index.html/index.html；纯文案与样式，无数据口径变更。",
+  "data_updated_at": "2026-11-19 15:01",
+  "parent_version": "v2.2.2",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-19 16:13:47"
+}

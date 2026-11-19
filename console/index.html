@@ -1275,7 +1275,6 @@ table.wk td b{white-space:nowrap}
     <div class="card">
       <div class="card-hd">
         <h3>映射明细</h3>
-        <span class="hint">点击单元格直接改，勾选后可批量设置</span>
       </div>
       <div class="tbl-tools">
         <input class="inp grow" id="mapSearch" placeholder="搜索 SKU / 供应商 / 采购员…" style="max-width:280px">
@@ -1358,7 +1357,6 @@ table.wk td b{white-space:nowrap}
         </select>
         <input class="inp grow" id="matchSearch" placeholder="搜索 SKU / 单号 / 供应商 / 采购员 / 领星创建人…" style="max-width:280px">
         <span class="spacer" style="flex:1"></span>
-        <span class="hint">点表头「▾」筛选</span>
         <button class="btn sm" id="btnExportMatchX">导出 Excel</button>
         <button class="btn sm" id="btnExportMatchC">导出 CSV</button>
       </div>
@@ -1396,7 +1394,6 @@ table.wk td b{white-space:nowrap}
     <div class="card folded">
       <div class="card-hd foldable" data-fold="foldCheckMode">
         <h3><span class="fold-ind">▸</span> ① 选择核查方式</h3>
-        <span class="hint" id="checkModeHint">当前：单文件核查 · 点击展开切换</span>
       </div>
       <div class="card-bd hidden" id="foldCheckMode">
         <div class="mode-wrap">
@@ -1471,8 +1468,6 @@ table.wk td b{white-space:nowrap}
       </div>
       <div class="card-bd" style="padding-top:0;border-top:1px dashed var(--line)">
         <div class="rule mt12" style="background:#FFF;border:1px solid var(--line);padding:10px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-          <span class="hint" id="lastTueHint">截止日期：—（按所选快捷方式自动算）</span>
-          <span class="hint">已作废 / 已关闭 状态自动排除</span>
         </div>
         <div class="btn-row mt12">
           <button class="btn pri" id="btnRunCheck">
@@ -1498,7 +1493,6 @@ table.wk td b{white-space:nowrap}
           <option value="partial">仅数量不足</option>
           <option value="over">仅超量下单</option>
         </select>
-        <span class="hint" style="margin-left:6px;color:var(--muted)">▾ 列筛选</span>
         <button class="btn sm pop" data-pop="checkPopNo">申请单号</button>
         <button class="btn sm pop" data-pop="checkPopCreator">领星创建人</button>
         <button class="btn sm pop" data-pop="checkPopSupplier">供应商</button>
@@ -1585,7 +1579,6 @@ table.wk td b{white-space:nowrap}
     <div class="card">
       <div class="card-hd" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <h3 style="margin:0">统计汇总</h3>
-        <span class="hint">按供应商与待下单总数 · 点击行看明细</span>
         <span class="spacer" style="flex:1"></span>
         <input class="inp" id="wkSumSearch" placeholder="搜索供应商 / 简称…" autocomplete="off"
                style="max-width:150px;height:28px;padding:3px 8px;font-size:12.5px">
@@ -1597,7 +1590,6 @@ table.wk td b{white-space:nowrap}
     <div class="card">
       <div class="card-hd" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <h3 style="margin:0">采购员汇总</h3>
-        <span class="hint">点击行可下钻明细（受创建日期与核心/普通筛选影响）</span>
         <button class="btn" id="wkExportExcel" style="margin-left:auto;white-space:nowrap">导出 Excel</button>
       </div>
       <div class="card-bd" id="wkBuyerSummary"></div>
@@ -1620,7 +1612,6 @@ table.wk td b{white-space:nowrap}
       <div class="stats" id="supplierStats"></div>
     </div>
     <div class="sup-date-bar" id="supDateBar" title="按创建日期筛选">
-      <span class="hint" style="font-weight:500;white-space:nowrap">按创建日期筛选</span>
       <select class="inp" id="supDateQuick">
         <option value="">全部（不过滤）</option>
         <option value="last_tue">上周二及之前</option>
