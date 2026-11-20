@@ -1,0 +1,14 @@
+{
+  "version": "2.6.0",
+  "date": "2026-11-20",
+  "type": "minor",
+  "title": "准交率页改用 skill 口径，全站数据源统一",
+  "description": "新增 otd_from_k3.py，准交率页改读 k3_live.json + q2_rows.json（judge_std 口径），与采购部工作台、交叉分析完全同源；采购员按供应商映射表归集；明细粒度 SPU；交付文档 8.1 重写",
+  "reason": "",
+  "impact": "",
+  "data_updated_at": "2026-11-20 09:59",
+  "parent_version": "v2.5.0",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-20 10:06:05"
+}
