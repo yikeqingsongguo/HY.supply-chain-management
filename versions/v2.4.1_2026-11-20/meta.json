@@ -1,0 +1,14 @@
+{
+  "version": "2.4.1",
+  "date": "2026-11-20",
+  "type": "patch",
+  "title": "修复跨脚本块引用导致趋势图与交叉分析下钻失灵",
+  "description": "fmtYMD 跨块引用被 try/catch 吞掉导致筛选不刷新且点不开明细；交叉分析误读已删除的 orders_rows 导致指标全部无明细；明细层去掉冗余 SPU 列；SPU 层改灰蓝胶囊+蓝色粗数量",
+  "reason": "",
+  "impact": "",
+  "data_updated_at": "2026-11-19 18:05",
+  "parent_version": "v2.4.0",
+  "page_file": "index.html",
+  "author": "RE",
+  "created_at": "2026-11-20 09:01:25"
+}
