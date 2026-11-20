@@ -29,3 +29,6 @@ console/preview_*.html
 _t_*.html
 .workbuddy_backup_template_*.html
 data_20261020_backup.json
+
+# 自动备份文件
+*.bak-*

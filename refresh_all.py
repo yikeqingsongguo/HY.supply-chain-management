@@ -30,6 +30,11 @@ VENV_PY = r"C:\Users\admin\.workbuddy\binaries\python\envs\default\Scripts\pytho
 BUILD_PY = VENV_PY if os.path.exists(VENV_PY) else sys.executable
 
 GIT_CANDIDATES = [
+    # 与 sync_kingdee.py 同源：.workbuddy 管理的 PortableGit（cmd 入口，已随每日同步长期验证可用）
+    r"C:\Users\admin\.workbuddy\binaries\PortableGit\versions\1.3.0\cmd\git.exe",
+    # 兜底：WorkBuddy 自带 vendor PortableGit（双击 bat 时 cmd 环境无 Git Bash 的 PATH）
+    r"C:\Users\admin\AppData\Local\Programs\WorkBuddy\resources\vendor\PortableGit\cmd\git.exe",
+    r"C:\Users\admin\AppData\Local\Programs\WorkBuddy\resources\vendor\PortableGit\mingw64\bin\git.exe",
     r"C:\Users\admin\.workbuddy\binaries\PortableGit\versions\1.3.0\bin\git.exe",
     shutil.which("git") or "",
 ]
@@ -37,7 +42,8 @@ GIT_CANDIDATES = [
 # 构建产物：只提交这些，避免临时文件入库
 COMMIT_PATHS = ["src", "data.json", "index.html",
                 os.path.join("console", "weekly.json"),
-                os.path.join("console", "apply.csv")]
+                os.path.join("console", "apply.csv"),
+                os.path.join("console", "overview.json")]
 
 
 def hr(ch="=", n=64):

@@ -872,7 +872,7 @@
 <section class="page" id="page_otd">
 <style>#page_otd .pt-month{display:none}</style>
   <div class="page-title"><span class="pico" style="--pico:#10B981"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8.4" stroke="#10B981" stroke-width="2.6"/><path d="M7.8 12.2l2.7 2.7 5.7-6" stroke="#10B981" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>准交率分析</span></div>
-      <span class="kpi-info" title="按收料单统计：准交率 = Σ(收料日期 ≤ 交货日期 的收料量) ÷ Σ收料总量；仅保留指定采购员、排除包材辅料">ⓘ</span>
+      <span class="kpi-info" title="采购部工作台口径：准交率 = Σ准交量 ÷ Σ实际交货量；判定按《准交标准》算出的标准时效，实际时效未超标准即为准时">ⓘ</span>
   <div class="ctl-inline">
     <span class="lab">统计月份：</span>
     <div class="seg" id="otd_period_seg"></div>
@@ -905,7 +905,7 @@
       <div class="chart" id="otd_donut" style="height:260px"></div>
     </div>
     <div class="panel">
-      <h3>覆盖与排除</h3>
+      <h3>判定基准与数据校验</h3>
       <div id="otd_cover" class="ph-sub" style="margin-top:8px;line-height:1.9"></div>
     </div>
   </div>
@@ -1549,7 +1549,7 @@
     {label:'采购数量',key:'po_qty',render:function(r){return fmt(r.po_qty);}},
     {label:'已收',key:'received',render:function(r){return fmt(r.received);}},
     {label:'剩余',key:'remain',render:function(r){return fmt(r.remain);}},
-    {label:'交货日期',key:'delivery'},
+    {label:'订单交货',key:'delivery'},
     {label:'状态',key:'status',render:function(r){return statusTag(r);}}
   ];
   // SKU 明细列：一行 = 一条订单行（物料 / 规格型号 / SKU / 数量）
@@ -1562,7 +1562,7 @@
       {label:'采购数量',key:'po_qty',render:function(r){return fmt(r.po_qty);}},
       {label:'已收',key:'received',render:function(r){return fmt(r.received);}},
       {label:'剩余',key:'remain',render:function(r){return fmt(r.remain);}},
-      {label:'交货日期',key:'delivery'},
+      {label:'订单交货',key:'delivery'},
       {label:'状态',key:'status',render:function(r){return statusTag(r);}}
     ];
   }
@@ -1602,7 +1602,7 @@
     {label:'剩余收料',key:'remain',render:function(r){return fmt(r.remain);}},
     {label:'采购数量',key:'po_qty',render:function(r){return fmt(r.po_qty);}},
     {label:'最大逾期天数',key:'maxOd',render:function(r){return '<span class="tag od">'+r.maxOd+'天</span>';}},
-    {label:'交货日期',key:'delivery'},
+    {label:'订单交货',key:'delivery'},
     {label:'状态',key:'',render:function(r){return '<span class="tag od">逾期</span>';}}
   ];
 
@@ -1911,7 +1911,7 @@
           {label:'物料名称',key:'material_name'},
           {label:'供应商',key:'supplier'},
           {label:'时效标签',key:'timing'},
-          {label:'交货日期',key:'delivery'},
+          {label:'订单交货',key:'delivery'},
           {label:'订单数量',key:'po_qty'},
           {label:'待交数量',key:'remain'}
         ], 'SPU <b>'+a.spu+'</b> ｜ '+monthTxt+'待交 <b>'+fmt(wk==='m'?a.mR:a.nR)+'</b> ｜ '+sub.length+' 行',
@@ -2749,9 +2749,9 @@
     }
     var scopeTxt = scope==='core'?'核心供应商':(scope==='normal'?'普通供应商':'全部供应商');
     renderCards('otd_kpi',[
-      {lab:'整体准交率',val:otdPct(o.rate),hint:p.label+' · '+scopeTxt+' · 收料口径',color:'var(--blue)'},
-      {lab:'准交数量',val:fmt(o.ontime),hint:'收料日期 ≤ 交货日期',color:'var(--green)'},
-      {lab:'收料总数量',val:fmt(o.recv_qty),hint:'分母 · 已计入范围',color:'var(--purple)'},
+      {lab:'整体准交率',val:otdPct(o.rate),hint:p.label+' · '+scopeTxt+' · 标准时效口径',color:'var(--blue)'},
+      {lab:'准交数量',val:fmt(o.ontime),hint:'实际时效 ≤ 标准时效',color:'var(--green)'},
+      {lab:'实际交货量',val:fmt(o.recv_qty),hint:'分母 · 准交率的计算基数',color:'var(--purple)'},
       {lab:'逾期数量',val:fmt(o.late),hint:(o.late_rows||0)+' 行逾期收料',color:'var(--red)'}
     ]);
     var top=list.slice(0,15);
@@ -2795,9 +2795,9 @@
       openDrawer(x.name+' · 收料明细', sub, [
         {label:'收料通知单号',key:'recv_doc'},
         {label:'源单单号',key:'doc'},
-        {label:'SKU',key:'material'},
+        {label:'SPU',key:'material'},
         {label:'供应商',key:'supplier'},
-        {label:'交货日期',key:'delivery'},
+        {label:'订单交货',key:'delivery'},
         {label:'收料日期',key:'receipt_date'},
         {label:'周期',key:'days_txt'},
         {label:'交货数量',key:'qty'},
@@ -2869,9 +2869,9 @@
         openDrawer(x.date+' · 当日收料明细', sub, [
           {label:'收料通知单号',key:'recv_doc'},
           {label:'源单单号',key:'doc'},
-          {label:'SKU',key:'material'},
+          {label:'SPU',key:'material'},
           {label:'供应商',key:'supplier'},
-          {label:'交货日期',key:'delivery'},
+          {label:'订单交货',key:'delivery'},
           {label:'收料日期',key:'receipt_date'},
           {label:'周期',key:'days_txt'},
           {label:'交货数量',key:'qty'},
@@ -2884,14 +2884,19 @@
     var ts2=document.getElementById('otd_trend_sub');
     if(ts2){ ts2.textContent=p.label+' · 共 '+tr.length+' 天有收料 · 点击数据点下钻当日明细'; }
 
-    var cover='<b>覆盖校验</b>：源单号覆盖率 '+c.unique_rate+'%（'+(c.unique_matched||0)+'/'+(c.unique_total||0)+'）｜ 收料行覆盖率 '+c.row_rate+'%（'+(c.rows_matched||0)+'/'+(c.rows_total||0)+'）';
-    if(o.excluded_qty){ cover+=' ｜ 本期排除 '+fmt(o.excluded_qty)+' 件（占 '+o.excluded_rate+'%）'; }
-    if((p.unknown_missing||[]).length){ cover+=' ｜ <span style="color:var(--red)">未知缺失 '+(p.unknown_missing||[]).length+' 个源单</span>'; }
+    var ck=p.checks||{};
+    var cover='<b>判定基准</b>：《准交标准》算出的标准时效（实际时效未超即准时）'
+      +'　·　<b>数据区间</b> '+String(ck.window_start||'—')+' ~ '+String(ck.window_end||'—')
+      +'　·　<b>逐行明细</b> '+fmt(ck.rows||0)+' 行'
+      +'　·　<b>对账</b> '+(ck.consistent
+          ? '<span style="color:var(--green)">与工作台一致</span>'
+          : '<span style="color:var(--red)">不一致：'+String((ck.warnings||[]).join('；')).replace(/</g,'&lt;')+'</span>');
+    if(o.excluded_qty){ cover+='　·　本期排除 '+fmt(o.excluded_qty)+' 件（占 '+o.excluded_rate+'%）'; }
     var cv=document.getElementById('otd_cover'); if(cv) cv.innerHTML=cover;
 
     var ttl=document.getElementById('otd_tbl_title'); if(ttl) ttl.textContent=label+'准交率明细';
     var tsub=document.getElementById('otd_tbl_sub');
-    if(tsub){ tsub.textContent=p.label+' · 收料口径 · 点击表头排序 · 点击行查看逐条收料明细'; }
+    if(tsub){ tsub.textContent=p.label+' · 标准时效口径 · 点击表头排序 · 点击行查看逐条收料明细'; }
 
     if(tbl){
       var h='<table class="t"><thead><tr>';
@@ -2914,9 +2919,9 @@
       var detailCols=[
         {label:'收料通知单号',key:'recv_doc'},
         {label:'源单单号',key:'doc'},
-        {label:'SKU',key:'material'},
+        {label:'SPU',key:'material'},
         {label:'供应商',key:'supplier'},
-        {label:'交货日期',key:'delivery'},
+        {label:'订单交货',key:'delivery'},
         {label:'收料日期',key:'receipt_date'},
         {label:'周期',key:'days_txt'},
         {label:'交货数量',key:'qty'},
@@ -2971,13 +2976,12 @@
       var exr=(p.excluded_reasons||[]).map(function(x){ return x.reason+' '+fmt(x.qty)+' 件'; }).join('；');
       note+='<div class="panel" style="grid-column:1/-1"><h3>口径与数据说明</h3>'
         +'<div class="ph-sub">'
-        +'<b>准交率 = Σ(收料日期 ≤ 采购订单交货日期 的收料量) ÷ Σ收料总量</b>，分母为收料数量（非订单数量）。'
-        +'<br/>订单口径：同一采购订单的多张收料单按「源单单号」合并统计，逐条判定后合计；'
-        + '收料通知单均带源单单号（对应<b>标准采购订单</b>），无需再区分采购订单类型。' 
-        +'<br/>统计范围：采购订单创建人仅保留 <b>'+OTD.creator_whitelist.join('、')+'</b>；'
-        +'供应商限产能表内 <b>'+(OTD.supplier_pool||40)+' 家箱包成品厂</b>，包材/辅料不计入。'
-        +'<br/>数量口径：优先「合格入库关联数量」，为空且行状态=正常时取「实收数量」。'
-        +'<br/>周期 = 收料日期 − 交货日期（负数为提前）。'
+        +'<b>准交率 = Σ准交量 ÷ Σ实际交货量</b>，分母为实际交货数量（非订单数量）。'
+        +'<br/>判定：按《准交标准》P0–P5 规则算出「标准时效」（皮革午餐包 → 转厂首产 → 佳俊高端 → 国际站 → 特殊类 → 新品 → 产线兜底），实际时效未超标准时效记为准时。'
+        +'<br/>数据源：<b>k3_live.json + q2_rows.json</b>，由 build_k3live.py 调用 k3cloud-weekly-report skill 的 judge_std 生成，与采购部工作台同源。'
+        +'<br/>采购员归属：按<b>供应商映射表</b>把整家供应商归一名负责人，不是单据上的采购员。'
+        +'<br/>统计范围：<b>'+(OTD.supplier_pool||0)+' 家供应商</b>、<b>'+OTD.creator_whitelist.length+' 名负责人</b>。'
+        +'<br/>明细粒度：收料单级，物料只到 <b>SPU</b>（编码前 4 位数字）。'
         +(exr?('<br/>本期排除：'+exr+'。'):'')
         +'</div></div>';
     }

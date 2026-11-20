@@ -38,10 +38,12 @@ try:
 except ImportError:
     sys.exit("缺少依赖 openpyxl，请先: pip install openpyxl")
 
+# 准交率数据源：采购部工作台口径（k3cloud-weekly-report skill 的 judge_std）
+# 旧 otd.py（收料单口径）已停用，保留文件仅作对照，不要再接回去。
 try:
-    from otd import build_otd
+    from otd_from_k3 import build_otd_from_k3
 except ImportError:
-    build_otd = None
+    build_otd_from_k3 = None
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "src")
@@ -469,18 +471,19 @@ def clean():
         "self_check_ok": all(c[3] is not False for c in checks) if any(c[2] is not None for c in checks) else None,
     }
 
-    # ---------- 准交率（独立数据源：收料通知单 + 全量采购订单） ----------
-    # 失败不影响在途数据产出；缺源表时 otd=None，前端显示待接入。
+    # ---------- 准交率（数据源：k3_live.json + q2_rows.json，skill judge_std 口径） ----------
+    # 失败不影响在途数据产出；不回退旧收料单口径，避免页面静默换口径。
     otd = None
     otd_error = None
-    if build_otd:
+    if build_otd_from_k3:
         try:
-            otd = build_otd(args.src)
+            otd = build_otd_from_k3()
         except Exception as _e:
             import traceback
-            otd_error = traceback.format_exc()
-            print(f"⚠️ 准交率计算失败（不影响在途数据）：{type(_e).__name__}: {_e}")
-            print(otd_error)
+            otd_error = ("准交率数据源不可用（%s: %s）\n"
+                         "请先运行 build_k3live.py 生成 k3_live.json / q2_rows.json。\n\n%s"
+                         % (type(_e).__name__, _e, traceback.format_exc()))
+            print(f"⚠️ 准交率生成失败（不影响在途数据）：{type(_e).__name__}: {_e}")
 
     # 列式编码：orders 是 4k+ 行 × 25 字段，若写成对象数组，光重复的键名就约 1.2MB。
     # 改为「列名数组 + 行数组」后可省约 58% 体积（前端一次性还原成对象，见 index.template.html）。
@@ -503,12 +506,15 @@ def clean():
 
     if otd:
         _d = otd["periods"][-1]
-        _c = _d["coverage"]
-        print(f"准交率[{_d['period']}]: {_d['overall']['rate']}%  "
-              f"单号覆盖 {_c['unique_rate']}%  行覆盖 {_c['row_rate']}%  "
-              f"未知缺失 {len(_d['unknown_missing'])} 个  已知例外 {len(_d['excluded_known'])} 个")
+        _k = _d.get("checks") or {}
+        print(f"准交率[{_d['period']}] 标准时效口径: {_d['overall']['rate']}%  "
+              f"准交 {_d['overall']['ontime']:,.0f} / 分母 {_d['overall']['recv_qty']:,.0f}  "
+              f"{_k.get('rows', 0)} 行  "
+              + ("对账通过" if _k.get("consistent") else "⚠️ 对账不一致"))
+        for _w in (_k.get("warnings") or []):
+            print("   ⚠️ " + _w)
     else:
-        print("准交率: 未计算（缺 src/otd_recv.xlsx 或 src/otd_po_full.xlsx）")
+        print("准交率: 未生成（缺 k3_live.json / q2_rows.json，或 build_k3live.py 未运行）")
 
     print("=== 自检：与源表「合计」行比对 ===")
     if not erp_total:

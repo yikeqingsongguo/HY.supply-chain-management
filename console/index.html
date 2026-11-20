@@ -2,6 +2,31 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<script>
+/* [supply-console 数据直连 v1] 优先从 GitHub Pages 读最新数据，失败自动回退同域。
+   作用：每日同步/一键刷新 push 后，本控制台无需重新发布即可显示最新数据。
+   回退：删除本 <script> 块并重新发布即可恢复原同域读取。 */
+(function () {
+  var CLOUD_BASE = 'https://yikeqingsongguo.github.io/HY.supply-chain-management/console/';
+  var TARGETS = { 'weekly.json': 1, 'apply.csv': 1, 'overview.json': 1 };
+  if (!window.fetch) return;
+  var _fetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    try {
+      if (typeof input === 'string' && !/^https?:/i.test(input)) {
+        var name = input.split('?')[0].replace(/^\.\//, '');
+        if (TARGETS[name]) {
+          return _fetch(CLOUD_BASE + input, init).then(function (r) {
+            if (!r || !r.ok) throw new Error('cloud ' + (r && r.status));
+            return r;
+          }).catch(function () { return _fetch(input, init); });
+        }
+      }
+    } catch (e) { /* 任何异常都退回原逻辑 */ }
+    return _fetch(input, init);
+  };
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>采购申请单与订单分配管理台</title>
 <link rel="icon" type="image/png" href="logo-mark.png">
